@@ -46,18 +46,26 @@ function defaultTaskState(): TaskState {
 }
 
 export function CampaignProvider({ children }: { children: ReactNode }) {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
-    const stored = load<Campaign[]>(LS_CAMPAIGNS, []);
-    // merge seeds with any user-created campaigns (seeds always present)
-    const userMade = stored.filter((c) => !c.seeded);
-    return [...seedCampaigns, ...userMade];
-  });
-  const [activeId, setActiveId] = useState<string>(() => load<string>(LS_ACTIVE, seedCampaigns[0].id));
-  const [taskState, setTaskState] = useState<TaskState>(() => ({ ...defaultTaskState(), ...load<TaskState>(LS_TASKS, {}) }));
+  // Deterministic initial state (identical on server and client's first render)
+  // to avoid SSR hydration mismatches. localStorage is read after mount below.
+  const [campaigns, setCampaigns] = useState<Campaign[]>(seedCampaigns);
+  const [activeId, setActiveId] = useState<string>(seedCampaigns[0].id);
+  const [taskState, setTaskState] = useState<TaskState>(() => defaultTaskState());
+  const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => { save(LS_CAMPAIGNS, campaigns.filter((c) => !c.seeded)); }, [campaigns]);
-  useEffect(() => { save(LS_ACTIVE, activeId); }, [activeId]);
-  useEffect(() => { save(LS_TASKS, taskState); }, [taskState]);
+  // Hydrate from localStorage on the client, once, after first paint.
+  useEffect(() => {
+    const userMade = load<Campaign[]>(LS_CAMPAIGNS, []).filter((c) => !c.seeded);
+    if (userMade.length) setCampaigns([...seedCampaigns, ...userMade]);
+    setActiveId(load<string>(LS_ACTIVE, seedCampaigns[0].id));
+    setTaskState((prev) => ({ ...prev, ...load<TaskState>(LS_TASKS, {}) }));
+    setHydrated(true);
+  }, []);
+
+  // Persist — only after hydration so we don't clobber stored data with defaults.
+  useEffect(() => { if (hydrated) save(LS_CAMPAIGNS, campaigns.filter((c) => !c.seeded)); }, [campaigns, hydrated]);
+  useEffect(() => { if (hydrated) save(LS_ACTIVE, activeId); }, [activeId, hydrated]);
+  useEffect(() => { if (hydrated) save(LS_TASKS, taskState); }, [taskState, hydrated]);
 
   const active = useMemo(
     () => campaigns.find((c) => c.id === activeId) ?? campaigns[0],

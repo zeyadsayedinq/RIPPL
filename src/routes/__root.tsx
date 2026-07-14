@@ -11,6 +11,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { RoleProvider } from "../lib/role-context";
+import { CampaignProvider } from "../lib/campaign-store";
 
 function NotFoundComponent() {
   return (
@@ -117,8 +119,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      {/* Providers live at the root so every route (at any nesting level) has context. */}
+      <CampaignProvider>
+        <RoleProvider>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </RoleProvider>
+      </CampaignProvider>
     </QueryClientProvider>
   );
 }

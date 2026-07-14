@@ -1,14 +1,13 @@
 import type { ReactNode } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { MeshGradient } from "@/components/MeshGradient";
-import { RoleProvider } from "@/lib/role-context";
-import { CampaignProvider } from "@/lib/campaign-store";
 import { motion } from "framer-motion";
 
+// RoleProvider + CampaignProvider now live in __root.tsx, wrapping every route,
+// so hooks like useCampaigns()/useRole() work at any level (including page tops).
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <CampaignProvider>
-    <RoleProvider>
+    <>
       <MeshGradient />
       <div className="relative z-10 mx-auto flex min-h-screen max-w-[1600px] gap-6 p-4">
         <Sidebar />
@@ -21,7 +20,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
         </motion.main>
       </div>
-    </RoleProvider>
-    </CampaignProvider>
+    </>
   );
 }
