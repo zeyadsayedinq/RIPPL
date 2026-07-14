@@ -14,7 +14,7 @@ type TaskState = Record<string, boolean>; // checklist item id -> done
 interface StoreCtx {
   campaigns: Campaign[];
   activeId: string;
-  active: Campaign;
+  active: Campaign | null;
   setActive: (id: string) => void;
   addCampaign: (c: Omit<Campaign, "id" | "seeded"> & { id?: string }) => Campaign;
   taskState: TaskState;
@@ -49,15 +49,16 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   // Deterministic initial state (identical on server and client's first render)
   // to avoid SSR hydration mismatches. localStorage is read after mount below.
   const [campaigns, setCampaigns] = useState<Campaign[]>(seedCampaigns);
-  const [activeId, setActiveId] = useState<string>(seedCampaigns[0].id);
+  const [activeId, setActiveId] = useState<string>(seedCampaigns[0]?.id ?? "");
   const [taskState, setTaskState] = useState<TaskState>(() => defaultTaskState());
   const [hydrated, setHydrated] = useState(false);
 
   // Hydrate from localStorage on the client, once, after first paint.
   useEffect(() => {
     const userMade = load<Campaign[]>(LS_CAMPAIGNS, []).filter((c) => !c.seeded);
-    if (userMade.length) setCampaigns([...seedCampaigns, ...userMade]);
-    setActiveId(load<string>(LS_ACTIVE, seedCampaigns[0].id));
+    const all = [...seedCampaigns, ...userMade];
+    if (userMade.length) setCampaigns(all);
+    setActiveId(load<string>(LS_ACTIVE, all[0]?.id ?? ""));
     setTaskState((prev) => ({ ...prev, ...load<TaskState>(LS_TASKS, {}) }));
     setHydrated(true);
   }, []);
@@ -68,7 +69,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (hydrated) save(LS_TASKS, taskState); }, [taskState, hydrated]);
 
   const active = useMemo(
-    () => campaigns.find((c) => c.id === activeId) ?? campaigns[0],
+    () => campaigns.find((c) => c.id === activeId) ?? campaigns[0] ?? null,
     [campaigns, activeId]
   );
 

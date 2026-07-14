@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { MagneticButton } from "@/components/MagneticButton";
 import { NewCampaignModal } from "@/components/NewCampaignModal";
+import { EmptyState } from "@/components/EmptyState";
 import { useCampaigns } from "@/lib/campaign-store";
 import { useRole } from "@/lib/role-context";
 import { Check, Circle, DollarSign } from "lucide-react";
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/campaigns")({
   component: CampaignsPage,
 });
 
-const money = (n: number) => (n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : `$${(n / 1_000).toFixed(0)}K`);
+const money = (n: number) => (n >= 1_000_000 ? `EGP ${(n / 1_000_000).toFixed(2)}M` : `EGP ${(n / 1_000).toFixed(0)}K`);
 const statusColor: Record<string, string> = { Active: "oklch(0.85 0.18 150)", Planning: "oklch(0.8 0.16 80)", Wrapped: "oklch(0.6 0.02 260)" };
 
 function CampaignsPage() {
@@ -33,9 +34,13 @@ function CampaignsPage() {
         <MagneticButton onClick={() => setModal(true)}>+ New campaign</MagneticButton>
       </header>
 
+      {campaigns.length === 0 && (
+        <EmptyState title="No campaigns yet" note="Create your first campaign to start planning channels, tasks and budget." />
+      )}
+
       <section className="mt-6 grid grid-cols-12 gap-4">
         {campaigns.map((c) => {
-          const isActive = c.id === active.id;
+          const isActive = c.id === active?.id;
           const pct = c.budget ? Math.round((c.spent / c.budget) * 100) : 0;
           return (
             <SpotlightCard key={c.id} className={`col-span-12 md:col-span-6 xl:col-span-4 p-5 ${isActive ? "ring-1 ring-[oklch(0.7_0.28_328)]/50" : ""}`}>

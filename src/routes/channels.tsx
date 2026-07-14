@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { useCampaigns } from "@/lib/campaign-store";
+import { EmptyState } from "@/components/EmptyState";
 import { socialChannels, paidChannels, playlistTargets, pressTargets, radioTargets, mediaPartners, type ChannelRow } from "@/lib/campaign-data";
 import { Radio as RadioIcon, DollarSign, ListMusic, Newspaper, Antenna } from "lucide-react";
 
@@ -26,12 +27,20 @@ function ChannelsPage() {
   const { active } = useCampaigns();
   const [tab, setTab] = useState<Tab>("social");
 
+  if (!active) {
+    return (
+      <AppShell>
+        <EmptyState title="No campaign yet" note="Create a campaign to plan its 360° channel mix — social, paid, playlists, press and broadcast." />
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <header className="glass rounded-2xl p-5">
         <div className="text-[10px] uppercase tracking-[0.35em] text-[oklch(0.85_0.25_328)]">360° Channel Plan · {active.artist}</div>
         <h1 className="mt-1 font-display text-3xl font-bold">Every <span className="text-gradient-neon">Channel</span></h1>
-        <p className="mt-1 text-sm text-muted-foreground">Organic, paid, playlists, press and broadcast — not just influencers. Media partners: {mediaPartners.join(" · ")}</p>
+        <p className="mt-1 text-sm text-muted-foreground">Organic, paid, playlists, press and broadcast — not just influencers.{mediaPartners.length ? ` Media partners: ${mediaPartners.join(" · ")}` : ""}</p>
       </header>
 
       <div className="mt-6 flex gap-1.5 overflow-x-auto rounded-2xl glass p-1.5">

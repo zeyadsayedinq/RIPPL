@@ -20,7 +20,7 @@ export const Route = createFileRoute("/assets")({
 const typeIcon = { Audio: FileAudio, Art: FileImage, Brief: FileText, Video: FileVideo } as const;
 
 function AssetsPage() {
-  const [selected, setSelected] = useState<Asset | null>(assets[0]);
+  const [selected, setSelected] = useState<Asset | null>(assets[0] ?? null);
   const [filter, setFilter] = useState<"All" | Asset["type"]>("All");
   const list = assets.filter((a) => filter === "All" || a.type === filter);
 
@@ -49,6 +49,11 @@ function AssetsPage() {
 
       <div className="mt-6 grid grid-cols-12 gap-4">
         <div className="col-span-12 lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {list.length === 0 && (
+            <div className="col-span-full glass rounded-2xl p-10 text-center text-sm text-muted-foreground">
+              No assets yet. Uploaded briefs, audio, artwork and video will appear here.
+            </div>
+          )}
           {list.map((a, i) => {
             const Icon = typeIcon[a.type];
             const isActive = selected?.id === a.id;

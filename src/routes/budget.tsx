@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { useCampaigns } from "@/lib/campaign-store";
+import { EmptyState } from "@/components/EmptyState";
 import { useRole } from "@/lib/role-context";
 import { budgetLines } from "@/lib/campaign-data";
 import { Wallet, DollarSign, CheckCircle2, TrendingUp } from "lucide-react";
@@ -12,13 +13,21 @@ export const Route = createFileRoute("/budget")({
   component: BudgetPage,
 });
 
-const money = (n: number) => (n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : `$${(n / 1_000).toFixed(0)}K`);
+const money = (n: number) => (n >= 1_000_000 ? `EGP ${(n / 1_000_000).toFixed(2)}M` : `EGP ${(n / 1_000).toFixed(0)}K`);
 const tip = { background: "rgba(15,5,25,0.92)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12 } as const;
 
 function BudgetPage() {
   const { active } = useCampaigns();
   const { canSeePrice } = useRole();
   const mask = (v: string) => (canSeePrice ? v : "•••••");
+
+  if (!active) {
+    return (
+      <AppShell>
+        <EmptyState title="No campaign yet" note="Create a campaign to set its budget and track spend by channel." />
+      </AppShell>
+    );
+  }
 
   const totalPlanned = active.budget || budgetLines.reduce((s, b) => s + b.planned, 0);
   const totalSpent = active.spent || budgetLines.reduce((s, b) => s + b.spent, 0);
@@ -40,6 +49,11 @@ function BudgetPage() {
         <Stat label="Pacing" value={pct < 80 ? "On track" : "Watch"} icon={TrendingUp} accent="oklch(0.85 0.18 200)" />
       </section>
 
+      {budgetLines.length === 0 ? (
+        <SpotlightCard className="mt-6 p-10 text-center" spotlight={false}>
+          <p className="text-sm text-muted-foreground">No budget line items yet. Add spend categories to see allocation and pacing here.</p>
+        </SpotlightCard>
+      ) : (
       <section className="mt-6 grid grid-cols-12 gap-4">
         <SpotlightCard className="col-span-12 xl:col-span-7 p-6">
           <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Allocation</div>
@@ -79,6 +93,7 @@ function BudgetPage() {
           </div>
         </SpotlightCard>
       </section>
+      )}
     </AppShell>
   );
 }

@@ -49,13 +49,16 @@ export function Sidebar() {
         <div className="mb-1.5 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Active campaign</div>
         <button onClick={() => setCampOpen((o) => !o)} className="glass flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left">
           <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold">{active.artist}</span>
-            <span className="block truncate text-[11px] text-muted-foreground">{active.title}</span>
+            <span className="block truncate text-sm font-semibold">{active ? active.artist : "No campaign"}</span>
+            <span className="block truncate text-[11px] text-muted-foreground">{active ? active.title : "Create one to begin"}</span>
           </span>
           <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${campOpen ? "rotate-180" : ""}`} />
         </button>
         {campOpen && (
           <div className="glass-strong absolute left-0 right-0 z-30 mt-1 flex flex-col gap-0.5 rounded-xl p-1">
+            {campaigns.length === 0 && (
+              <div className="px-3 py-2 text-[11px] text-muted-foreground">No campaigns yet.</div>
+            )}
             {campaigns.map((c) => (
               <button
                 key={c.id}
@@ -66,7 +69,7 @@ export function Sidebar() {
                   <span className="block truncate">{c.artist}</span>
                   <span className="block truncate text-[10px] text-muted-foreground">{c.status} · {c.title}</span>
                 </span>
-                {c.id === active.id && <Check className="h-4 w-4 shrink-0 text-[oklch(0.8_0.25_328)]" />}
+                {c.id === active?.id && <Check className="h-4 w-4 shrink-0 text-[oklch(0.8_0.25_328)]" />}
               </button>
             ))}
           </div>

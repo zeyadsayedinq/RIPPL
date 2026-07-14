@@ -23,6 +23,7 @@ import {
 import { useRole } from "@/lib/role-context";
 import { useCampaigns } from "@/lib/campaign-store";
 import { NewCampaignModal, ModalShell } from "@/components/NewCampaignModal";
+import { EmptyState } from "@/components/EmptyState";
 import {
   TrendingUp, TrendingDown, Sparkles, ArrowUpRight, CheckCircle2,
   LayoutGrid, DollarSign, Radio, Filter, Wallet,
@@ -49,8 +50,8 @@ const fmt = (n: number) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` :
   n >= 1_000 ? `${(n / 1_000).toFixed(0)}K` : `${n}`;
 const money = (n: number) =>
-  n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` :
-  n >= 1_000 ? `$${(n / 1_000).toFixed(0)}K` : `$${n}`;
+  n >= 1_000_000 ? `EGP ${(n / 1_000_000).toFixed(2)}M` :
+  n >= 1_000 ? `EGP ${(n / 1_000).toFixed(0)}K` : `EGP ${n}`;
 
 const platformIcon: Record<Platform, any> = {
   TikTok: Music2, Instagram, Facebook, YouTube: Youtube, X: Hash,
@@ -76,6 +77,24 @@ const TABS: { key: TabKey; label: string; icon: any }[] = [
 /* ── page ────────────────────────────────────────────────── */
 function Dashboard() {
   const [tab, setTab] = useState<TabKey>("overview");
+  const { active } = useCampaigns();
+
+  // No campaign / no metric data yet → clean empty state.
+  if (!active || campaignKpis.length === 0) {
+    return (
+      <AppShell>
+        <Header />
+        <EmptyState
+          title={active ? "No metrics yet" : "No campaign yet"}
+          note={
+            active
+              ? "This campaign has no performance data yet. Connect your channels or add data to populate the 360° command center."
+              : "Create your first campaign to start tracking reach, spend, funnel and attribution across every channel."
+          }
+        />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -130,11 +149,11 @@ function Header() {
   return (
     <header className="glass flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl p-5">
       <div className="min-w-0">
-        <div className="text-[10px] uppercase tracking-[0.35em] text-[oklch(0.85_0.25_328)]">360° Command · {active.status} · Live</div>
+        <div className="text-[10px] uppercase tracking-[0.35em] text-[oklch(0.85_0.25_328)]">360° Command{active ? ` · ${active.status} · Live` : ""}</div>
         <h1 className="mt-1 font-display text-3xl font-bold tracking-tight">
-          {active.artist} / <span className="text-gradient-neon">{active.title}</span>
+          {active ? <>{active.artist} / <span className="text-gradient-neon">{active.title}</span></> : <span className="text-gradient-neon">Campaign HQ</span>}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{active.subtitle} · {active.platforms.length} channels · full-funnel attribution</p>
+        <p className="mt-1 text-sm text-muted-foreground">{active ? `${active.subtitle} · ${active.platforms.length} channels · full-funnel attribution` : "No active campaign — create one to begin."}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <MagneticButton variant="ghost" onClick={() => setModal("export")}>Export report</MagneticButton>

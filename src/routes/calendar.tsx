@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { useCampaigns } from "@/lib/campaign-store";
+import { EmptyState } from "@/components/EmptyState";
 import { releaseTimeline, narrativeArcs, latifaTracks } from "@/lib/campaign-data";
 import { Music, Video, Repeat2, Megaphone, Disc3, CalendarClock } from "lucide-react";
 
@@ -15,6 +16,14 @@ const statusColor: Record<string, string> = { done: "oklch(0.85 0.18 150)", acti
 
 function CalendarPage() {
   const { active } = useCampaigns();
+
+  if (!active) {
+    return (
+      <AppShell>
+        <EmptyState title="No campaign yet" note="Create a campaign to plan its release calendar and rollout timeline." />
+      </AppShell>
+    );
+  }
   const isLatifa = active.id === "latifa-story-of-us";
 
   return (

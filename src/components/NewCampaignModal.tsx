@@ -83,7 +83,7 @@ export function NewCampaignModal({ onClose }: { onClose: () => void }) {
             <input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Lead single rollout" className={field} />
           </div>
           <div>
-            <label className="mb-1.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Total budget ($)</label>
+            <label className="mb-1.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Total budget (EGP)</label>
             <input required type="number" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="250000" className={field} />
           </div>
           <div>

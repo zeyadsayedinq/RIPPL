@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { useCampaigns } from "@/lib/campaign-store";
+import { EmptyState } from "@/components/EmptyState";
 import { releaseChecklist } from "@/lib/campaign-data";
 import { Check } from "lucide-react";
 
@@ -12,6 +13,17 @@ export const Route = createFileRoute("/tasks")({
 
 function TasksPage() {
   const { active, taskState, toggleTask, taskProgress } = useCampaigns();
+
+  if (!active || releaseChecklist.length === 0) {
+    return (
+      <AppShell>
+        <EmptyState
+          title={active ? "No tasks yet" : "No campaign yet"}
+          note={active ? "This campaign has no release checklist yet." : "Create a campaign to work its release checklist."}
+        />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
