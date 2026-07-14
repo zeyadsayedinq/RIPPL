@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Megaphone, CalendarDays, Radio, ListChecks, Wallet, Users, FolderOpen, ChevronDown, Check } from "lucide-react";
+import { LayoutDashboard, Megaphone, CalendarDays, Radio, ListChecks, Wallet, Users, FolderOpen, FileText, ChevronDown, Check } from "lucide-react";
 import { useRole, type Role } from "@/lib/role-context";
 import { useCampaigns } from "@/lib/campaign-store";
 import { motion } from "framer-motion";
@@ -12,6 +12,7 @@ const nav = [
   { to: "/channels",  label: "Channels",  icon: Radio },
   { to: "/tasks",     label: "Tasks",     icon: ListChecks },
   { to: "/budget",    label: "Budget",    icon: Wallet },
+  { to: "/templates", label: "Templates", icon: FileText },
   { to: "/creators",  label: "Creators",  icon: Users },
   { to: "/assets",    label: "Assets",    icon: FolderOpen },
 ] as const;

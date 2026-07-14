@@ -5,7 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { useCampaigns } from "@/lib/campaign-store";
 import { EmptyState } from "@/components/EmptyState";
-import { socialChannels, paidChannels, playlistTargets, pressTargets, radioTargets, mediaPartners, type ChannelRow } from "@/lib/campaign-data";
+import { type ChannelRow } from "@/lib/campaign-data";
 import { Radio as RadioIcon, DollarSign, ListMusic, Newspaper, Antenna } from "lucide-react";
 
 export const Route = createFileRoute("/channels")({
@@ -24,7 +24,7 @@ const TABS: { key: Tab; label: string; icon: any }[] = [
 const statusColor: Record<string, string> = { Live: "oklch(0.85 0.18 150)", Booked: "oklch(0.85 0.18 200)", Planned: "oklch(0.8 0.16 80)" };
 
 function ChannelsPage() {
-  const { active } = useCampaigns();
+  const { active, activeTemplate } = useCampaigns();
   const [tab, setTab] = useState<Tab>("social");
 
   if (!active) {
@@ -35,12 +35,14 @@ function ChannelsPage() {
     );
   }
 
+  const ch = activeTemplate?.channels ?? { social: [], paid: [], playlists: [], press: [], radio: [] };
+
   return (
     <AppShell>
       <header className="glass rounded-2xl p-5">
         <div className="text-[10px] uppercase tracking-[0.35em] text-[oklch(0.85_0.25_328)]">360° Channel Plan · {active.artist}</div>
         <h1 className="mt-1 font-display text-3xl font-bold">Every <span className="text-gradient-neon">Channel</span></h1>
-        <p className="mt-1 text-sm text-muted-foreground">Organic, paid, playlists, press and broadcast — not just influencers.{mediaPartners.length ? ` Media partners: ${mediaPartners.join(" · ")}` : ""}</p>
+        <p className="mt-1 text-sm text-muted-foreground">Organic, paid, playlists, press and broadcast — not just influencers.{activeTemplate ? ` Plan seeded from the ${activeTemplate.name} template.` : ""}</p>
       </header>
 
       <div className="mt-6 flex gap-1.5 overflow-x-auto rounded-2xl glass p-1.5">
@@ -58,23 +60,28 @@ function ChannelsPage() {
 
       <AnimatePresence mode="wait">
         <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="mt-6">
-          {(tab === "social" || tab === "paid") && <ChannelGrid rows={tab === "social" ? socialChannels : paidChannels} />}
+          {(tab === "social" || tab === "paid") && (
+            (tab === "social" ? ch.social : ch.paid).length === 0
+              ? <EmptyNote label={tab === "social" ? "social" : "paid"} />
+              : <ChannelGrid rows={tab === "social" ? ch.social : ch.paid} />
+          )}
           {tab === "playlists" && (
             <SpotlightCard className="p-6" spotlight={false}>
-              <SectionHead title="Playlist & Pitching Targets" note="Anghami editorial, Spotify curators, and pitching services (Playlist Push, SoundCampaign, Groover)." />
-              <List rows={playlistTargets.map((p) => ({ a: p.name, b: `${p.followers} followers`, status: p.status }))} />
+              <SectionHead title="Playlist & Pitching Targets" note="Editorial playlists, curators and pitching services." />
+              {ch.playlists.length === 0 ? <EmptyNote label="playlist" /> : <List rows={ch.playlists.map((p) => ({ a: p.name, b: `${p.followers} followers`, status: p.status }))} />}
             </SpotlightCard>
           )}
           {tab === "press" && (
             <SpotlightCard className="p-6" spotlight={false}>
-              <SectionHead title="PR & Press Campaign" note="Guaranteed features + non-guaranteed submissions across MENA, US, UK and Europe." />
+              <SectionHead title="PR & Press Campaign" note="Guaranteed features + non-guaranteed submissions across regions." />
+              {ch.press.length === 0 ? <EmptyNote label="press" /> : (
               <div className="mt-5 overflow-x-auto">
                 <table className="w-full min-w-[620px] text-sm">
                   <thead><tr className="text-left text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                     <th className="pb-3">Outlet</th><th className="pb-3">Region</th><th className="pb-3">Type</th><th className="pb-3">Contact</th><th className="pb-3 text-right">Status</th>
                   </tr></thead>
                   <tbody>
-                    {pressTargets.map((p) => (
+                    {ch.press.map((p) => (
                       <tr key={p.outlet} className="border-t border-white/[0.06]">
                         <td className="py-3 font-medium">{p.outlet}</td>
                         <td className="py-3 text-muted-foreground">{p.region}</td>
@@ -86,18 +93,23 @@ function ChannelsPage() {
                   </tbody>
                 </table>
               </div>
+              )}
             </SpotlightCard>
           )}
           {tab === "radio" && (
             <SpotlightCard className="p-6" spotlight={false}>
-              <SectionHead title="Radio & TV Broadcasting" note="Gulf exclusives, MENA rotation, and global indie radio network." />
-              <List rows={radioTargets.map((r) => ({ a: r.station, b: `${r.region} — ${r.note}`, status: "Planned" }))} />
+              <SectionHead title="Radio & TV Broadcasting" note="Regional rotation and radio-network plays." />
+              {ch.radio.length === 0 ? <EmptyNote label="radio" /> : <List rows={ch.radio.map((r) => ({ a: r.station, b: `${r.region} — ${r.note}`, status: "Planned" }))} />}
             </SpotlightCard>
           )}
         </motion.div>
       </AnimatePresence>
     </AppShell>
   );
+}
+
+function EmptyNote({ label }: { label: string }) {
+  return <p className="mt-4 text-sm text-muted-foreground">No {label} channels planned for this campaign yet.</p>;
 }
 
 function ChannelGrid({ rows }: { rows: ChannelRow[] }) {

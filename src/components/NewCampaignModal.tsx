@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { MagneticButton } from "@/components/MagneticButton";
 import { useCampaigns } from "@/lib/campaign-store";
+import { campaignTemplates } from "@/lib/campaign-templates";
 
 const PLATFORMS = ["TikTok", "Instagram", "YouTube", "Facebook", "X", "Anghami", "Spotify", "Radio", "TV"];
 const field = "w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-[oklch(0.7_0.28_328)]/40";
@@ -37,7 +38,9 @@ export function NewCampaignModal({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState("");
   const [budget, setBudget] = useState("");
   const [goal, setGoal] = useState("Streams & chart performance");
+  const [templateId, setTemplateId] = useState("single-release");
   const toggle = (p: string) => setPicked((s) => (s.includes(p) ? s.filter((x) => x !== p) : [...s, p]));
+  const chosenTemplate = campaignTemplates.find((t) => t.id === templateId);
 
   if (saved) {
     return (
@@ -68,6 +71,7 @@ export function NewCampaignModal({ onClose }: { onClose: () => void }) {
             platforms: picked,
             goal,
             reach: "—",
+            templateId,
           });
           setSaved(`${artist || "Untitled Artist"} — ${title || "New Campaign"}`);
         }}
@@ -96,6 +100,20 @@ export function NewCampaignModal({ onClose }: { onClose: () => void }) {
               <option className="bg-[#140a1e]">Conversions & sales</option>
             </select>
           </div>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Start from template</label>
+          <select className={field} value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+            {campaignTemplates.map((t) => (
+              <option key={t.id} value={t.id} className="bg-[#140a1e]">{t.name}</option>
+            ))}
+          </select>
+          {chosenTemplate && (
+            <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/80">
+              {chosenTemplate.description}
+              {chosenTemplate.checklist.length > 0 && ` · seeds ${chosenTemplate.checklist.reduce((n, p) => n + p.items.length, 0)} checklist tasks`}
+            </p>
+          )}
         </div>
         <div>
           <label className="mb-1.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Target channels</label>

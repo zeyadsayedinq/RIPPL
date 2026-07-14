@@ -67,6 +67,7 @@ export interface Campaign {
   platforms: string[];
   goal: string;
   reach: string;
+  templateId?: string;
   seeded?: boolean;
 }
 export const seedCampaigns: Campaign[] = [];

@@ -4,6 +4,7 @@ import { SpotlightCard } from "@/components/SpotlightCard";
 import { MagneticButton } from "@/components/MagneticButton";
 import { creators, platformColors, type Creator, type Platform, type Tier, type Status } from "@/lib/mock-data";
 import { useRole } from "@/lib/role-context";
+import { useCampaigns } from "@/lib/campaign-store";
 import { useMemo, useState } from "react";
 import { Search, Instagram, Music2, X, Heart, Eye, Users, TrendingUp } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -75,6 +76,7 @@ function CreatorsPage() {
 
 function CreatorsList({ filtered, selected, onSelectChange }: { filtered: Creator[]; selected: Creator | null; onSelectChange: (c: Creator | null) => void }) {
   const { canSeePrice } = useRole();
+  const { isAssigned } = useCampaigns();
   return (
     <div className="mt-6 grid grid-cols-1 gap-3">
       <div className="hidden lg:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] items-center gap-4 px-5 py-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
@@ -100,7 +102,10 @@ function CreatorsList({ filtered, selected, onSelectChange }: { filtered: Creato
               {c.name.charAt(0)}
             </div>
             <div className="min-w-0">
-              <div className="truncate font-medium">{c.name}</div>
+              <div className="flex items-center gap-1.5">
+                <span className="truncate font-medium">{c.name}</span>
+                {isAssigned(c.id) && <span title="Assigned to active campaign" className="shrink-0 rounded-full bg-[oklch(0.85_0.18_150)]/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[oklch(0.85_0.18_150)]">On campaign</span>}
+              </div>
               <div className="truncate text-xs text-muted-foreground">{c.handle} · {c.city}</div>
             </div>
           </div>
@@ -109,7 +114,7 @@ function CreatorsList({ filtered, selected, onSelectChange }: { filtered: Creato
           <div className="font-mono text-sm">{formatK(c.followers)}</div>
           <div className="font-mono text-sm text-[oklch(0.85_0.18_200)]">{c.engagement}%</div>
           <div className="font-mono text-sm">
-            {canSeePrice ? `$${c.price.toLocaleString()}` : "•••••"}
+            {canSeePrice ? `EGP ${c.price.toLocaleString()}` : "•••••"}
           </div>
           <StatusPill status={c.status} />
         </motion.button>
@@ -185,6 +190,8 @@ function formatK(n: number) {
 
 function CreatorModal({ creator, onClose }: { creator: Creator; onClose: () => void }) {
   const { canSeePrice } = useRole();
+  const { active, isAssigned, toggleAssignment } = useCampaigns();
+  const assigned = isAssigned(creator.id);
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-stretch justify-end p-4"
@@ -238,11 +245,23 @@ function CreatorModal({ creator, onClose }: { creator: Creator; onClose: () => v
           <div className="glass rounded-xl p-4 flex items-center justify-between">
             <div>
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Negotiated Rate</div>
-              <div className="mt-1 font-display text-2xl font-bold text-gradient-neon">${creator.price.toLocaleString()}</div>
+              <div className="mt-1 font-display text-2xl font-bold text-gradient-neon">EGP {creator.price.toLocaleString()}</div>
             </div>
             <TrendingUp className="h-6 w-6 text-[oklch(0.85_0.18_200)]" />
           </div>
         )}
+
+        <div className="glass rounded-xl p-4">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Campaign assignment</div>
+          <div className="mt-1 text-sm text-muted-foreground">{active ? <>Active: <span className="text-foreground">{active.artist} — {active.title}</span></> : "No active campaign. Create one first."}</div>
+          <button
+            disabled={!active}
+            onClick={() => toggleAssignment(creator.id)}
+            className={`mt-3 w-full rounded-full px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40 ${assigned ? "bg-[oklch(0.85_0.18_150)]/20 text-[oklch(0.85_0.18_150)]" : "bg-gradient-to-r from-[oklch(0.7_0.28_328)] to-[oklch(0.55_0.3_300)] text-white"}`}
+          >
+            {assigned ? "✓ Assigned — remove from campaign" : "+ Assign to active campaign"}
+          </button>
+        </div>
 
         <div className="flex gap-3">
           <MagneticButton variant="primary">Approve</MagneticButton>
