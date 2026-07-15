@@ -7,7 +7,7 @@ import { useRole } from "@/lib/role-context";
 import { useCampaigns } from "@/lib/campaign-store";
 import { Portal } from "@/components/Portal";
 import { useMemo, useState } from "react";
-import { Search, Instagram, Music2, X, Heart, Eye, Users, TrendingUp } from "lucide-react";
+import { Search, Instagram, Music2, X, Heart, Eye, Users, TrendingUp, Check } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 export const Route = createFileRoute("/creators")({
@@ -29,22 +29,35 @@ function CreatorsPage() {
   const [platform, setPlatform] = useState<Platform | "All">("All");
   const [tier, setTier] = useState<Tier | "All">("All");
   const [status, setStatus] = useState<Status | "All">("All");
+  const [assignedOnly, setAssignedOnly] = useState(false);
   const [selected, setSelected] = useState<Creator | null>(null);
+  const { active, assignedIds, isAssigned } = useCampaigns();
 
   const filtered = useMemo(() => creators.filter((c) => {
     if (q && !`${c.name} ${c.handle} ${c.city}`.toLowerCase().includes(q.toLowerCase())) return false;
     if (platform !== "All" && c.platform !== platform) return false;
     if (tier !== "All" && c.tier !== tier) return false;
     if (status !== "All" && c.status !== status) return false;
+    if (assignedOnly && !isAssigned(c.id)) return false;
     return true;
-  }), [q, platform, tier, status]);
+  }), [q, platform, tier, status, assignedOnly, assignedIds]);
+
+  const assignedList = creators.filter((c) => assignedIds.includes(c.id));
+  const totalFee = assignedList.reduce((s, c) => s + c.price, 0);
 
   return (
     <AppShell>
-      <header className="glass rounded-2xl p-5">
-        <div className="text-[10px] uppercase tracking-[0.35em] text-[oklch(0.85_0.25_328)]">Directory</div>
-        <h1 className="mt-1 font-display text-3xl font-bold">Creator Roster · <span className="text-gradient-neon">Active Campaign</span></h1>
-        <p className="mt-1 text-sm text-muted-foreground">{filtered.length} creators matched · 97 total in pipeline</p>
+      <header className="glass flex flex-col gap-4 rounded-2xl p-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.35em] text-white/40">Directory · List Builder</div>
+          <h1 className="mt-1 font-display text-3xl font-bold">Build your <span className="text-gradient-neon">campaign list</span></h1>
+          <p className="mt-1 text-sm text-muted-foreground">{filtered.length} shown · pick creators for {active ? active.artist : "your campaign"} using the checkboxes.</p>
+        </div>
+        <div className="glass rounded-2xl px-5 py-3 text-center">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">On {active ? active.title : "campaign"}</div>
+          <div className="font-display text-2xl font-bold">{assignedList.length}</div>
+          <div className="text-[11px] text-muted-foreground">creators</div>
+        </div>
       </header>
 
       <SpotlightCard className="mt-6 p-5" spotlight={false}>
@@ -55,18 +68,33 @@ function CreatorsPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search creators, handles, cities…"
-              className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-2.5 pl-10 pr-4 text-sm outline-none placeholder:text-muted-foreground focus:border-[oklch(0.7_0.28_328)]/40"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-2.5 pl-10 pr-4 text-sm outline-none placeholder:text-muted-foreground focus:border-white/40"
             />
           </div>
           <FilterGroup label="Platform" value={platform} options={platforms} onChange={(v) => setPlatform(v as Platform | "All")} />
+          <button onClick={() => setAssignedOnly((o) => !o)} className={`shrink-0 rounded-full border px-4 py-2 text-xs transition-colors ${assignedOnly ? "border-white bg-white text-black" : "border-white/15 text-muted-foreground hover:text-white"}`}>
+            {assignedOnly ? "Showing campaign list" : "Show campaign list only"}
+          </button>
         </div>
-        <div className="mt-3 flex flex-wrap gap-3">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <FilterGroup label="Tier" value={tier} options={tiers} onChange={(v) => setTier(v as Tier | "All")} />
           <FilterGroup label="Status" value={status} options={statuses} onChange={(v) => setStatus(v as Status | "All")} />
         </div>
       </SpotlightCard>
 
       <CreatorsList filtered={filtered} selected={selected} onSelectChange={setSelected} />
+
+      {assignedList.length > 0 && (
+        <SpotlightCard className="mt-4 p-5" spotlight={false}>
+          <div className="flex items-center justify-between">
+            <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Campaign List · {active?.artist}</div>
+            <div className="text-sm text-muted-foreground">Total fees: <span className="font-mono text-foreground">EGP {totalFee.toLocaleString()}</span></div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {assignedList.map((c) => <span key={c.id} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs">{c.name} · {c.handle}</span>)}
+          </div>
+        </SpotlightCard>
+      )}
 
       <AnimatePresence>
         {selected && <CreatorModal creator={selected} onClose={() => setSelected(null)} />}
@@ -77,10 +105,11 @@ function CreatorsPage() {
 
 function CreatorsList({ filtered, selected, onSelectChange }: { filtered: Creator[]; selected: Creator | null; onSelectChange: (c: Creator | null) => void }) {
   const { canSeePrice } = useRole();
-  const { isAssigned } = useCampaigns();
+  const { isAssigned, toggleAssignment } = useCampaigns();
   return (
     <div className="mt-6 grid grid-cols-1 gap-3">
-      <div className="hidden lg:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] items-center gap-4 px-5 py-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+      <div className="hidden lg:grid grid-cols-[auto_2fr_1fr_1fr_1fr_1fr_1fr_auto] items-center gap-4 px-5 py-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+        <div>Add</div>
         <div>Creator</div>
         <div>Platform</div>
         <div>Tier</div>
@@ -89,16 +118,24 @@ function CreatorsList({ filtered, selected, onSelectChange }: { filtered: Creato
         <div>{canSeePrice ? "Price" : "Tier Rate"}</div>
         <div>Status</div>
       </div>
-      {filtered.map((c, i) => (
-        <motion.button
+      {filtered.map((c, i) => {
+        const on = isAssigned(c.id);
+        return (
+        <motion.div
           key={c.id}
-          onClick={() => onSelectChange(c)}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.03 }}
-          className="glass grid grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] items-center gap-4 rounded-2xl p-4 text-left transition-colors hover:border-[oklch(0.7_0.28_328)]/40"
+          className={`glass grid grid-cols-[auto_1fr] lg:grid-cols-[auto_2fr_1fr_1fr_1fr_1fr_1fr_auto] items-center gap-4 rounded-2xl p-4 text-left transition-colors ${on ? "border-[oklch(0.82_0.18_150)]/40" : "hover:border-white/25"}`}
         >
-          <div className="col-span-2 lg:col-span-1 flex items-center gap-3 min-w-0">
+          <button
+            onClick={() => toggleAssignment(c.id)}
+            title={on ? "Remove from campaign list" : "Add to campaign list"}
+            className={`grid h-6 w-6 shrink-0 place-items-center rounded-md border transition-colors ${on ? "border-[oklch(0.82_0.18_150)] bg-[oklch(0.82_0.18_150)]" : "border-white/25 hover:border-white"}`}
+          >
+            {on && <Check className="h-4 w-4 text-black" />}
+          </button>
+          <button onClick={() => onSelectChange(c)} className="col-span-1 lg:col-span-1 flex items-center gap-3 min-w-0 text-left">
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[oklch(0.7_0.28_328)]/60 to-[oklch(0.5_0.3_300)]/60 font-display font-bold">
               {c.name.charAt(0)}
             </div>
@@ -109,7 +146,7 @@ function CreatorsList({ filtered, selected, onSelectChange }: { filtered: Creato
               </div>
               <div className="truncate text-xs text-muted-foreground">{c.handle} · {c.city}</div>
             </div>
-          </div>
+          </button>
           <PlatformBadge platform={c.platform} />
           <TierBadge tier={c.tier} />
           <div className="font-mono text-sm">{formatK(c.followers)}</div>
@@ -118,8 +155,9 @@ function CreatorsList({ filtered, selected, onSelectChange }: { filtered: Creato
             {canSeePrice ? `EGP ${c.price.toLocaleString()}` : "•••••"}
           </div>
           <StatusPill status={c.status} />
-        </motion.button>
-      ))}
+        </motion.div>
+      );
+      })}
     </div>
   );
 }

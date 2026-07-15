@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { useRole, type Role } from "@/lib/role-context";
-import { isSupabaseConfigured } from "@/lib/supabase";
-import { Lock, Trash2, ShieldCheck, Database } from "lucide-react";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { Lock, Trash2, ShieldCheck, Database, LogOut } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings · RIPPL OS" }] }),
@@ -14,7 +14,11 @@ const roles: Role[] = ["Marketing Manager", "Team Member", "Client"];
 
 function SettingsPage() {
   const { role, setRole } = useRole();
-  function lock() { try { localStorage.removeItem("rippl.unlocked.v1"); } catch { /* ignore */ } location.reload(); }
+  async function lock() {
+    if (isSupabaseConfigured && supabase) { await supabase.auth.signOut(); }
+    try { localStorage.removeItem("rippl.unlocked.v1"); } catch { /* ignore */ }
+    location.reload();
+  }
   function resetOS() {
     if (!confirm("Reset all RIPPL OS data (roster, deals, releases, vault, notes)? This cannot be undone.")) return;
     try { localStorage.removeItem("rippl.os.v1"); } catch { /* ignore */ } location.reload();
@@ -51,7 +55,9 @@ function SettingsPage() {
         <SpotlightCard className="col-span-12 md:col-span-6 p-6" spotlight={false}>
           <div className="text-sm font-semibold">Security & data</div>
           <div className="mt-4 flex flex-col gap-2">
-            <button onClick={lock} className="glass inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm hover:bg-white/5"><Lock className="h-4 w-4" /> Lock app (require password)</button>
+            <button onClick={lock} className="glass inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm hover:bg-white/5">
+              {isSupabaseConfigured ? <><LogOut className="h-4 w-4" /> Sign out</> : <><Lock className="h-4 w-4" /> Lock app (require password)</>}
+            </button>
             <button onClick={resetOS} className="inline-flex items-center gap-2 rounded-full border border-[oklch(0.7_0.2_20)]/40 px-4 py-2.5 text-sm text-[oklch(0.7_0.2_20)] hover:bg-[oklch(0.7_0.2_20)]/10"><Trash2 className="h-4 w-4" /> Reset OS data</button>
           </div>
         </SpotlightCard>

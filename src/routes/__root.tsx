@@ -14,7 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RoleProvider } from "../lib/role-context";
 import { CampaignProvider } from "../lib/campaign-store";
 import { OSProvider } from "../lib/os-store";
-import { PasswordGate } from "../components/PasswordGate";
+import { AppGate } from "../components/AppGate";
 
 function NotFoundComponent() {
   return (
@@ -121,8 +121,8 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Master-password gate wraps the entire app. */}
-      <PasswordGate>
+      {/* Access gate: Supabase Auth when configured, else master-password. */}
+      <AppGate>
         {/* Providers live at the root so every route (at any nesting level) has context. */}
         <OSProvider>
           <CampaignProvider>
@@ -132,7 +132,7 @@ function RootComponent() {
             </RoleProvider>
           </CampaignProvider>
         </OSProvider>
-      </PasswordGate>
+      </AppGate>
     </QueryClientProvider>
   );
 }

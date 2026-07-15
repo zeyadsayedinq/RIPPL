@@ -5,7 +5,6 @@ import { CheckCircle2 } from "lucide-react";
 import { MagneticButton } from "@/components/MagneticButton";
 import { Portal } from "@/components/Portal";
 import { useCampaigns } from "@/lib/campaign-store";
-import { campaignTemplates } from "@/lib/campaign-templates";
 
 const PLATFORMS = ["TikTok", "Instagram", "YouTube", "Facebook", "X", "Anghami", "Spotify", "Radio", "TV"];
 const field = "w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-[oklch(0.7_0.28_328)]/40";
@@ -35,7 +34,8 @@ export function ModalShell({ title, eyebrow, onClose, children }: { title: strin
 }
 
 export function NewCampaignModal({ onClose }: { onClose: () => void }) {
-  const { addCampaign } = useCampaigns();
+  const { addCampaign, allTemplates } = useCampaigns();
+  const campaignTemplates = allTemplates;
   const [saved, setSaved] = useState<null | string>(null);
   const [picked, setPicked] = useState<string[]>(["TikTok", "Instagram", "YouTube"]);
   const [artist, setArtist] = useState("");

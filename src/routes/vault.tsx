@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { useOS, uid, type ContractTag } from "@/lib/os-store";
-import { Upload, FileSignature, AlertTriangle, Trash2 } from "lucide-react";
+import { Upload, FileSignature, AlertTriangle, Trash2, Eye, Download } from "lucide-react";
 
 export const Route = createFileRoute("/vault")({
   head: () => ({ meta: [{ title: "The Vault · RIPPL OS" }, { name: "description", content: "Legal & contract management." }] }),
@@ -22,12 +22,17 @@ function VaultPage() {
   const { contracts, update } = useOS();
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
+  // in-memory object URLs for files uploaded this session (viewable/downloadable now).
+  const [blobs, setBlobs] = useState<Record<string, string>>({});
 
   function add(files: FileList | null) {
     if (!files) return;
-    Array.from(files).forEach((file) =>
-      update("contracts", (c) => [{ id: uid("c"), name: file.name.replace(/\.[^.]+$/, ""), tag: "Other" as ContractTag, expiresOn: "", fileName: file.name }, ...c])
-    );
+    Array.from(files).forEach((file) => {
+      const id = uid("c");
+      const url = URL.createObjectURL(file);
+      setBlobs((b) => ({ ...b, [id]: url }));
+      update("contracts", (c) => [{ id, name: file.name.replace(/\.[^.]+$/, ""), tag: "Other" as ContractTag, expiresOn: "", fileName: file.name }, ...c]);
+    });
   }
 
   const expiring = contracts.map((c) => ({ c, d: daysUntil(c.expiresOn) })).filter((x) => x.d !== null && x.d <= 30 && x.d >= 0);
@@ -85,6 +90,14 @@ function VaultPage() {
                 onChange={(e) => update("contracts", (all) => all.map((x) => x.id === c.id ? { ...x, expiresOn: e.target.value } : x))}
                 className={`rounded-full border bg-white/[0.03] px-3 py-1.5 text-xs outline-none ${warn ? "border-[oklch(0.82_0.16_90)]/60 text-[oklch(0.85_0.16_90)]" : "border-white/10"}`}
               />
+              {blobs[c.id] ? (
+                <div className="flex items-center gap-1">
+                  <a href={blobs[c.id]} target="_blank" rel="noreferrer" title="View" className="glass grid h-7 w-7 place-items-center rounded-lg hover:bg-white/5"><Eye className="h-3.5 w-3.5" /></a>
+                  <a href={blobs[c.id]} download={c.fileName} title="Download" className="glass grid h-7 w-7 place-items-center rounded-lg hover:bg-white/5"><Download className="h-3.5 w-3.5" /></a>
+                </div>
+              ) : (
+                <span title="File not in this session — connect Supabase Storage to persist & re-open files" className="text-[10px] text-muted-foreground/60">stored</span>
+              )}
               <button onClick={() => update("contracts", (all) => all.filter((x) => x.id !== c.id))} className="text-muted-foreground hover:text-[oklch(0.7_0.2_20)]"><Trash2 className="h-4 w-4" /></button>
             </div>
           );

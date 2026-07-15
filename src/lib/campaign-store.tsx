@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { seedCampaigns, type Campaign, type ChecklistPhase } from "./campaign-data";
-import { getTemplate, type CampaignTemplate } from "./campaign-templates";
+import { campaignTemplates, type CampaignTemplate } from "./campaign-templates";
 
 /* Frontend-only persistent store (localStorage). Everything is scoped
    per-campaign: task checklist state, influencer assignments and uploaded
@@ -11,6 +11,10 @@ const LS_ACTIVE = "rippl.activeCampaign.v2";
 const LS_TASKS = "rippl.tasks.v2";          // { [campaignId]: { [itemId]: boolean } }
 const LS_ASSIGN = "rippl.assignments.v2";   // { [campaignId]: creatorId[] }
 const LS_ASSETS = "rippl.assets.v2";        // { [campaignId]: UploadedAsset[] }
+const LS_BUDGET = "rippl.budgetlines.v2";   // { [campaignId]: BudgetLineItem[] }
+const LS_TEMPLATES = "rippl.customTemplates.v2"; // CampaignTemplate[] (user-made/edited)
+
+export interface BudgetLineItem { id: string; category: string; planned: number; spent: number; kind: "Budget" | "Expense" | "Payment"; }
 
 export type AssetStatus = "Draft" | "Under Review" | "Approved" | "Needs Revision";
 export interface UploadedAsset {
@@ -48,6 +52,16 @@ interface StoreCtx {
   addAsset: (a: Omit<UploadedAsset, "id" | "addedAt" | "status"> & { status?: AssetStatus }) => void;
   setAssetStatus: (assetId: string, status: AssetStatus) => void;
   removeAsset: (assetId: string) => void;
+
+  activeBudgetLines: BudgetLineItem[];
+  addBudgetLine: (line: Omit<BudgetLineItem, "id">) => void;
+  updateBudgetLine: (id: string, patch: Partial<BudgetLineItem>) => void;
+  removeBudgetLine: (id: string) => void;
+
+  allTemplates: CampaignTemplate[];        // built-in + custom
+  customTemplates: CampaignTemplate[];
+  saveTemplate: (t: CampaignTemplate) => void;   // add or update a custom template
+  deleteTemplate: (id: string) => void;
 }
 
 const Ctx = createContext<StoreCtx | null>(null);
@@ -71,6 +85,8 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<TaskMap>({});
   const [assignments, setAssignments] = useState<AssignMap>({});
   const [assets, setAssets] = useState<AssetMap>({});
+  const [budgetLines, setBudgetLines] = useState<Record<string, BudgetLineItem[]>>({});
+  const [customTemplates, setCustomTemplates] = useState<CampaignTemplate[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -81,6 +97,8 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     setTasks(load<TaskMap>(LS_TASKS, {}));
     setAssignments(load<AssignMap>(LS_ASSIGN, {}));
     setAssets(load<AssetMap>(LS_ASSETS, {}));
+    setBudgetLines(load<Record<string, BudgetLineItem[]>>(LS_BUDGET, {}));
+    setCustomTemplates(load<CampaignTemplate[]>(LS_TEMPLATES, []));
     setHydrated(true);
   }, []);
 
@@ -89,13 +107,21 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (hydrated) save(LS_TASKS, tasks); }, [tasks, hydrated]);
   useEffect(() => { if (hydrated) save(LS_ASSIGN, assignments); }, [assignments, hydrated]);
   useEffect(() => { if (hydrated) save(LS_ASSETS, assets); }, [assets, hydrated]);
+  useEffect(() => { if (hydrated) save(LS_BUDGET, budgetLines); }, [budgetLines, hydrated]);
+  useEffect(() => { if (hydrated) save(LS_TEMPLATES, customTemplates); }, [customTemplates, hydrated]);
 
   const active = useMemo(
     () => campaigns.find((c) => c.id === activeId) ?? campaigns[0] ?? null,
     [campaigns, activeId]
   );
-  const activeTemplate = useMemo(() => getTemplate(active?.templateId), [active]);
+  const allTemplates = useMemo(() => [...campaignTemplates, ...customTemplates], [customTemplates]);
+  const activeTemplate = useMemo(() => allTemplates.find((t) => t.id === active?.templateId), [allTemplates, active]);
   const activeChecklist = activeTemplate?.checklist ?? [];
+
+  function saveTemplate(t: CampaignTemplate) {
+    setCustomTemplates((prev) => (prev.some((x) => x.id === t.id) ? prev.map((x) => (x.id === t.id ? t : x)) : [...prev, t]));
+  }
+  function deleteTemplate(id: string) { setCustomTemplates((prev) => prev.filter((x) => x.id !== id)); }
 
   function addCampaign(c: Omit<Campaign, "id" | "seeded"> & { id?: string }) {
     const id = c.id ?? `c-${Date.now()}`;
@@ -148,12 +174,25 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     setAssets((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? []).filter((x) => x.id !== assetId) }));
   }
 
+  const activeBudgetLines = budgetLines[activeId] ?? [];
+  function addBudgetLine(line: Omit<BudgetLineItem, "id">) {
+    setBudgetLines((prev) => ({ ...prev, [activeId]: [{ ...line, id: `b-${Date.now()}-${Math.random().toString(36).slice(2, 5)}` }, ...(prev[activeId] ?? [])] }));
+  }
+  function updateBudgetLine(id: string, patch: Partial<BudgetLineItem>) {
+    setBudgetLines((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? []).map((x) => x.id === id ? { ...x, ...patch } : x) }));
+  }
+  function removeBudgetLine(id: string) {
+    setBudgetLines((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? []).filter((x) => x.id !== id) }));
+  }
+
   return (
     <Ctx.Provider value={{
       campaigns, activeId, active, setActive: setActiveId, addCampaign,
       activeTemplate, activeChecklist, isTaskDone, toggleTask, taskProgress,
       assignedIds, isAssigned, toggleAssignment,
       activeAssets, addAsset, setAssetStatus, removeAsset,
+      activeBudgetLines, addBudgetLine, updateBudgetLine, removeBudgetLine,
+      allTemplates, customTemplates, saveTemplate, deleteTemplate,
     }}>
       {children}
     </Ctx.Provider>

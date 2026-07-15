@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Play, Pause, MessageSquarePlus, Music2 } from "lucide-react";
+import { Play, Pause, MessageSquarePlus, Music2, Upload } from "lucide-react";
 import { useOS, uid } from "@/lib/os-store";
 
 /* Persistent bottom audio bar. Synthetic waveform + scrubber.
@@ -14,6 +14,14 @@ export function AudioPlayer() {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function onUpload(file?: File) {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    playTrack({ id: uid("tr"), title: file.name.replace(/\.[^.]+$/, ""), artist: "Local upload", url });
+    setProgress(0);
+  }
 
   const track = currentTrack ?? tracks[0] ?? null;
 
@@ -63,6 +71,11 @@ export function AudioPlayer() {
         </button>
 
         <div className="hidden w-10 shrink-0 text-right font-mono text-[11px] text-white/40 md:block">{Math.round(progress)}%</div>
+
+        <input ref={fileRef} type="file" accept="audio/*" className="hidden" onChange={(e) => { onUpload(e.target.files?.[0]); e.target.value = ""; }} />
+        <button onClick={() => fileRef.current?.click()} title="Load an audio file to play" className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/70 transition-colors hover:border-white/40 hover:text-white">
+          <Upload className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Load audio</span>
+        </button>
 
         <button onClick={() => setNoteOpen((o) => !o)} className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/70 transition-colors hover:border-white/40 hover:text-white">
           <MessageSquarePlus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Feedback</span>
