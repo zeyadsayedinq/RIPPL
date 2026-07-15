@@ -1,15 +1,17 @@
 import type { ReactNode } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { MeshGradient } from "@/components/MeshGradient";
+import { CommandPalette } from "@/components/CommandPalette";
+import { AudioPlayer } from "@/components/AudioPlayer";
+import { QuickActionFAB } from "@/components/QuickActionFAB";
 import { motion } from "framer-motion";
 
-// RoleProvider + CampaignProvider now live in __root.tsx, wrapping every route,
-// so hooks like useCampaigns()/useRole() work at any level (including page tops).
+// Providers (Campaign, Role, OS) live in __root.tsx, wrapping every route.
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <>
       <MeshGradient />
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-[1600px] gap-6 p-4">
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-[1600px] gap-6 p-4 pb-24">
         <Sidebar />
         <motion.main
           initial={{ opacity: 0, y: 12 }}
@@ -20,6 +22,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
         </motion.main>
       </div>
+
+      {/* Global chrome */}
+      <CommandPalette />
+      <QuickActionFAB />
+      <AudioPlayer />
     </>
   );
 }

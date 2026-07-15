@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RoleProvider } from "../lib/role-context";
 import { CampaignProvider } from "../lib/campaign-store";
+import { OSProvider } from "../lib/os-store";
 import { PasswordGate } from "../components/PasswordGate";
 
 function NotFoundComponent() {
@@ -123,12 +124,14 @@ function RootComponent() {
       {/* Master-password gate wraps the entire app. */}
       <PasswordGate>
         {/* Providers live at the root so every route (at any nesting level) has context. */}
-        <CampaignProvider>
-          <RoleProvider>
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <Outlet />
-          </RoleProvider>
-        </CampaignProvider>
+        <OSProvider>
+          <CampaignProvider>
+            <RoleProvider>
+              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+              <Outlet />
+            </RoleProvider>
+          </CampaignProvider>
+        </OSProvider>
       </PasswordGate>
     </QueryClientProvider>
   );

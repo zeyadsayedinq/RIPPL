@@ -9,8 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VaultRouteImport } from './routes/vault'
 import { Route as TemplatesRouteImport } from './routes/templates'
+import { Route as TechlabRouteImport } from './routes/techlab'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as StudioRouteImport } from './routes/studio'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as RosterRouteImport } from './routes/roster'
+import { Route as ReleasesRouteImport } from './routes/releases'
+import { Route as HomeRouteImport } from './routes/home'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CreatorsRouteImport } from './routes/creators'
 import { Route as ChannelsRouteImport } from './routes/channels'
@@ -20,14 +27,49 @@ import { Route as BudgetRouteImport } from './routes/budget'
 import { Route as AssetsRouteImport } from './routes/assets'
 import { Route as IndexRouteImport } from './routes/index'
 
+const VaultRoute = VaultRouteImport.update({
+  id: '/vault',
+  path: '/vault',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TemplatesRoute = TemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TechlabRoute = TechlabRouteImport.update({
+  id: '/techlab',
+  path: '/techlab',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudioRoute = StudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RosterRoute = RosterRouteImport.update({
+  id: '/roster',
+  path: '/roster',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReleasesRoute = ReleasesRouteImport.update({
+  id: '/releases',
+  path: '/releases',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -80,8 +122,15 @@ export interface FileRoutesByFullPath {
   '/channels': typeof ChannelsRoute
   '/creators': typeof CreatorsRoute
   '/dashboard': typeof DashboardRoute
+  '/home': typeof HomeRoute
+  '/releases': typeof ReleasesRoute
+  '/roster': typeof RosterRoute
+  '/settings': typeof SettingsRoute
+  '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
+  '/techlab': typeof TechlabRoute
   '/templates': typeof TemplatesRoute
+  '/vault': typeof VaultRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -92,8 +141,15 @@ export interface FileRoutesByTo {
   '/channels': typeof ChannelsRoute
   '/creators': typeof CreatorsRoute
   '/dashboard': typeof DashboardRoute
+  '/home': typeof HomeRoute
+  '/releases': typeof ReleasesRoute
+  '/roster': typeof RosterRoute
+  '/settings': typeof SettingsRoute
+  '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
+  '/techlab': typeof TechlabRoute
   '/templates': typeof TemplatesRoute
+  '/vault': typeof VaultRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -105,8 +161,15 @@ export interface FileRoutesById {
   '/channels': typeof ChannelsRoute
   '/creators': typeof CreatorsRoute
   '/dashboard': typeof DashboardRoute
+  '/home': typeof HomeRoute
+  '/releases': typeof ReleasesRoute
+  '/roster': typeof RosterRoute
+  '/settings': typeof SettingsRoute
+  '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
+  '/techlab': typeof TechlabRoute
   '/templates': typeof TemplatesRoute
+  '/vault': typeof VaultRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -119,8 +182,15 @@ export interface FileRouteTypes {
     | '/channels'
     | '/creators'
     | '/dashboard'
+    | '/home'
+    | '/releases'
+    | '/roster'
+    | '/settings'
+    | '/studio'
     | '/tasks'
+    | '/techlab'
     | '/templates'
+    | '/vault'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -131,8 +201,15 @@ export interface FileRouteTypes {
     | '/channels'
     | '/creators'
     | '/dashboard'
+    | '/home'
+    | '/releases'
+    | '/roster'
+    | '/settings'
+    | '/studio'
     | '/tasks'
+    | '/techlab'
     | '/templates'
+    | '/vault'
   id:
     | '__root__'
     | '/'
@@ -143,8 +220,15 @@ export interface FileRouteTypes {
     | '/channels'
     | '/creators'
     | '/dashboard'
+    | '/home'
+    | '/releases'
+    | '/roster'
+    | '/settings'
+    | '/studio'
     | '/tasks'
+    | '/techlab'
     | '/templates'
+    | '/vault'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -156,16 +240,24 @@ export interface RootRouteChildren {
   ChannelsRoute: typeof ChannelsRoute
   CreatorsRoute: typeof CreatorsRoute
   DashboardRoute: typeof DashboardRoute
+  HomeRoute: typeof HomeRoute
+  ReleasesRoute: typeof ReleasesRoute
+  RosterRoute: typeof RosterRoute
+  SettingsRoute: typeof SettingsRoute
+  StudioRoute: typeof StudioRoute
   TasksRoute: typeof TasksRoute
+  TechlabRoute: typeof TechlabRoute
+  TemplatesRoute: typeof TemplatesRoute
+  VaultRoute: typeof VaultRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/tasks': {
-      id: '/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof TasksRouteImport
+    '/vault': {
+      id: '/vault'
+      path: '/vault'
+      fullPath: '/vault'
+      preLoaderRoute: typeof VaultRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/templates': {
@@ -173,6 +265,55 @@ declare module '@tanstack/react-router' {
       path: '/templates'
       fullPath: '/templates'
       preLoaderRoute: typeof TemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/techlab': {
+      id: '/techlab'
+      path: '/techlab'
+      fullPath: '/techlab'
+      preLoaderRoute: typeof TechlabRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/studio': {
+      id: '/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/roster': {
+      id: '/roster'
+      path: '/roster'
+      fullPath: '/roster'
+      preLoaderRoute: typeof RosterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/releases': {
+      id: '/releases'
+      path: '/releases'
+      fullPath: '/releases'
+      preLoaderRoute: typeof ReleasesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -243,8 +384,15 @@ const rootRouteChildren: RootRouteChildren = {
   ChannelsRoute: ChannelsRoute,
   CreatorsRoute: CreatorsRoute,
   DashboardRoute: DashboardRoute,
+  HomeRoute: HomeRoute,
+  ReleasesRoute: ReleasesRoute,
+  RosterRoute: RosterRoute,
+  SettingsRoute: SettingsRoute,
+  StudioRoute: StudioRoute,
   TasksRoute: TasksRoute,
+  TechlabRoute: TechlabRoute,
   TemplatesRoute: TemplatesRoute,
+  VaultRoute: VaultRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
