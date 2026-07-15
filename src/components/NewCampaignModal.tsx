@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { MagneticButton } from "@/components/MagneticButton";
+import { Portal } from "@/components/Portal";
 import { useCampaigns } from "@/lib/campaign-store";
 import { campaignTemplates } from "@/lib/campaign-templates";
 
@@ -10,23 +12,25 @@ const field = "w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-
 
 export function ModalShell({ title, eyebrow, onClose, children }: { title: string; eyebrow: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
+    <Portal>
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }}
-        transition={{ type: "spring", stiffness: 320, damping: 28 }}
-        onClick={(e) => e.stopPropagation()}
-        className="glass-strong relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6 text-left"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] grid place-items-center bg-black/80 p-4 backdrop-blur-md"
+        onClick={onClose}
       >
-        <button onClick={onClose} className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-white">✕</button>
-        <div className="text-[10px] uppercase tracking-[0.3em] text-[oklch(0.85_0.25_328)]">{eyebrow}</div>
-        <h3 className="mt-1 font-display text-2xl font-bold">{title}</h3>
-        <div className="mt-5">{children}</div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }}
+          transition={{ type: "spring", stiffness: 320, damping: 28 }}
+          onClick={(e) => e.stopPropagation()}
+          className="glass-strong relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6 text-left"
+        >
+          <button onClick={onClose} className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-white">✕</button>
+          <div className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{eyebrow}</div>
+          <h3 className="mt-1 font-display text-2xl font-bold">{title}</h3>
+          <div className="mt-5">{children}</div>
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </Portal>
   );
 }
 

@@ -24,9 +24,9 @@ export function MagneticButton({ children, className = "", onClick, variant = "p
   function onLeave() { x.set(0); y.set(0); }
 
   const variants = {
-    primary: "bg-gradient-to-r from-[oklch(0.7_0.28_328)] to-[oklch(0.55_0.3_300)] text-white shadow-[0_0_24px_rgba(232,121,249,0.35)]",
-    ghost: "glass text-foreground",
-    danger: "bg-destructive/80 text-white border border-destructive",
+    primary: "bg-white text-black hover:bg-white/90",
+    ghost: "glass text-foreground hover:bg-white/5",
+    danger: "bg-transparent text-[oklch(0.7_0.2_20)] border border-[oklch(0.7_0.2_20)]/40 hover:bg-[oklch(0.7_0.2_20)]/10",
   };
 
   return (
@@ -37,7 +37,7 @@ export function MagneticButton({ children, className = "", onClick, variant = "p
       onClick={onClick}
       style={{ x, y }}
       whileTap={{ scale: 0.95 }}
-      className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-shadow hover:shadow-[0_0_36px_rgba(232,121,249,0.55)] ${variants[variant]} ${className}`}
+      className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-colors ${variants[variant]} ${className}`}
     >
       {children}
     </motion.button>

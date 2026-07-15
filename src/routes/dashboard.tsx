@@ -112,7 +112,7 @@ function Dashboard() {
               {active && (
                 <motion.div
                   layoutId="tab-active"
-                  className="absolute inset-0 rounded-xl bg-gradient-to-r from-[oklch(0.7_0.28_328)]/30 to-[oklch(0.5_0.3_300)]/10 border border-[oklch(0.7_0.28_328)]/30"
+                  className="absolute inset-0 rounded-xl bg-white/[0.06] border border-white/10"
                   transition={{ type: "spring", stiffness: 320, damping: 30 }}
                 />
               )}

@@ -13,7 +13,7 @@ export function SpotlightCard({ children, className = "", spotlight = true }: Pr
   const my = useMotionValue(-200);
 
   const bg = useTransform([mx, my], ([x, y]) =>
-    `radial-gradient(400px circle at ${x}px ${y}px, rgba(232, 121, 249, 0.15), transparent 60%)`
+    `radial-gradient(400px circle at ${x}px ${y}px, rgba(255, 255, 255, 0.05), transparent 60%)`
   );
 
   function onMove(e: MouseEvent<HTMLDivElement>) {

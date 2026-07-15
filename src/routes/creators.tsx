@@ -5,6 +5,7 @@ import { MagneticButton } from "@/components/MagneticButton";
 import { creators, platformColors, type Creator, type Platform, type Tier, type Status } from "@/lib/mock-data";
 import { useRole } from "@/lib/role-context";
 import { useCampaigns } from "@/lib/campaign-store";
+import { Portal } from "@/components/Portal";
 import { useMemo, useState } from "react";
 import { Search, Instagram, Music2, X, Heart, Eye, Users, TrendingUp } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -193,8 +194,9 @@ function CreatorModal({ creator, onClose }: { creator: Creator; onClose: () => v
   const { active, isAssigned, toggleAssignment } = useCampaigns();
   const assigned = isAssigned(creator.id);
   return (
+    <Portal>
     <motion.div
-      className="fixed inset-0 z-50 flex items-stretch justify-end p-4"
+      className="fixed inset-0 z-[100] flex items-stretch justify-end p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -270,6 +272,7 @@ function CreatorModal({ creator, onClose }: { creator: Creator; onClose: () => v
         </div>
       </motion.div>
     </motion.div>
+    </Portal>
   );
 }
 

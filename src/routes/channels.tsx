@@ -51,7 +51,7 @@ function ChannelsPage() {
           return (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`relative flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${on ? "text-white" : "text-muted-foreground hover:text-white"}`}>
-              {on && <motion.div layoutId="ch-tab" className="absolute inset-0 rounded-xl bg-gradient-to-r from-[oklch(0.7_0.28_328)]/30 to-[oklch(0.5_0.3_300)]/10 border border-[oklch(0.7_0.28_328)]/30" transition={{ type: "spring", stiffness: 320, damping: 30 }} />}
+              {on && <motion.div layoutId="ch-tab" className="absolute inset-0 rounded-xl bg-white/[0.06] border border-white/10" transition={{ type: "spring", stiffness: 320, damping: 30 }} />}
               <t.icon className="relative h-4 w-4" /><span className="relative whitespace-nowrap">{t.label}</span>
             </button>
           );
