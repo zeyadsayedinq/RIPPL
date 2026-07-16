@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { seedCampaigns, type Campaign, type ChecklistPhase } from "./campaign-data";
 import { campaignTemplates, type CampaignTemplate } from "./campaign-templates";
+import { loadState, saveState } from "./cloud";
 
 /* Frontend-only persistent store (localStorage). Everything is scoped
    per-campaign: task checklist state, influencer assignments and uploaded
@@ -65,18 +66,7 @@ interface StoreCtx {
 }
 
 const Ctx = createContext<StoreCtx | null>(null);
-
-function load<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch { return fallback; }
-}
-function save(key: string, val: unknown) {
-  if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(key, JSON.stringify(val)); } catch { /* quota — ignore */ }
-}
+const save = (key: string, val: unknown) => { void saveState(key, val); };
 
 export function CampaignProvider({ children }: { children: ReactNode }) {
   // Deterministic initial state for SSR; localStorage hydrates after mount.
@@ -90,16 +80,18 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const userMade = load<Campaign[]>(LS_CAMPAIGNS, []).filter((c) => !c.seeded);
-    const all = [...seedCampaigns, ...userMade];
-    if (userMade.length) setCampaigns(all);
-    setActiveId(load<string>(LS_ACTIVE, all[0]?.id ?? ""));
-    setTasks(load<TaskMap>(LS_TASKS, {}));
-    setAssignments(load<AssignMap>(LS_ASSIGN, {}));
-    setAssets(load<AssetMap>(LS_ASSETS, {}));
-    setBudgetLines(load<Record<string, BudgetLineItem[]>>(LS_BUDGET, {}));
-    setCustomTemplates(load<CampaignTemplate[]>(LS_TEMPLATES, []));
-    setHydrated(true);
+    (async () => {
+      const userMade = (await loadState<Campaign[]>(LS_CAMPAIGNS, [])).filter((c) => !c.seeded);
+      const all = [...seedCampaigns, ...userMade];
+      if (userMade.length) setCampaigns(all);
+      setActiveId(await loadState<string>(LS_ACTIVE, all[0]?.id ?? ""));
+      setTasks(await loadState<TaskMap>(LS_TASKS, {}));
+      setAssignments(await loadState<AssignMap>(LS_ASSIGN, {}));
+      setAssets(await loadState<AssetMap>(LS_ASSETS, {}));
+      setBudgetLines(await loadState<Record<string, BudgetLineItem[]>>(LS_BUDGET, {}));
+      setCustomTemplates(await loadState<CampaignTemplate[]>(LS_TEMPLATES, []));
+      setHydrated(true);
+    })();
   }, []);
 
   useEffect(() => { if (hydrated) save(LS_CAMPAIGNS, campaigns.filter((c) => !c.seeded)); }, [campaigns, hydrated]);

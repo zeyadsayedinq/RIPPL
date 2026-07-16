@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Pause, MessageSquarePlus, Music2, Upload } from "lucide-react";
 import { useOS, uid } from "@/lib/os-store";
+import { cloudEnabled, uploadToBucket, signedUrl } from "@/lib/cloud";
 
 /* Persistent bottom audio bar. Synthetic waveform + scrubber.
    If the track has a URL, a real <audio> element is used; otherwise the
@@ -15,28 +16,46 @@ export function AudioPlayer() {
   const [noteText, setNoteText] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [srcUrl, setSrcUrl] = useState<string | null>(null); // resolved playable url
 
-  function onUpload(file?: File) {
+  async function onUpload(file?: File) {
     if (!file) return;
     const url = URL.createObjectURL(file);
-    playTrack({ id: uid("tr"), title: file.name.replace(/\.[^.]+$/, ""), artist: "Local upload", url });
+    const id = uid("tr");
+    const title = file.name.replace(/\.[^.]+$/, "");
+    playTrack({ id, title, artist: "Upload", url });
     setProgress(0);
+    let path: string | undefined;
+    if (cloudEnabled) { try { path = (await uploadToBucket("audio", file)) ?? undefined; } catch { /* storage not set up */ } }
+    // persist the track entry (with storage path) so it survives reloads
+    update("tracks", (t) => [{ id, title, artist: "Upload", url, path }, ...t]);
   }
 
   const track = currentTrack ?? tracks[0] ?? null;
 
-  // simulated progress when no real audio url
+  // resolve a playable URL: session object URL, else a signed Storage URL from path
   useEffect(() => {
-    if (!playing || track?.url) return;
+    let alive = true;
+    (async () => {
+      if (track?.url) { setSrcUrl(track.url); return; }
+      if (track?.path) { const u = await signedUrl("audio", track.path); if (alive) setSrcUrl(u); return; }
+      setSrcUrl(null);
+    })();
+    return () => { alive = false; };
+  }, [track]);
+
+  // simulated progress only when there's no real audio source
+  useEffect(() => {
+    if (!playing || srcUrl) return;
     const id = setInterval(() => setProgress((p) => (p >= 100 ? 0 : p + 0.5)), 120);
     return () => clearInterval(id);
-  }, [playing, track]);
+  }, [playing, srcUrl]);
 
   useEffect(() => {
     const a = audioRef.current;
-    if (!a || !track?.url) return;
+    if (!a || !srcUrl) return;
     if (playing) a.play().catch(() => {}); else a.pause();
-  }, [playing, track]);
+  }, [playing, srcUrl]);
 
   if (!track) return null;
 
@@ -48,7 +67,7 @@ export function AudioPlayer() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0a0a0c]/95 backdrop-blur-xl">
-      {track.url && <audio ref={audioRef} src={track.url} onTimeUpdate={(e) => { const a = e.currentTarget; setProgress((a.currentTime / (a.duration || 1)) * 100); }} />}
+      {srcUrl && <audio ref={audioRef} src={srcUrl} onTimeUpdate={(e) => { const a = e.currentTarget; setProgress((a.currentTime / (a.duration || 1)) * 100); }} />}
       <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-2.5">
         <button onClick={togglePlay} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-black transition-transform hover:scale-105">
           {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 translate-x-[1px]" />}

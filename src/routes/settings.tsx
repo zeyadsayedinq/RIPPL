@@ -3,6 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { useRole, type Role } from "@/lib/role-context";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { clearEverything } from "@/lib/cloud";
 import { Lock, Trash2, ShieldCheck, Database, LogOut } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
@@ -19,9 +20,10 @@ function SettingsPage() {
     try { localStorage.removeItem("rippl.unlocked.v1"); } catch { /* ignore */ }
     location.reload();
   }
-  function resetOS() {
-    if (!confirm("Reset all RIPPL OS data (roster, deals, releases, vault, notes)? This cannot be undone.")) return;
-    try { localStorage.removeItem("rippl.os.v1"); } catch { /* ignore */ } location.reload();
+  async function resetOS() {
+    if (!confirm("Reset EVERYTHING — all campaigns, roster, deals, releases, contracts, files, notes (local + Supabase)? This cannot be undone.")) return;
+    await clearEverything();
+    location.reload();
   }
   return (
     <AppShell>
@@ -58,7 +60,7 @@ function SettingsPage() {
             <button onClick={lock} className="glass inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm hover:bg-white/5">
               {isSupabaseConfigured ? <><LogOut className="h-4 w-4" /> Sign out</> : <><Lock className="h-4 w-4" /> Lock app (require password)</>}
             </button>
-            <button onClick={resetOS} className="inline-flex items-center gap-2 rounded-full border border-[oklch(0.7_0.2_20)]/40 px-4 py-2.5 text-sm text-[oklch(0.7_0.2_20)] hover:bg-[oklch(0.7_0.2_20)]/10"><Trash2 className="h-4 w-4" /> Reset OS data</button>
+            <button onClick={resetOS} className="inline-flex items-center gap-2 rounded-full border border-[oklch(0.7_0.2_20)]/40 px-4 py-2.5 text-sm text-[oklch(0.7_0.2_20)] hover:bg-[oklch(0.7_0.2_20)]/10"><Trash2 className="h-4 w-4" /> Reset everything (local + cloud)</button>
           </div>
         </SpotlightCard>
       </section>

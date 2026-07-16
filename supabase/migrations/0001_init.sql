@@ -146,6 +146,22 @@ create table if not exists public.prompts (
   created_at timestamptz not null default now()
 );
 
+-- ── app_state: cross-device state sync (JSONB blobs per key) ─
+-- The app writes its whole state here so everything (campaigns, assets,
+-- influencers, budgets, templates, roster, deals, releases, contracts
+-- metadata, notes, etc.) persists to Supabase and syncs across devices.
+create table if not exists public.app_state (
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  key text not null,
+  data jsonb not null,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, key)
+);
+alter table public.app_state enable row level security;
+drop policy if exists app_state_owner on public.app_state;
+create policy app_state_owner on public.app_state
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- ═══════════════════════════════════════════════════════════
 -- Row Level Security — owner-only access on every table.
 -- ═══════════════════════════════════════════════════════════
@@ -186,10 +202,14 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- ═══════════════════════════════════════════════════════════
--- Storage buckets (create in Dashboard → Storage, or via API):
---   audio      (private)  — WAV/MP3 masters & demos
---   art        (private)  — cover art / canvas
---   contracts  (private)  — signed PDFs
--- Suggested storage policy per bucket (owner-only):
---   using ( bucket_id = 'audio' and (storage.foldername(name))[1] = auth.uid()::text )
+-- Storage buckets — create these in Dashboard → Storage (Private):
+--   audio, art, contracts
+-- Then this policy lets a signed-in user manage files in their own
+-- uid-prefixed folder (path format: `<uid>/<filename>`).
 -- ═══════════════════════════════════════════════════════════
+do $$ begin
+  create policy "rippl own storage" on storage.objects
+    for all to authenticated
+    using ( bucket_id in ('audio','art','contracts') and (storage.foldername(name))[1] = auth.uid()::text )
+    with check ( bucket_id in ('audio','art','contracts') and (storage.foldername(name))[1] = auth.uid()::text );
+exception when duplicate_object then null; end $$;

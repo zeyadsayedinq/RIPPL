@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { useOS, uid, type ContractTag } from "@/lib/os-store";
+import { cloudEnabled, uploadToBucket, signedUrl } from "@/lib/cloud";
 import { Upload, FileSignature, AlertTriangle, Trash2, Eye, Download } from "lucide-react";
 
 export const Route = createFileRoute("/vault")({
@@ -22,17 +23,30 @@ function VaultPage() {
   const { contracts, update } = useOS();
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
-  // in-memory object URLs for files uploaded this session (viewable/downloadable now).
+  // in-memory object URLs for files uploaded this session (instant view before cloud round-trip).
   const [blobs, setBlobs] = useState<Record<string, string>>({});
+  const [err, setErr] = useState("");
 
   function add(files: FileList | null) {
     if (!files) return;
-    Array.from(files).forEach((file) => {
+    Array.from(files).forEach(async (file) => {
       const id = uid("c");
       const url = URL.createObjectURL(file);
       setBlobs((b) => ({ ...b, [id]: url }));
-      update("contracts", (c) => [{ id, name: file.name.replace(/\.[^.]+$/, ""), tag: "Other" as ContractTag, expiresOn: "", fileName: file.name }, ...c]);
+      let filePath: string | undefined;
+      if (cloudEnabled) {
+        try { filePath = (await uploadToBucket("contracts", file)) ?? undefined; }
+        catch (e: any) { setErr(`Upload to Storage failed: ${e?.message || e}. Create the "contracts" bucket + run the storage policy (see SUPABASE_SETUP.md).`); }
+      }
+      update("contracts", (c) => [{ id, name: file.name.replace(/\.[^.]+$/, ""), tag: "Other" as ContractTag, expiresOn: "", fileName: file.name, filePath }, ...c]);
     });
+  }
+
+  async function openFile(filePath: string | undefined, sessionUrl: string | undefined, download?: string) {
+    const url = sessionUrl ?? (filePath ? await signedUrl("contracts", filePath) : null);
+    if (!url) return;
+    if (download) { const a = document.createElement("a"); a.href = url; a.download = download; a.click(); }
+    else window.open(url, "_blank");
   }
 
   const expiring = contracts.map((c) => ({ c, d: daysUntil(c.expiresOn) })).filter((x) => x.d !== null && x.d <= 30 && x.d >= 0);
@@ -44,6 +58,8 @@ function VaultPage() {
         <h1 className="mt-1 font-display text-3xl font-bold">Contract <span className="text-gradient-neon">Vault</span></h1>
         <p className="mt-1 text-sm text-muted-foreground">Store, tag and monitor every agreement. Alerts fire 30 days before expiry.</p>
       </header>
+
+      {err && <div className="mt-4 rounded-xl border border-[oklch(0.7_0.2_20)]/40 bg-[oklch(0.7_0.2_20)]/10 p-3 text-sm text-[oklch(0.8_0.2_20)]">{err}</div>}
 
       {/* Expiration alerts */}
       {expiring.length > 0 && (
@@ -90,13 +106,13 @@ function VaultPage() {
                 onChange={(e) => update("contracts", (all) => all.map((x) => x.id === c.id ? { ...x, expiresOn: e.target.value } : x))}
                 className={`rounded-full border bg-white/[0.03] px-3 py-1.5 text-xs outline-none ${warn ? "border-[oklch(0.82_0.16_90)]/60 text-[oklch(0.85_0.16_90)]" : "border-white/10"}`}
               />
-              {blobs[c.id] ? (
+              {(blobs[c.id] || c.filePath) ? (
                 <div className="flex items-center gap-1">
-                  <a href={blobs[c.id]} target="_blank" rel="noreferrer" title="View" className="glass grid h-7 w-7 place-items-center rounded-lg hover:bg-white/5"><Eye className="h-3.5 w-3.5" /></a>
-                  <a href={blobs[c.id]} download={c.fileName} title="Download" className="glass grid h-7 w-7 place-items-center rounded-lg hover:bg-white/5"><Download className="h-3.5 w-3.5" /></a>
+                  <button onClick={() => openFile(c.filePath, blobs[c.id])} title="View" className="glass grid h-7 w-7 place-items-center rounded-lg hover:bg-white/5"><Eye className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => openFile(c.filePath, blobs[c.id], c.fileName)} title="Download" className="glass grid h-7 w-7 place-items-center rounded-lg hover:bg-white/5"><Download className="h-3.5 w-3.5" /></button>
                 </div>
               ) : (
-                <span title="File not in this session — connect Supabase Storage to persist & re-open files" className="text-[10px] text-muted-foreground/60">stored</span>
+                <span title="Metadata only — no file bytes stored" className="text-[10px] text-muted-foreground/60">no file</span>
               )}
               <button onClick={() => update("contracts", (all) => all.filter((x) => x.id !== c.id))} className="text-muted-foreground hover:text-[oklch(0.7_0.2_20)]"><Trash2 className="h-4 w-4" /></button>
             </div>
