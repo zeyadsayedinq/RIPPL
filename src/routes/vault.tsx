@@ -4,6 +4,8 @@ import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { useOS, uid, type ContractTag } from "@/lib/os-store";
 import { cloudEnabled, uploadToBucket, signedUrl } from "@/lib/cloud";
+import { FileViewer } from "@/components/FileViewer";
+import { AnimatePresence } from "framer-motion";
 import { Upload, FileSignature, AlertTriangle, Trash2, Eye, Download } from "lucide-react";
 
 export const Route = createFileRoute("/vault")({
@@ -26,6 +28,7 @@ function VaultPage() {
   // in-memory object URLs for files uploaded this session (instant view before cloud round-trip).
   const [blobs, setBlobs] = useState<Record<string, string>>({});
   const [err, setErr] = useState("");
+  const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
 
   function add(files: FileList | null) {
     if (!files) return;
@@ -42,11 +45,17 @@ function VaultPage() {
     });
   }
 
-  async function openFile(filePath: string | undefined, sessionUrl: string | undefined, download?: string) {
-    const url = sessionUrl ?? (filePath ? await signedUrl("contracts", filePath) : null);
+  async function resolveUrl(filePath?: string, sessionUrl?: string) {
+    return sessionUrl ?? (filePath ? await signedUrl("contracts", filePath) : null);
+  }
+  async function viewFile(name: string, filePath?: string, sessionUrl?: string) {
+    const url = await resolveUrl(filePath, sessionUrl);
+    if (url) setViewer({ url, name });
+  }
+  async function downloadFile(name: string, filePath?: string, sessionUrl?: string) {
+    const url = await resolveUrl(filePath, sessionUrl);
     if (!url) return;
-    if (download) { const a = document.createElement("a"); a.href = url; a.download = download; a.click(); }
-    else window.open(url, "_blank");
+    const a = document.createElement("a"); a.href = url; a.download = name; a.click();
   }
 
   const expiring = contracts.map((c) => ({ c, d: daysUntil(c.expiresOn) })).filter((x) => x.d !== null && x.d <= 30 && x.d >= 0);
@@ -108,8 +117,8 @@ function VaultPage() {
               />
               {(blobs[c.id] || c.filePath) ? (
                 <div className="flex items-center gap-1">
-                  <button onClick={() => openFile(c.filePath, blobs[c.id])} title="View" className="glass grid h-7 w-7 place-items-center rounded-lg hover:bg-white/5"><Eye className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => openFile(c.filePath, blobs[c.id], c.fileName)} title="Download" className="glass grid h-7 w-7 place-items-center rounded-lg hover:bg-white/5"><Download className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => viewFile(c.fileName, c.filePath, blobs[c.id])} title="View" className="glass grid h-7 w-7 place-items-center rounded-lg hover:bg-white/5"><Eye className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => downloadFile(c.fileName, c.filePath, blobs[c.id])} title="Download" className="glass grid h-7 w-7 place-items-center rounded-lg hover:bg-white/5"><Download className="h-3.5 w-3.5" /></button>
                 </div>
               ) : (
                 <span title="Metadata only — no file bytes stored" className="text-[10px] text-muted-foreground/60">no file</span>
@@ -120,6 +129,8 @@ function VaultPage() {
         })}
         {contracts.length === 0 && <div className="glass rounded-2xl p-8 text-center text-sm text-muted-foreground">No contracts yet.</div>}
       </section>
+
+      <AnimatePresence>{viewer && <FileViewer url={viewer.url} fileName={viewer.name} onClose={() => setViewer(null)} />}</AnimatePresence>
     </AppShell>
   );
 }

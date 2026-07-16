@@ -10,7 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
+import { reportError } from "../lib/error-reporting";
 import { RoleProvider } from "../lib/role-context";
 import { CampaignProvider } from "../lib/campaign-store";
 import { OSProvider } from "../lib/os-store";
@@ -42,7 +42,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    reportError(error, { boundary: "root_error_component" });
   }, [error]);
 
   return (
@@ -81,16 +81,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "RIPPL · 360° Campaign Command" },
-      { name: "description", content: "360° marketing command — paid, organic & creator across every platform, with full-funnel attribution and budget." },
-      { property: "og:title", content: "RIPPL · 360° Campaign Command" },
-      { property: "og:description", content: "Run the whole funnel — paid, organic, and creator — across every social platform." },
+      { title: "RIPPL · My Universe" },
+      { name: "description", content: "Zeyad's universe — every artist, release, deal, contract, campaign and build, in one operating system." },
+      { property: "og:title", content: "RIPPL · My Universe" },
+      { property: "og:description", content: "More than a dashboard — the operating system for everything Zeyad builds." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" },
