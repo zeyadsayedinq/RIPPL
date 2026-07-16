@@ -158,6 +158,35 @@
   pointer-events: none;
 }
 
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.dj-fader {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  outline: none;
+}
+.dj-fader::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  width: 12px;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+}
+.dj-fader::-moz-range-thumb {
+  height: 18px;
+  width: 12px;
+  border: none;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   20% { transform: translateX(-8px); }

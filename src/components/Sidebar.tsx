@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  Home, Users, Disc3, FolderLock, Palette, Cpu, Settings,
+  Home, Users, Disc3, FolderLock, Palette, Cpu, Settings, Music2,
   LayoutDashboard, Megaphone, CalendarDays, Radio, ListChecks, Wallet, FileText, UsersRound, FolderOpen,
   ChevronDown, ChevronLeft, Check,
 } from "lucide-react";
@@ -14,6 +14,7 @@ const groups: { label: string; items: { to: string; label: string; icon: any }[]
     { to: "/home", label: "Home", icon: Home },
     { to: "/roster", label: "Roster", icon: Users },
     { to: "/releases", label: "Releases", icon: Disc3 },
+    { to: "/audio", label: "Audio", icon: Music2 },
     { to: "/vault", label: "The Vault", icon: FolderLock },
     { to: "/studio", label: "Studio", icon: Palette },
     { to: "/techlab", label: "Tech Lab", icon: Cpu },
