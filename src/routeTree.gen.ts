@@ -19,6 +19,7 @@ import { Route as RosterRouteImport } from './routes/roster'
 import { Route as ReleasesRouteImport } from './routes/releases'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as AudioRouteImport } from './routes/audio'
+import { Route as SRouteImport } from './routes/s'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CreatorsRouteImport } from './routes/creators'
 import { Route as ChannelsRouteImport } from './routes/channels'
@@ -78,6 +79,11 @@ const AudioRoute = AudioRouteImport.update({
   path: '/audio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SRoute = SRouteImport.update({
+  id: '/s',
+  path: '/s',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/audio': typeof AudioRoute
+  '/s': typeof SRoute
   '/releases': typeof ReleasesRoute
   '/roster': typeof RosterRoute
   '/settings': typeof SettingsRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/audio': typeof AudioRoute
+  '/s': typeof SRoute
   '/releases': typeof ReleasesRoute
   '/roster': typeof RosterRoute
   '/settings': typeof SettingsRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/audio': typeof AudioRoute
+  '/s': typeof SRoute
   '/releases': typeof ReleasesRoute
   '/roster': typeof RosterRoute
   '/settings': typeof SettingsRoute
@@ -193,6 +202,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/home'
     | '/audio'
+    | '/s'
     | '/releases'
     | '/roster'
     | '/settings'
@@ -213,6 +223,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/home'
     | '/audio'
+    | '/s'
     | '/releases'
     | '/roster'
     | '/settings'
@@ -233,6 +244,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/home'
     | '/audio'
+    | '/s'
     | '/releases'
     | '/roster'
     | '/settings'
@@ -335,6 +347,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s': {
+      id: '/s'
+      path: '/s'
+      fullPath: '/s'
+      preLoaderRoute: typeof SRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -405,6 +424,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   HomeRoute: HomeRoute,
   AudioRoute: AudioRoute,
+  SRoute: SRoute,
   ReleasesRoute: ReleasesRoute,
   RosterRoute: RosterRoute,
   SettingsRoute: SettingsRoute,

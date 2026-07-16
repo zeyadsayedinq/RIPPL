@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -118,21 +119,27 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isPublic = pathname.startsWith("/s"); // shared listen-only pages bypass the gate
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Access gate: Supabase Auth when configured, else master-password. */}
-      <AppGate>
-        {/* Providers live at the root so every route (at any nesting level) has context. */}
-        <OSProvider>
-          <CampaignProvider>
-            <RoleProvider>
-              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-              <Outlet />
-            </RoleProvider>
-          </CampaignProvider>
-        </OSProvider>
-      </AppGate>
+      {isPublic ? (
+        <Outlet />
+      ) : (
+        /* Access gate: Supabase Auth when configured, else master-password. */
+        <AppGate>
+          {/* Providers live at the root so every route (at any nesting level) has context. */}
+          <OSProvider>
+            <CampaignProvider>
+              <RoleProvider>
+                {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+                <Outlet />
+              </RoleProvider>
+            </CampaignProvider>
+          </OSProvider>
+        </AppGate>
+      )}
     </QueryClientProvider>
   );
 }

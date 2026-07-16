@@ -3,10 +3,14 @@ import { useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { MagneticButton } from "@/components/MagneticButton";
-import { useOS, uid } from "@/lib/os-store";
-import { cloudEnabled, uploadToBucket } from "@/lib/cloud";
+import { useOS, uid, type Track } from "@/lib/os-store";
+import { cloudEnabled, uploadToBucket, signedUrl } from "@/lib/cloud";
 import { DjMixer } from "@/components/DjMixer";
-import { Upload, Play, Pause, Trash2 } from "lucide-react";
+import { Upload, Play, Pause, Trash2, Share2, Check } from "lucide-react";
+
+function encodeShare(o: { title: string; artist: string; url: string }) {
+  return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(o)))));
+}
 
 export const Route = createFileRoute("/audio")({
   head: () => ({ meta: [{ title: "Audio · RIPPL OS" }, { name: "description", content: "Masters, demos & mixing." }] }),
@@ -18,6 +22,15 @@ function AudioPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [shared, setShared] = useState<string | null>(null);
+
+  async function share(t: Track) {
+    const url = t.path ? await signedUrl("audio", t.path, 60 * 60 * 24 * 7) : t.url;
+    if (!url) { setErr("Upload this track to the cloud first to share it (needs the audio bucket)."); return; }
+    const link = `${window.location.origin}/s#t=${encodeShare({ title: t.title, artist: t.artist, url })}`;
+    await navigator.clipboard?.writeText(link);
+    setShared(t.id); setTimeout(() => setShared(null), 1800);
+  }
 
   async function onFiles(files: FileList | null) {
     if (!files) return;
@@ -81,6 +94,9 @@ function AudioPage() {
                     <div className="truncate text-sm font-medium">{t.title}</div>
                     <div className="truncate text-[11px] text-muted-foreground">{t.artist}{t.path ? " · cloud" : t.url ? " · this session" : ""}</div>
                   </div>
+                  <button onClick={() => share(t)} title="Copy view-only share link" className="text-muted-foreground hover:text-white">
+                    {shared === t.id ? <Check className="h-4 w-4 text-[oklch(0.85_0.18_150)]" /> : <Share2 className="h-4 w-4" />}
+                  </button>
                   <button onClick={() => update("tracks", (all) => all.filter((x) => x.id !== t.id))} className="text-muted-foreground hover:text-[oklch(0.7_0.2_20)]"><Trash2 className="h-4 w-4" /></button>
                 </div>
               );
