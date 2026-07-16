@@ -70,3 +70,25 @@ export async function signedUrl(bucket: string, path: string, expires = 3600): P
   const { data } = await supabase.storage.from(bucket).createSignedUrl(path, expires);
   return data?.signedUrl ?? null;
 }
+
+/* One-shot connection diagnostic for the Settings page. */
+export interface Diag { configured: boolean; url: string; signedIn: boolean; email: string; canWrite: boolean; error: string; }
+export async function diagnose(): Promise<Diag> {
+  const out: Diag = { configured: isSupabaseConfigured, url: "", signedIn: false, email: "", canWrite: false, error: "" };
+  const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || "";
+  out.url = url.replace(/^https?:\/\//, "").slice(0, 30);
+  if (!supabase) { out.error = "No Supabase client — env vars (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) are missing in THIS build. Add them in Vercel → Settings → Environment Variables, then Redeploy."; return out; }
+  try {
+    const { data: s } = await supabase.auth.getSession();
+    out.signedIn = !!s.session;
+    out.email = s.session?.user.email ?? "";
+    if (!s.session) { out.error = "Not signed in to Supabase Auth (no session)."; return out; }
+    const uidv = s.session.user.id;
+    const { error: e1 } = await supabase.from("app_state").upsert({ user_id: uidv, key: "diag", data: { t: Date.now() } }, { onConflict: "user_id,key" });
+    if (e1) throw new Error(`write: ${e1.message}`);
+    const { error: e2 } = await supabase.from("app_state").select("data").eq("user_id", uidv).eq("key", "diag").maybeSingle();
+    if (e2) throw new Error(`read: ${e2.message}`);
+    out.canWrite = true;
+  } catch (e: any) { out.error = e?.message || String(e); }
+  return out;
+}

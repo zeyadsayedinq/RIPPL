@@ -207,9 +207,10 @@ create trigger on_auth_user_created
 -- Then this policy lets a signed-in user manage files in their own
 -- uid-prefixed folder (path format: `<uid>/<filename>`).
 -- ═══════════════════════════════════════════════════════════
-do $$ begin
-  create policy "rippl own storage" on storage.objects
-    for all to authenticated
-    using ( bucket_id in ('audio','art','contracts') and (storage.foldername(name))[1] = auth.uid()::text )
-    with check ( bucket_id in ('audio','art','contracts') and (storage.foldername(name))[1] = auth.uid()::text );
-exception when duplicate_object then null; end $$;
+-- Single-user personal tool: any signed-in user may manage files in these
+-- three buckets. (Drop the old strict per-folder policy if it exists.)
+drop policy if exists "rippl own storage" on storage.objects;
+create policy "rippl storage all" on storage.objects
+  for all to authenticated
+  using ( bucket_id in ('audio','art','contracts') )
+  with check ( bucket_id in ('audio','art','contracts') );

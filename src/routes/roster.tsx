@@ -4,8 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { Portal } from "@/components/Portal";
-import { useOS, type Artist, type ScoutStage, type DealStatus } from "@/lib/os-store";
-import { LayoutGrid, Users, Handshake, FileText, DollarSign, BarChart3, Copy, Check, X, Music2, Sparkles } from "lucide-react";
+import { useOS, uid, type Artist, type ScoutStage, type DealStatus } from "@/lib/os-store";
+import { LayoutGrid, Users, Handshake, FileText, DollarSign, BarChart3, Copy, Check, X, Music2, Sparkles, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/roster")({
   head: () => ({ meta: [{ title: "Roster · RIPPL OS" }, { name: "description", content: "A&R and artist management." }] }),
@@ -81,7 +81,10 @@ function ScoutingBoard() {
             >
               <div className="flex items-center justify-between px-1 pb-3">
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{stage}</span>
-                <span className="font-mono text-xs text-muted-foreground">{cards.length}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-muted-foreground">{cards.length}</span>
+                  <button onClick={() => { const name = prompt(`New ${stage} lead — name`); if (name) update("artists", (a) => [{ id: uid("ar"), name, kind: "Music", handle: "", streams: "—", followers: "—", stage, managed: stage === "Signed" }, ...a]); }} className="grid h-5 w-5 place-items-center rounded-md border border-white/15 text-muted-foreground hover:text-white" title={`Add to ${stage}`}>+</button>
+                </div>
               </div>
               <div className="space-y-2">
                 {cards.map((a) => (
@@ -115,30 +118,52 @@ function ScoutingBoard() {
   );
 }
 
+const fld = "w-full rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-sm outline-none focus:border-white/40";
+const lb = "mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground";
+
 function ArtistPanel({ artist, onClose }: { artist: Artist; onClose: () => void }) {
+  const { update } = useOS();
   const [copied, setCopied] = useState(false);
+  const [f, setF] = useState<Artist>(artist);
+  const set = (p: Partial<Artist>) => setF((s) => ({ ...s, ...p }));
+
+  function save() { update("artists", (all) => all.map((a) => (a.id === f.id ? f : a))); onClose(); }
+  function del() { if (confirm(`Delete ${f.name}?`)) { update("artists", (all) => all.filter((a) => a.id !== f.id)); onClose(); } }
   function draftPitch() {
-    const pitch = `Pitch: ${artist.name} (${artist.kind})\nHandle: ${artist.handle}\nReach: ${artist.kind === "Music" ? artist.streams + " streams" : artist.followers + " followers"}\n\n${artist.name} is a standout ${artist.kind.toLowerCase()} talent with strong regional pull. Proposing a development + release deal to scale their audience across TikTok, Instagram and DSPs.`;
+    const pitch = `Pitch: ${f.name} (${f.kind})\nHandle: ${f.handle}\nReach: ${f.kind === "Music" ? f.streams + " streams" : f.followers + " followers"}\n\n${f.name} is a standout ${f.kind.toLowerCase()} talent with strong regional pull. Proposing a development + release deal to scale their audience across TikTok, Instagram and DSPs.`;
     navigator.clipboard?.writeText(pitch).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
   }
   return (
     <Portal>
       <motion.div className="fixed inset-0 z-[100] flex justify-end p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-        <motion.div initial={{ x: 400 }} animate={{ x: 0 }} exit={{ x: 400 }} transition={{ type: "spring", stiffness: 260, damping: 30 }} className="glass-strong relative flex w-full max-w-md flex-col gap-5 overflow-y-auto rounded-2xl p-6">
+        <motion.div initial={{ x: 400 }} animate={{ x: 0 }} exit={{ x: 400 }} transition={{ type: "spring", stiffness: 260, damping: 30 }} className="glass-strong relative flex w-full max-w-md flex-col gap-4 overflow-y-auto rounded-2xl p-6">
           <button onClick={onClose} className="glass absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full"><X className="h-4 w-4" /></button>
           <div className="flex items-center gap-4">
-            <div className="grid h-16 w-16 place-items-center rounded-full bg-white/10 font-display text-2xl font-bold">{artist.name.charAt(0)}</div>
-            <div><div className="font-display text-xl font-bold">{artist.name}</div><div className="text-sm text-muted-foreground">{artist.kind} · {artist.handle}</div><div className="mt-1 text-xs text-white/40">Stage: {artist.stage}</div></div>
+            <div className="grid h-14 w-14 place-items-center rounded-full bg-white/10 text-2xl font-bold">{f.name.charAt(0) || "?"}</div>
+            <div className="text-[10px] uppercase tracking-[0.3em] text-white/40">Edit artist</div>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
-            <div className="glass rounded-xl p-3"><div className="text-[10px] uppercase tracking-widest text-muted-foreground">{artist.kind === "Music" ? "Streams" : "Followers"}</div><div className="mt-1 font-display text-lg font-bold">{artist.kind === "Music" ? artist.streams : artist.followers}</div></div>
-            <div className="glass rounded-xl p-3"><div className="text-[10px] uppercase tracking-widest text-muted-foreground">Handle</div><div className="mt-1 truncate text-sm">{artist.handle}</div></div>
+            <div className="col-span-2"><label className={lb}>Name</label><input className={fld} value={f.name} onChange={(e) => set({ name: e.target.value })} /></div>
+            <div><label className={lb}>Type</label><select className={fld} value={f.kind} onChange={(e) => set({ kind: e.target.value as Artist["kind"] })}><option className="bg-[#0a0a0c]">Music</option><option className="bg-[#0a0a0c]">Influencer</option></select></div>
+            <div><label className={lb}>Stage</label><select className={fld} value={f.stage} onChange={(e) => set({ stage: e.target.value as ScoutStage })}>{STAGES.map((s) => <option key={s} className="bg-[#0a0a0c]">{s}</option>)}</select></div>
+            <div className="col-span-2"><label className={lb}>Handle</label><input className={fld} value={f.handle} onChange={(e) => set({ handle: e.target.value })} placeholder="@handle" /></div>
+            <div><label className={lb}>Streams</label><input className={fld} value={f.streams} onChange={(e) => set({ streams: e.target.value })} placeholder="8.9M" /></div>
+            <div><label className={lb}>Followers</label><input className={fld} value={f.followers} onChange={(e) => set({ followers: e.target.value })} placeholder="2.6M" /></div>
+            <div className="col-span-2"><label className={lb}>Notes</label><textarea className={`${fld} min-h-16`} value={f.note ?? ""} onChange={(e) => set({ note: e.target.value })} placeholder="A&R notes…" /></div>
           </div>
-          {artist.note && <div className="glass rounded-xl p-4 text-sm text-muted-foreground">{artist.note}</div>}
-          <button onClick={draftPitch} className="inline-flex items-center justify-center gap-2 rounded-full bg-white py-2.5 text-sm font-semibold text-black">
-            {copied ? <><Check className="h-4 w-4" /> Pitch copied</> : <><Copy className="h-4 w-4" /> Draft Pitch</>}
-          </button>
+
+          <label className="flex cursor-pointer items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-sm">
+            <span>On active roster (managed)</span>
+            <button type="button" onClick={() => set({ managed: !f.managed })} className={`relative h-6 w-11 rounded-full transition-colors ${f.managed ? "bg-[oklch(0.82_0.18_150)]" : "bg-white/15"}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${f.managed ? "left-[22px]" : "left-0.5"}`} /></button>
+          </label>
+
+          <div className="flex gap-2">
+            <button onClick={save} className="flex-1 rounded-full bg-white py-2.5 text-sm font-semibold text-black">Save</button>
+            <button onClick={draftPitch} className="glass inline-flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm hover:bg-white/5">{copied ? <><Check className="h-4 w-4" /> Copied</> : <><Copy className="h-4 w-4" /> Pitch</>}</button>
+            <button onClick={del} className="grid h-10 w-10 place-items-center rounded-full border border-[oklch(0.7_0.2_20)]/40 text-[oklch(0.7_0.2_20)] hover:bg-[oklch(0.7_0.2_20)]/10"><Trash2 className="h-4 w-4" /></button>
+          </div>
         </motion.div>
       </motion.div>
     </Portal>
