@@ -59,8 +59,9 @@ export async function uploadToBucket(bucket: string, file: File): Promise<string
   if (!supabase) return null;
   const uid = await currentUid();
   if (!uid) return null;
-  const path = `${uid}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
-  const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false });
+  const rand = Math.random().toString(36).slice(2, 8);
+  const path = `${uid}/${Date.now()}-${rand}-${file.name.replace(/[^\w.\-]/g, "_")}`;
+  const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
   if (error) throw error;
   return path;
 }
