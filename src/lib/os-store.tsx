@@ -45,11 +45,14 @@ export interface Member {
   campaigns: string[]; releases: string[]; tracks: string[]; contracts: string[];
 }
 
+export interface MoodboardScene { elements: unknown[]; appState: Record<string, unknown> }
+
 interface OS {
   artists: Artist[]; deals: Deal[]; releases: Release[]; contracts: Contract[];
   notes: Note[]; mood: MoodItem[]; projects: SaasProject[]; prompts: Prompt[]; tracks: Track[];
   todos: { id: string; label: string; done: boolean; snoozed: boolean; delegated: boolean }[];
   members: Member[];
+  moodboardScene: MoodboardScene | null;
 }
 
 /* Empty by default — the app starts as a clean slate and everything you add
@@ -57,6 +60,7 @@ interface OS {
 const seed: OS = {
   artists: [], deals: [], releases: [], contracts: [], notes: [], mood: [],
   projects: [], prompts: [], tracks: [], todos: [], members: [],
+  moodboardScene: null,
 };
 
 const LS = "rippl.os.v2";
@@ -69,8 +73,12 @@ const LS = "rippl.os.v2";
    the whole route crashes (this was the /admin bug). */
 function normalizeOS(raw: Partial<OS> | null | undefined): OS {
   const o: OS = { ...seed, ...(raw ?? {}) };
+  // Only force array-shaped defaults back onto fields that are actually
+  // supposed to be arrays — non-array fields (like moodboardScene) must be
+  // left alone here or they'd get silently wiped back to their seed value
+  // on every load.
   for (const key of Object.keys(seed) as (keyof OS)[]) {
-    if (!Array.isArray(o[key])) (o as any)[key] = (seed as any)[key];
+    if (Array.isArray((seed as any)[key]) && !Array.isArray(o[key])) (o as any)[key] = (seed as any)[key];
   }
   o.members = (o.members ?? []).filter(Boolean).map((m) => ({
     id: m.id, email: m.email, name: m.name, role: m.role,

@@ -22,15 +22,31 @@ export interface HitScoreResult {
 export const VIBE_OFFLINE_HINT =
   "Vibe Analyzer service isn't reachable. Run it with: cd services/vibe-analyzer && uvicorn main:app --reload (see services/vibe-analyzer/README.md).";
 
+const TIMEOUT_MS = 60_000; // free-tier hosts cold-start slowly; don't spin forever past that
+const MAX_UPLOAD_BYTES = 30 * 1024 * 1024; // ~30MB — big master WAVs will crawl on a free-tier upload
+
 async function postAudio<T>(path: string, blob: Blob, filename: string): Promise<T> {
+  if (blob.size > MAX_UPLOAD_BYTES) {
+    throw new Error(`File is ${(blob.size / 1024 / 1024).toFixed(1)}MB — that's too large to upload to the analyzer reliably on a free-tier host. Try a shorter clip or an MP3 instead of a full WAV master.`);
+  }
+
   const form = new FormData();
   form.append("file", blob, filename || "track.wav");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   let res: Response;
   try {
-    res = await fetch(`${BASE}${path}`, { method: "POST", body: form });
-  } catch {
+    res = await fetch(`${BASE}${path}`, { method: "POST", body: form, signal: controller.signal });
+  } catch (e: any) {
+    if (e?.name === "AbortError") {
+      throw new Error(`Vibe Analyzer didn't respond within ${TIMEOUT_MS / 1000}s. If it's on a free-tier host (Render), it may still be waking up from sleep — wait ~30s and try again. If it keeps happening, the file may be too large or the service may have crashed.`);
+    }
     throw new Error(VIBE_OFFLINE_HINT);
+  } finally {
+    clearTimeout(timeout);
   }
+
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
     throw new Error(detail?.detail || `Vibe Analyzer error (${res.status})`);

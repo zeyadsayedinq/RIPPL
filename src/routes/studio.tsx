@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
+import { MoodboardCanvas } from "@/components/MoodboardCanvas";
 import { useOS, uid } from "@/lib/os-store";
 import { PenLine, LayoutGrid, TrendingUp, Plus, Heading1, List, Image as ImageIcon, Copy, Check } from "lucide-react";
 
@@ -40,7 +41,7 @@ function StudioPage() {
       </div>
       <div className="mt-6">
         {tab === "scratchpad" && <Scratchpad />}
-        {tab === "moodboard" && <Moodboard />}
+        {tab === "moodboard" && <MoodboardCanvas />}
         {tab === "tracker" && <Tracker />}
       </div>
     </AppShell>
@@ -98,36 +99,6 @@ function Scratchpad() {
         ) : <div className="py-12 text-center text-sm text-muted-foreground">Create a note to start.</div>}
       </SpotlightCard>
     </div>
-  );
-}
-
-/* ── Moodboard ──────────────────────────────────────────────── */
-function Moodboard() {
-  const { mood, update } = useOS();
-  const [url, setUrl] = useState(""); const [cap, setCap] = useState("");
-  function add() { if (!url.trim()) return; update("mood", (m) => [{ id: uid("m"), url, caption: cap }, ...m]); setUrl(""); setCap(""); }
-  return (
-    <>
-      <SpotlightCard className="p-4" spotlight={false}>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Paste image URL…" className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm outline-none focus:border-white/40" />
-          <input value={cap} onChange={(e) => setCap(e.target.value)} placeholder="Caption (optional)" className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm outline-none focus:border-white/40 sm:w-48" />
-          <button onClick={add} className="rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-black">Add</button>
-        </div>
-      </SpotlightCard>
-      {mood.length === 0 ? (
-        <div className="mt-4 glass rounded-2xl p-10 text-center text-sm text-muted-foreground">Your moodboard is empty. Paste reference image URLs above.</div>
-      ) : (
-        <div className="mt-4 columns-2 gap-4 md:columns-3 xl:columns-4 [&>*]:mb-4">
-          {mood.map((m) => (
-            <div key={m.id} className="glass overflow-hidden rounded-xl">
-              <img src={m.url} alt={m.caption} className="w-full" onError={(e) => { (e.currentTarget.style.display = "none"); }} />
-              {m.caption && <div className="p-2 text-xs text-muted-foreground">{m.caption}</div>}
-            </div>
-          ))}
-        </div>
-      )}
-    </>
   );
 }
 

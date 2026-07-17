@@ -14,6 +14,7 @@ const LS_ASSIGN = "rippl.assignments.v2";   // { [campaignId]: creatorId[] }
 const LS_ASSETS = "rippl.assets.v2";        // { [campaignId]: UploadedAsset[] }
 const LS_BUDGET = "rippl.budgetlines.v2";   // { [campaignId]: BudgetLineItem[] }
 const LS_TEMPLATES = "rippl.customTemplates.v2"; // CampaignTemplate[] (user-made/edited)
+const LS_EVENTS = "rippl.calendarEvents.v1";     // { [campaignId]: CalendarPost[] }
 
 export interface BudgetLineItem { id: string; category: string; planned: number; spent: number; kind: "Budget" | "Expense" | "Payment"; }
 
@@ -31,6 +32,15 @@ export interface UploadedAsset {
 type TaskMap = Record<string, Record<string, boolean>>;
 type AssignMap = Record<string, string[]>;
 type AssetMap = Record<string, UploadedAsset[]>;
+
+/* RIPPL v3.0 plan: "Interactive Content Calendar — a functional,
+   drag-and-drop organizer for Instagram, TikTok, and YouTube posting
+   schedules." Unlike the template rollout timeline (read-only reference
+   milestones), these are real per-campaign posts with real dates, so
+   they're the part that's actually draggable. */
+export type CalendarPlatform = "TikTok" | "Instagram" | "YouTube" | "Facebook" | "X" | "Other";
+export interface CalendarPost { id: string; title: string; date: string; platform: CalendarPlatform; }
+type EventMap = Record<string, CalendarPost[]>;
 
 interface StoreCtx {
   campaigns: Campaign[];
@@ -63,6 +73,11 @@ interface StoreCtx {
   customTemplates: CampaignTemplate[];
   saveTemplate: (t: CampaignTemplate) => void;   // add or update a custom template
   deleteTemplate: (id: string) => void;
+
+  activeEvents: CalendarPost[];
+  addEvent: (e: Omit<CalendarPost, "id">) => void;
+  moveEvent: (id: string, date: string) => void;
+  removeEvent: (id: string) => void;
 }
 
 const Ctx = createContext<StoreCtx | null>(null);
@@ -83,6 +98,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const [assets, setAssets] = useState<AssetMap>({});
   const [budgetLines, setBudgetLines] = useState<Record<string, BudgetLineItem[]>>({});
   const [customTemplates, setCustomTemplates] = useState<CampaignTemplate[]>([]);
+  const [events, setEvents] = useState<EventMap>({});
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -96,6 +112,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       setAssets(asObject<AssetMap>(await loadState<AssetMap>(LS_ASSETS, {})));
       setBudgetLines(asObject<Record<string, BudgetLineItem[]>>(await loadState<Record<string, BudgetLineItem[]>>(LS_BUDGET, {})));
       setCustomTemplates(asArray<CampaignTemplate>(await loadState<CampaignTemplate[]>(LS_TEMPLATES, [])));
+      setEvents(asObject<EventMap>(await loadState<EventMap>(LS_EVENTS, {})));
       setHydrated(true);
     })();
   }, []);
@@ -107,6 +124,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (hydrated) save(LS_ASSETS, assets); }, [assets, hydrated]);
   useEffect(() => { if (hydrated) save(LS_BUDGET, budgetLines); }, [budgetLines, hydrated]);
   useEffect(() => { if (hydrated) save(LS_TEMPLATES, customTemplates); }, [customTemplates, hydrated]);
+  useEffect(() => { if (hydrated) save(LS_EVENTS, events); }, [events, hydrated]);
 
   const active = useMemo(
     () => campaigns.find((c) => c.id === activeId) ?? campaigns[0] ?? null,
@@ -183,6 +201,18 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     setBudgetLines((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? []).filter((x) => x.id !== id) }));
   }
 
+  const activeEvents = events[activeId] ?? [];
+  function addEvent(e: Omit<CalendarPost, "id">) {
+    const item: CalendarPost = { ...e, id: `ce-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` };
+    setEvents((prev) => ({ ...prev, [activeId]: [...(prev[activeId] ?? []), item] }));
+  }
+  function moveEvent(id: string, date: string) {
+    setEvents((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? []).map((x) => (x.id === id ? { ...x, date } : x)) }));
+  }
+  function removeEvent(id: string) {
+    setEvents((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? []).filter((x) => x.id !== id) }));
+  }
+
   return (
     <Ctx.Provider value={{
       campaigns, activeId, active, setActive: setActiveId, addCampaign,
@@ -191,6 +221,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       activeAssets, addAsset, setAssetStatus, removeAsset,
       activeBudgetLines, addBudgetLine, updateBudgetLine, removeBudgetLine,
       allTemplates, customTemplates, saveTemplate, deleteTemplate,
+      activeEvents, addEvent, moveEvent, removeEvent,
     }}>
       {children}
     </Ctx.Provider>
