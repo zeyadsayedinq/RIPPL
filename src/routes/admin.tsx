@@ -48,7 +48,8 @@ function AdminPage() {
     setInviteMsg({ text: `Sending invite to ${email}…`, ok: true });
     try {
       const res = await inviteMember({ data: { email, name } });
-      setInviteMsg(res.ok ? { text: `Invite email sent to ${email}.`, ok: true } : { text: `Member added, but the invite email failed: ${res.error}`, ok: false });
+      if (res.ok && res.warning) setInviteMsg({ text: `Invite sent to ${email} — but the link may 404: ${res.warning}`, ok: false });
+      else setInviteMsg(res.ok ? { text: `Invite email sent to ${email}.`, ok: true } : { text: `Member added, but the invite email failed: ${res.error}`, ok: false });
     } catch (err: any) {
       setInviteMsg({ text: `Member added, but the invite email failed: ${err?.message || err}`, ok: false });
     }
@@ -72,8 +73,8 @@ function AdminPage() {
         </form>
         <p className="mt-2 text-[11px] text-muted-foreground/70">Members sign in with their own email — adding them here also sends a real invite email via Supabase Auth. Assignments below control what each person is responsible for.</p>
         {inviteMsg && (
-          <div className={`mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs ${inviteMsg.ok ? "bg-[oklch(0.82_0.18_150)]/10 text-[oklch(0.82_0.18_150)]" : "bg-[oklch(0.7_0.2_20)]/10 text-[oklch(0.8_0.2_20)]"}`}>
-            <Mail className="h-3.5 w-3.5 shrink-0" /> {inviteMsg.text}
+          <div className={`mt-2 flex items-start gap-1.5 rounded-lg px-3 py-1.5 text-xs ${inviteMsg.ok ? "bg-[oklch(0.82_0.18_150)]/10 text-[oklch(0.82_0.18_150)]" : "bg-[oklch(0.7_0.2_20)]/10 text-[oklch(0.8_0.2_20)]"}`}>
+            <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0" /> <span>{inviteMsg.text}</span>
           </div>
         )}
       </SpotlightCard>

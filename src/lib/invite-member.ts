@@ -10,7 +10,7 @@ import { createClient } from "@supabase/supabase-js";
    execution. See .env.example for SUPABASE_SERVICE_ROLE_KEY. */
 
 interface InviteInput { email: string; name?: string }
-interface InviteResult { ok: boolean; error?: string }
+interface InviteResult { ok: boolean; error?: string; warning?: string }
 
 export const inviteMember = createServerFn({ method: "POST" })
   .validator((data: InviteInput) => data)
@@ -31,8 +31,16 @@ export const inviteMember = createServerFn({ method: "POST" })
 
     const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
+    // Without an explicit redirectTo, Supabase sends people to whatever
+    // "Site URL" is configured in the dashboard — which defaults to
+    // http://localhost:3000 and will send every invite to a dead link.
+    // Prefer an explicit VITE_APP_URL (set this to your real domain once
+    // you have one), fall back to Vercel's auto-injected deployment URL.
+    const appUrl = process.env.VITE_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+
     const { error } = await admin.auth.admin.inviteUserByEmail(data.email, {
       data: data.name ? { name: data.name } : undefined,
+      redirectTo: appUrl ? `${appUrl}/home` : undefined,
     });
 
     if (error) {
@@ -42,5 +50,11 @@ export const inviteMember = createServerFn({ method: "POST" })
       }
       return { ok: false, error: error.message };
     }
-    return { ok: true };
+    return appUrl
+      ? { ok: true }
+      : {
+          ok: true,
+          warning:
+            "Sent, but VITE_APP_URL isn't set — the link inside will use whatever 'Site URL' is configured in Supabase (often still the localhost default). Set VITE_APP_URL to your real domain, and add it under Supabase → Authentication → URL Configuration → Redirect URLs, or the link will 404.",
+        };
   });

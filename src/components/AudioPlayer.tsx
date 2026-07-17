@@ -1,22 +1,27 @@
 import { useEffect, useRef, useState } from "react";
+import WaveSurfer from "wavesurfer.js";
 import { Play, Pause, MessageSquarePlus, Music2, Upload } from "lucide-react";
 import { useOS, uid } from "@/lib/os-store";
 import { cloudEnabled, uploadToBucket, signedUrl } from "@/lib/cloud";
 
-/* Persistent bottom audio bar. Synthetic waveform + scrubber.
-   If the track has a URL, a real <audio> element is used; otherwise the
-   progress is simulated so demos/masters can be reviewed anywhere. */
+/* Persistent bottom audio bar. Real waveform via wavesurfer.js when the
+   track has a playable URL (RIPPL v3.0 plan: "High-End Audio Visualizers").
+   Falls back to a simulated bar pattern for tracks with no resolvable
+   source, so review/feedback still works without audio bytes. */
 
-const BARS = Array.from({ length: 56 }, (_, i) => 30 + Math.abs(Math.sin(i * 0.6)) * 60);
+const FAKE_BARS = Array.from({ length: 56 }, (_, i) => 30 + Math.abs(Math.sin(i * 0.6)) * 60);
 
 export function AudioPlayer() {
   const { currentTrack, playing, togglePlay, tracks, playTrack, update } = useOS();
   const [progress, setProgress] = useState(0); // 0..100
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
-  const audioRef = useRef<HTMLAudioElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [srcUrl, setSrcUrl] = useState<string | null>(null); // resolved playable url
+
+  const waveRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WaveSurfer | null>(null);
+  const [waveReady, setWaveReady] = useState(false);
 
   async function onUpload(file?: File) {
     if (!file) return;
@@ -46,18 +51,49 @@ export function AudioPlayer() {
     return () => { alive = false; };
   }, [track]);
 
-  // simulated progress only when there's no real audio source
+  // real waveform: (re)build wavesurfer whenever the resolved source changes
+  useEffect(() => {
+    setWaveReady(false);
+    setProgress(0);
+    if (!waveRef.current || !srcUrl) { wsRef.current?.destroy(); wsRef.current = null; return; }
+
+    const ws = WaveSurfer.create({
+      container: waveRef.current,
+      waveColor: "rgba(255,255,255,0.22)",
+      progressColor: "rgba(255,255,255,0.9)",
+      cursorColor: "transparent",
+      height: 32,
+      barWidth: 2,
+      barGap: 2,
+      barRadius: 2,
+      normalize: true,
+      url: srcUrl,
+    });
+    wsRef.current = ws;
+
+    const updateProgress = () => { const d = ws.getDuration(); setProgress(d ? (ws.getCurrentTime() / d) * 100 : 0); };
+    ws.on("ready", () => { setWaveReady(true); if (playing) ws.play().catch(() => {}); });
+    ws.on("audioprocess", updateProgress);
+    ws.on("interaction", updateProgress);
+    ws.on("finish", () => { if (playing) togglePlay(); });
+
+    return () => { ws.destroy(); wsRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [srcUrl]);
+
+  // simulated progress only when there's no real audio source at all
   useEffect(() => {
     if (!playing || srcUrl) return;
     const id = setInterval(() => setProgress((p) => (p >= 100 ? 0 : p + 0.5)), 120);
     return () => clearInterval(id);
   }, [playing, srcUrl]);
 
+  // keep wavesurfer playback in sync with the global play/pause state
   useEffect(() => {
-    const a = audioRef.current;
-    if (!a || !srcUrl) return;
-    if (playing) a.play().catch(() => {}); else a.pause();
-  }, [playing, srcUrl]);
+    const ws = wsRef.current;
+    if (!ws || !waveReady) return;
+    if (playing) ws.play().catch(() => {}); else ws.pause();
+  }, [playing, waveReady]);
 
   if (!track) return null;
 
@@ -69,7 +105,6 @@ export function AudioPlayer() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0a0a0c]/95 backdrop-blur-xl">
-      {srcUrl && <audio ref={audioRef} src={srcUrl} onTimeUpdate={(e) => { const a = e.currentTarget; setProgress((a.currentTime / (a.duration || 1)) * 100); }} />}
       <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-2.5">
         <button onClick={togglePlay} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-black transition-transform hover:scale-105">
           {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 translate-x-[1px]" />}
@@ -80,16 +115,21 @@ export function AudioPlayer() {
           <div className="truncate text-[11px] text-white/40">{track.artist}</div>
         </div>
 
-        {/* Waveform scrubber */}
-        <button
-          className="relative flex h-8 flex-1 items-center gap-[2px] overflow-hidden"
-          onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setProgress(((e.clientX - r.left) / r.width) * 100); }}
-        >
-          {BARS.map((h, i) => {
-            const on = (i / BARS.length) * 100 <= progress;
-            return <span key={i} className="flex-1 rounded-full" style={{ height: `${h}%`, background: on ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.18)" }} />;
-          })}
-        </button>
+        {/* Waveform scrubber — real audio waveform when a source resolves, simulated bars otherwise */}
+        <div className="relative h-8 flex-1 overflow-hidden">
+          <div ref={waveRef} className="absolute inset-0" style={{ visibility: srcUrl ? "visible" : "hidden" }} />
+          {!srcUrl && (
+            <button
+              className="absolute inset-0 flex items-center gap-[2px]"
+              onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setProgress(((e.clientX - r.left) / r.width) * 100); }}
+            >
+              {FAKE_BARS.map((h, i) => {
+                const on = (i / FAKE_BARS.length) * 100 <= progress;
+                return <span key={i} className="flex-1 rounded-full" style={{ height: `${h}%`, background: on ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.18)" }} />;
+              })}
+            </button>
+          )}
+        </div>
 
         <div className="hidden w-10 shrink-0 text-right font-mono text-[11px] text-white/40 md:block">{Math.round(progress)}%</div>
 
