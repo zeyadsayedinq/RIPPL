@@ -68,6 +68,12 @@ interface StoreCtx {
 const Ctx = createContext<StoreCtx | null>(null);
 const save = (key: string, val: unknown) => { void saveState(key, val); };
 
+/* Defensive guards — persisted data may predate a schema change or be
+   corrupt, so never trust its shape blindly (see os-store.tsx normalizeOS
+   for the /admin crash this pattern was introduced to prevent). */
+const asArray = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+const asObject = <T extends object>(v: unknown): T => (v && typeof v === "object" && !Array.isArray(v) ? (v as T) : ({} as T));
+
 export function CampaignProvider({ children }: { children: ReactNode }) {
   // Deterministic initial state for SSR; localStorage hydrates after mount.
   const [campaigns, setCampaigns] = useState<Campaign[]>(seedCampaigns);
@@ -81,15 +87,15 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const userMade = (await loadState<Campaign[]>(LS_CAMPAIGNS, [])).filter((c) => !c.seeded);
+      const userMade = asArray<Campaign>(await loadState<Campaign[]>(LS_CAMPAIGNS, [])).filter((c) => c && !c.seeded);
       const all = [...seedCampaigns, ...userMade];
       if (userMade.length) setCampaigns(all);
       setActiveId(await loadState<string>(LS_ACTIVE, all[0]?.id ?? ""));
-      setTasks(await loadState<TaskMap>(LS_TASKS, {}));
-      setAssignments(await loadState<AssignMap>(LS_ASSIGN, {}));
-      setAssets(await loadState<AssetMap>(LS_ASSETS, {}));
-      setBudgetLines(await loadState<Record<string, BudgetLineItem[]>>(LS_BUDGET, {}));
-      setCustomTemplates(await loadState<CampaignTemplate[]>(LS_TEMPLATES, []));
+      setTasks(asObject<TaskMap>(await loadState<TaskMap>(LS_TASKS, {})));
+      setAssignments(asObject<AssignMap>(await loadState<AssignMap>(LS_ASSIGN, {})));
+      setAssets(asObject<AssetMap>(await loadState<AssetMap>(LS_ASSETS, {})));
+      setBudgetLines(asObject<Record<string, BudgetLineItem[]>>(await loadState<Record<string, BudgetLineItem[]>>(LS_BUDGET, {})));
+      setCustomTemplates(asArray<CampaignTemplate>(await loadState<CampaignTemplate[]>(LS_TEMPLATES, [])));
       setHydrated(true);
     })();
   }, []);

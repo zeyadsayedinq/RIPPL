@@ -6,7 +6,9 @@ import { MagneticButton } from "@/components/MagneticButton";
 import { useOS, uid, type Track } from "@/lib/os-store";
 import { cloudEnabled, uploadToBucket, signedUrl } from "@/lib/cloud";
 import { DjMixer } from "@/components/DjMixer";
-import { Upload, Play, Pause, Trash2, Share2, Check } from "lucide-react";
+import { Upload, Play, Pause, Trash2, Share2, Check, Gauge, Sparkles, Loader2 } from "lucide-react";
+import { analyze } from "web-audio-beat-detector";
+import { analyzeVibe, scoreHit } from "@/lib/vibe-api";
 
 function encodeShare(o: { title: string; artist: string; url: string }) {
   return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(o)))));
@@ -23,6 +25,25 @@ function AudioPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [shared, setShared] = useState<string | null>(null);
+  const [vibeBusy, setVibeBusy] = useState<string | null>(null);
+
+  async function runVibe(t: Track) {
+    setErr("");
+    setVibeBusy(t.id);
+    try {
+      const url = t.path ? await signedUrl("audio", t.path) : t.url;
+      if (!url) throw new Error("No audio source available for this track.");
+      const blob = await (await fetch(url)).blob();
+      const [feats, hit] = await Promise.all([analyzeVibe(blob, t.title), scoreHit(blob, t.title)]);
+      update("tracks", (all) => all.map((x) => x.id === t.id
+        ? { ...x, bpm: Math.round(feats.bpm), key: feats.key, energy: feats.energy, mood: feats.mood, hitScore: hit.hit_probability }
+        : x));
+    } catch (e: any) {
+      setErr(e?.message || String(e));
+    } finally {
+      setVibeBusy(null);
+    }
+  }
 
   async function share(t: Track) {
     const url = t.path ? await signedUrl("audio", t.path, 60 * 60 * 24 * 7) : t.url;
@@ -47,6 +68,22 @@ function AudioPage() {
         setBusy(false);
       }
       update("tracks", (t) => [{ id, title, artist: "Upload", url, path }, ...t]);
+      void detectBpm(file, id);
+    }
+  }
+
+  // Auto-BPM detection (Web Audio API, fully client-side — no API keys needed).
+  async function detectBpm(file: File, id: string) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioCtx();
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      const bpm = await analyze(audioBuffer);
+      update("tracks", (all) => all.map((t) => (t.id === id ? { ...t, bpm: Math.round(bpm) } : t)));
+      void ctx.close();
+    } catch {
+      /* not every clip has a clear, detectable tempo (or the browser can't decode it) — skip silently */
     }
   }
 
@@ -86,7 +123,7 @@ function AudioPage() {
               const isCurrent = currentTrack?.id === t.id;
               const isPlaying = isCurrent && playing;
               return (
-                <div key={t.id} className={`glass flex items-center gap-3 rounded-xl p-3 ${isCurrent ? "border-white/25" : ""}`}>
+                <div key={t.id} className={`glass flex flex-wrap items-center gap-3 rounded-xl p-3 ${isCurrent ? "border-white/25" : ""}`}>
                   <button onClick={() => (isCurrent ? togglePlay() : playTrack(t))} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-black transition-transform hover:scale-105">
                     {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 translate-x-[1px]" />}
                   </button>
@@ -94,10 +131,30 @@ function AudioPage() {
                     <div className="truncate text-sm font-medium">{t.title}</div>
                     <div className="truncate text-[11px] text-muted-foreground">{t.artist}{t.path ? " · cloud" : t.url ? " · this session" : ""}</div>
                   </div>
+                  {t.bpm && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] text-muted-foreground" title="Auto-detected tempo">
+                      <Gauge className="h-3 w-3" /> {t.bpm} BPM
+                    </span>
+                  )}
+                  <button onClick={() => runVibe(t)} disabled={vibeBusy === t.id} title="Analyze Key / Mood / Hit Score" className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[11px] text-muted-foreground hover:text-white disabled:opacity-50">
+                    {vibeBusy === t.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />} {vibeBusy === t.id ? "Analyzing…" : "Analyze Vibe"}
+                  </button>
                   <button onClick={() => share(t)} title="Copy view-only share link" className="text-muted-foreground hover:text-white">
                     {shared === t.id ? <Check className="h-4 w-4 text-[oklch(0.85_0.18_150)]" /> : <Share2 className="h-4 w-4" />}
                   </button>
                   <button onClick={() => update("tracks", (all) => all.filter((x) => x.id !== t.id))} className="text-muted-foreground hover:text-[oklch(0.7_0.2_20)]"><Trash2 className="h-4 w-4" /></button>
+                  {(t.key || t.mood || t.hitScore !== undefined) && (
+                    <div className="flex w-full flex-wrap gap-1.5 pl-12">
+                      {t.key && <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-muted-foreground">Key: {t.key}</span>}
+                      {t.mood && <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-muted-foreground">{t.mood}</span>}
+                      {t.energy !== undefined && <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-muted-foreground">Energy {Math.round(t.energy * 100)}%</span>}
+                      {t.hitScore !== undefined && (
+                        <span className="rounded-full border border-[oklch(0.82_0.18_150)]/40 bg-[oklch(0.82_0.18_150)]/10 px-2 py-0.5 text-[10px] text-[oklch(0.82_0.18_150)]" title="Placeholder baseline — see services/vibe-analyzer/README.md">
+                          Hit Score {t.hitScore}%
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

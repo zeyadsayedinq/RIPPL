@@ -15,19 +15,19 @@ import { Route as TechlabRouteImport } from './routes/techlab'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SRouteImport } from './routes/s'
 import { Route as RosterRouteImport } from './routes/roster'
 import { Route as ReleasesRouteImport } from './routes/releases'
 import { Route as HomeRouteImport } from './routes/home'
-import { Route as AudioRouteImport } from './routes/audio'
-import { Route as SRouteImport } from './routes/s'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CreatorsRouteImport } from './routes/creators'
 import { Route as ChannelsRouteImport } from './routes/channels'
 import { Route as CampaignsRouteImport } from './routes/campaigns'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as BudgetRouteImport } from './routes/budget'
+import { Route as AudioRouteImport } from './routes/audio'
 import { Route as AssetsRouteImport } from './routes/assets'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
 const VaultRoute = VaultRouteImport.update({
@@ -60,6 +60,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SRoute = SRouteImport.update({
+  id: '/s',
+  path: '/s',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RosterRoute = RosterRouteImport.update({
   id: '/roster',
   path: '/roster',
@@ -73,21 +78,6 @@ const ReleasesRoute = ReleasesRouteImport.update({
 const HomeRoute = HomeRouteImport.update({
   id: '/home',
   path: '/home',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AudioRoute = AudioRouteImport.update({
-  id: '/audio',
-  path: '/audio',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SRoute = SRouteImport.update({
-  id: '/s',
-  path: '/s',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -120,9 +110,19 @@ const BudgetRoute = BudgetRouteImport.update({
   path: '/budget',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AudioRoute = AudioRouteImport.update({
+  id: '/audio',
+  path: '/audio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AssetsRoute = AssetsRouteImport.update({
   id: '/assets',
   path: '/assets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -133,7 +133,9 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/assets': typeof AssetsRoute
+  '/audio': typeof AudioRoute
   '/budget': typeof BudgetRoute
   '/calendar': typeof CalendarRoute
   '/campaigns': typeof CampaignsRoute
@@ -141,11 +143,9 @@ export interface FileRoutesByFullPath {
   '/creators': typeof CreatorsRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
-  '/audio': typeof AudioRoute
-  '/s': typeof SRoute
-  '/admin': typeof AdminRoute
   '/releases': typeof ReleasesRoute
   '/roster': typeof RosterRoute
+  '/s': typeof SRoute
   '/settings': typeof SettingsRoute
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
@@ -155,7 +155,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/assets': typeof AssetsRoute
+  '/audio': typeof AudioRoute
   '/budget': typeof BudgetRoute
   '/calendar': typeof CalendarRoute
   '/campaigns': typeof CampaignsRoute
@@ -163,11 +165,9 @@ export interface FileRoutesByTo {
   '/creators': typeof CreatorsRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
-  '/audio': typeof AudioRoute
-  '/s': typeof SRoute
-  '/admin': typeof AdminRoute
   '/releases': typeof ReleasesRoute
   '/roster': typeof RosterRoute
+  '/s': typeof SRoute
   '/settings': typeof SettingsRoute
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
@@ -178,7 +178,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/assets': typeof AssetsRoute
+  '/audio': typeof AudioRoute
   '/budget': typeof BudgetRoute
   '/calendar': typeof CalendarRoute
   '/campaigns': typeof CampaignsRoute
@@ -186,11 +188,9 @@ export interface FileRoutesById {
   '/creators': typeof CreatorsRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
-  '/audio': typeof AudioRoute
-  '/s': typeof SRoute
-  '/admin': typeof AdminRoute
   '/releases': typeof ReleasesRoute
   '/roster': typeof RosterRoute
+  '/s': typeof SRoute
   '/settings': typeof SettingsRoute
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
@@ -202,7 +202,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/assets'
+    | '/audio'
     | '/budget'
     | '/calendar'
     | '/campaigns'
@@ -210,11 +212,9 @@ export interface FileRouteTypes {
     | '/creators'
     | '/dashboard'
     | '/home'
-    | '/audio'
-    | '/s'
-    | '/admin'
     | '/releases'
     | '/roster'
+    | '/s'
     | '/settings'
     | '/studio'
     | '/tasks'
@@ -224,7 +224,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/assets'
+    | '/audio'
     | '/budget'
     | '/calendar'
     | '/campaigns'
@@ -232,11 +234,9 @@ export interface FileRouteTypes {
     | '/creators'
     | '/dashboard'
     | '/home'
-    | '/audio'
-    | '/s'
-    | '/admin'
     | '/releases'
     | '/roster'
+    | '/s'
     | '/settings'
     | '/studio'
     | '/tasks'
@@ -246,7 +246,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/assets'
+    | '/audio'
     | '/budget'
     | '/calendar'
     | '/campaigns'
@@ -254,11 +256,9 @@ export interface FileRouteTypes {
     | '/creators'
     | '/dashboard'
     | '/home'
-    | '/audio'
-    | '/s'
-    | '/admin'
     | '/releases'
     | '/roster'
+    | '/s'
     | '/settings'
     | '/studio'
     | '/tasks'
@@ -269,7 +269,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   AssetsRoute: typeof AssetsRoute
+  AudioRoute: typeof AudioRoute
   BudgetRoute: typeof BudgetRoute
   CalendarRoute: typeof CalendarRoute
   CampaignsRoute: typeof CampaignsRoute
@@ -279,6 +281,7 @@ export interface RootRouteChildren {
   HomeRoute: typeof HomeRoute
   ReleasesRoute: typeof ReleasesRoute
   RosterRoute: typeof RosterRoute
+  SRoute: typeof SRoute
   SettingsRoute: typeof SettingsRoute
   StudioRoute: typeof StudioRoute
   TasksRoute: typeof TasksRoute
@@ -331,6 +334,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s': {
+      id: '/s'
+      path: '/s'
+      fullPath: '/s'
+      preLoaderRoute: typeof SRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/roster': {
       id: '/roster'
       path: '/roster'
@@ -350,27 +360,6 @@ declare module '@tanstack/react-router' {
       path: '/home'
       fullPath: '/home'
       preLoaderRoute: typeof HomeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/audio': {
-      id: '/audio'
-      path: '/audio'
-      fullPath: '/audio'
-      preLoaderRoute: typeof AudioRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/s': {
-      id: '/s'
-      path: '/s'
-      fullPath: '/s'
-      preLoaderRoute: typeof SRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -415,11 +404,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BudgetRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/audio': {
+      id: '/audio'
+      path: '/audio'
+      fullPath: '/audio'
+      preLoaderRoute: typeof AudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/assets': {
       id: '/assets'
       path: '/assets'
       fullPath: '/assets'
       preLoaderRoute: typeof AssetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -434,7 +437,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   AssetsRoute: AssetsRoute,
+  AudioRoute: AudioRoute,
   BudgetRoute: BudgetRoute,
   CalendarRoute: CalendarRoute,
   CampaignsRoute: CampaignsRoute,
@@ -442,11 +447,9 @@ const rootRouteChildren: RootRouteChildren = {
   CreatorsRoute: CreatorsRoute,
   DashboardRoute: DashboardRoute,
   HomeRoute: HomeRoute,
-  AudioRoute: AudioRoute,
-  SRoute: SRoute,
-  AdminRoute: AdminRoute,
   ReleasesRoute: ReleasesRoute,
   RosterRoute: RosterRoute,
+  SRoute: SRoute,
   SettingsRoute: SettingsRoute,
   StudioRoute: StudioRoute,
   TasksRoute: TasksRoute,

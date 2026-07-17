@@ -6,6 +6,8 @@ import { SpotlightCard } from "@/components/SpotlightCard";
 import { Portal } from "@/components/Portal";
 import { useOS, uid, type Artist, type ScoutStage, type DealStatus } from "@/lib/os-store";
 import { pressKitPdf } from "@/lib/pdf";
+import { ModalShell } from "@/components/NewCampaignModal";
+import { getMarketSnapshot } from "@/lib/market-data";
 import { LayoutGrid, Users, Handshake, FileText, DollarSign, BarChart3, Copy, Check, X, Music2, Sparkles, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/roster")({
@@ -176,6 +178,7 @@ function ActiveRoster() {
   const { artists } = useOS();
   const roster = artists.filter((a) => a.managed);
   const [msg, setMsg] = useState<string | null>(null);
+  const [statsFor, setStatsFor] = useState<Artist | null>(null);
   function flash(t: string) { setMsg(t); setTimeout(() => setMsg(null), 1600); }
   function pressKit(a: Artist) {
     pressKitPdf(a);
@@ -199,13 +202,42 @@ function ActiveRoster() {
               <button onClick={() => pressKit(a)} className="inline-flex items-center justify-center gap-2 rounded-full bg-white py-2 text-sm font-medium text-black"><FileText className="h-4 w-4" /> Generate Press Kit (PDF)</button>
               <div className="flex gap-2">
                 <button onClick={() => flash(`Deal split logged for ${a.name}`)} className="glass inline-flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs hover:bg-white/5"><DollarSign className="h-3.5 w-3.5" /> Log Deal Split</button>
-                <button onClick={() => flash(`Opening analytics for ${a.name}`)} className="glass inline-flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs hover:bg-white/5"><BarChart3 className="h-3.5 w-3.5" /> Analytics</button>
+                <button onClick={() => setStatsFor(a)} className="glass inline-flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs hover:bg-white/5"><BarChart3 className="h-3.5 w-3.5" /> Analytics</button>
               </div>
             </div>
           </SpotlightCard>
         ))}
       </section>
+      <AnimatePresence>{statsFor && <MarketStatsModal artist={statsFor} onClose={() => setStatsFor(null)} />}</AnimatePresence>
     </>
+  );
+}
+
+/* ── Live DSP / market-data panel (RIPPL v3.0: DSP Feeds + Chartmetric/Soundcharts) ── */
+function MarketStatsModal({ artist, onClose }: { artist: Artist; onClose: () => void }) {
+  const snap = getMarketSnapshot(artist.name);
+  return (
+    <ModalShell eyebrow="Market Intelligence" title={`${artist.name} — Live Stats`} onClose={onClose}>
+      {!snap.hasLiveSource && (
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-sm text-muted-foreground">
+          No live data source connected yet. Streaming trends, playlist placements and demographics come from a cross-platform aggregator (Chartmetric or Soundcharts) — Spotify and Apple don't publish that data publicly, only inside their own private artist dashboards. Add an API key as{" "}
+          <code className="rounded bg-white/10 px-1 py-0.5 text-white">VITE_CHARTMETRIC_API_KEY</code> (or Soundcharts) in Vercel env vars and redeploy to activate this panel.
+        </div>
+      )}
+      <div className="mt-3 space-y-2">
+        {snap.sources.map((s) => (
+          <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm">
+            <div className="min-w-0">
+              <div className="font-medium">{s.label}</div>
+              <div className="text-[11px] text-muted-foreground">{s.note}</div>
+            </div>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider ${s.configured ? "bg-[oklch(0.82_0.18_150)]/15 text-[oklch(0.82_0.18_150)]" : "bg-white/10 text-muted-foreground"}`}>
+              {s.configured ? "Connected" : "Not connected"}
+            </span>
+          </div>
+        ))}
+      </div>
+    </ModalShell>
   );
 }
 

@@ -34,7 +34,10 @@ export type SprintCol = "Backlog" | "In Progress" | "Done";
 export interface SprintTask { id: string; title: string; col: SprintCol; }
 export interface SaasProject { id: string; name: string; deploy: "Building" | "Ready" | "Error"; tasks: SprintTask[]; }
 export interface Prompt { id: string; title: string; category: string; body: string; }
-export interface Track { id: string; title: string; artist: string; url?: string; path?: string; }
+export interface Track {
+  id: string; title: string; artist: string; url?: string; path?: string; bpm?: number;
+  key?: string; energy?: number; mood?: string; hitScore?: number;
+}
 export type MemberRole = "Admin" | "Manager" | "A&R" | "Marketing" | "Creator" | "Viewer";
 export interface Member {
   id: string; email: string; name: string; role: MemberRole;
@@ -57,6 +60,27 @@ const seed: OS = {
 
 const LS = "rippl.os.v2";
 
+/* Merge whatever was actually persisted (which may predate newer fields —
+   e.g. `members` didn't exist before the HQ Admin panel shipped, and older
+   Member records don't have campaigns/releases/tracks/contracts) with the
+   current default shape. Without this, a render like `members.length` or
+   `m.campaigns.length` throws "Cannot read properties of undefined" and
+   the whole route crashes (this was the /admin bug). */
+function normalizeOS(raw: Partial<OS> | null | undefined): OS {
+  const o: OS = { ...seed, ...(raw ?? {}) };
+  for (const key of Object.keys(seed) as (keyof OS)[]) {
+    if (!Array.isArray(o[key])) (o as any)[key] = (seed as any)[key];
+  }
+  o.members = (o.members ?? []).filter(Boolean).map((m) => ({
+    id: m.id, email: m.email, name: m.name, role: m.role,
+    campaigns: Array.isArray(m.campaigns) ? m.campaigns : [],
+    releases: Array.isArray(m.releases) ? m.releases : [],
+    tracks: Array.isArray(m.tracks) ? m.tracks : [],
+    contracts: Array.isArray(m.contracts) ? m.contracts : [],
+  }));
+  return o;
+}
+
 interface Ctx extends OS {
   set: <K extends keyof OS>(key: K, val: OS[K]) => void;
   update: <K extends keyof OS>(key: K, fn: (cur: OS[K]) => OS[K]) => void;
@@ -74,7 +98,7 @@ export function OSProvider({ children }: { children: ReactNode }) {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [playing, setPlaying] = useState(false);
 
-  useEffect(() => { (async () => { setOs(await loadState<OS>(LS, seed)); setHydrated(true); })(); }, []);
+  useEffect(() => { (async () => { setOs(normalizeOS(await loadState<Partial<OS>>(LS, seed))); setHydrated(true); })(); }, []);
   useEffect(() => { if (hydrated) { void saveState(LS, os); } }, [os, hydrated]);
 
   // Cmd/Ctrl + K
