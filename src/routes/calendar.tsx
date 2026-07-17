@@ -65,18 +65,14 @@ function CalendarPage() {
   const [selected, setSelected] = useState<RBCEvent | null>(null);
   const [form, setForm] = useState({ title: "", platform: "TikTok" as CalendarPlatform, date: new Date().toISOString().slice(0, 10) });
 
-  if (!active) {
-    return (
-      <AppShell>
-        <EmptyState title="No campaign yet" note="Create a campaign to plan its content calendar and rollout timeline." />
-      </AppShell>
-    );
-  }
-
+  // Hooks must run unconditionally on every render (Rules of Hooks) — the
+  // "no active campaign" early return has to come AFTER all hooks, not
+  // before, or React throws "rendered fewer/more hooks than expected" the
+  // moment a campaign gets created and this component re-renders past it.
   const anchor = useMemo(() => {
-    const d = new Date(active.startDate);
+    const d = new Date(active?.startDate ?? "");
     return isNaN(d.getTime()) ? new Date() : d;
-  }, [active.startDate]);
+  }, [active?.startDate]);
 
   const milestoneEvents: RBCEvent[] = useMemo(
     () =>
@@ -97,6 +93,14 @@ function CalendarPage() {
   );
 
   const events = [...milestoneEvents, ...postEvents];
+
+  if (!active) {
+    return (
+      <AppShell>
+        <EmptyState title="No campaign yet" note="Create a campaign to plan its content calendar and rollout timeline." />
+      </AppShell>
+    );
+  }
 
   const onEventDrop: withDragAndDropProps<RBCEvent>["onEventDrop"] = ({ event, start }) => {
     if (!event.editable) return; // milestones are reference-only, not draggable
