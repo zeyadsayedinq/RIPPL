@@ -160,6 +160,35 @@
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Landing footer (animated dots + oversized wordmark) ─────── */
+@keyframes footerDotsMove {
+  from { transform: translate3d(0, -50%, 0); }
+  to   { transform: translate3d(-50%, -50%, 0); }
+}
+.footer-dots { position: relative; height: 120px; overflow: hidden; background: #000; }
+.footer-dots__line {
+  position: absolute; left: 0; top: 50%; width: 200%; height: 70px; opacity: 0.75;
+  transform: translateY(-50%);
+  background-image:
+    radial-gradient(circle, rgb(255 255 255 / 0.55) 1.5px, transparent 2px),
+    radial-gradient(circle, rgb(255 255 255 / 0.35) 1px, transparent 1.5px),
+    radial-gradient(circle, rgb(255 255 255 / 0.45) 1.2px, transparent 1.8px);
+  background-position: 0 8px, 24px 22px, 48px 14px;
+  background-size: 72px 38px, 110px 44px, 160px 52px;
+  animation: footerDotsMove 18s linear infinite;
+}
+.footer-wordmark {
+  font-size: clamp(58px, 15vw, 214px); font-weight: 760; letter-spacing: -0.055em;
+  line-height: 0.78; white-space: nowrap;
+}
+
+/* Spreadsheet viewer — render xlsx like a real sheet (light grid) */
+.xlsx-view { background: #f6f6f4; padding: 8px; }
+.xlsx-view table { border-collapse: collapse; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; color: #111; background: #fff; }
+.xlsx-view td, .xlsx-view th { border: 1px solid #cfcfca; padding: 4px 8px; min-width: 64px; max-width: 340px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.xlsx-view tr:first-child td, .xlsx-view th { background: #ececE8; font-weight: 700; }
+.xlsx-view td[rowspan], .xlsx-view td[colspan] { background: #fafaf8; font-weight: 600; }
+
 .dj-fader {
   -webkit-appearance: none;
   appearance: none;

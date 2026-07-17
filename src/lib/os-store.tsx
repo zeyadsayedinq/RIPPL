@@ -35,18 +35,24 @@ export interface SprintTask { id: string; title: string; col: SprintCol; }
 export interface SaasProject { id: string; name: string; deploy: "Building" | "Ready" | "Error"; tasks: SprintTask[]; }
 export interface Prompt { id: string; title: string; category: string; body: string; }
 export interface Track { id: string; title: string; artist: string; url?: string; path?: string; }
+export type MemberRole = "Admin" | "Manager" | "A&R" | "Marketing" | "Creator" | "Viewer";
+export interface Member {
+  id: string; email: string; name: string; role: MemberRole;
+  campaigns: string[]; releases: string[]; tracks: string[]; contracts: string[];
+}
 
 interface OS {
   artists: Artist[]; deals: Deal[]; releases: Release[]; contracts: Contract[];
   notes: Note[]; mood: MoodItem[]; projects: SaasProject[]; prompts: Prompt[]; tracks: Track[];
   todos: { id: string; label: string; done: boolean; snoozed: boolean; delegated: boolean }[];
+  members: Member[];
 }
 
 /* Empty by default — the app starts as a clean slate and everything you add
    is saved to Supabase. Use the + button / module pages to populate it. */
 const seed: OS = {
   artists: [], deals: [], releases: [], contracts: [], notes: [], mood: [],
-  projects: [], prompts: [], tracks: [], todos: [],
+  projects: [], prompts: [], tracks: [], todos: [], members: [],
 };
 
 const LS = "rippl.os.v2";

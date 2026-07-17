@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { Portal } from "@/components/Portal";
 import { useOS, uid, type Artist, type ScoutStage, type DealStatus } from "@/lib/os-store";
+import { pressKitPdf } from "@/lib/pdf";
 import { LayoutGrid, Users, Handshake, FileText, DollarSign, BarChart3, Copy, Check, X, Music2, Sparkles, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/roster")({
@@ -177,10 +178,8 @@ function ActiveRoster() {
   const [msg, setMsg] = useState<string | null>(null);
   function flash(t: string) { setMsg(t); setTimeout(() => setMsg(null), 1600); }
   function pressKit(a: Artist) {
-    const kit = `PRESS KIT — ${a.name}\n${a.kind} · ${a.handle}\nReach: ${a.kind === "Music" ? a.streams + " streams" : a.followers + " followers"}\n\nBio: ${a.name} is a leading ${a.kind.toLowerCase()} artist managed by RIPPL.`;
-    const blob = new Blob([kit], { type: "text/plain" }); const url = URL.createObjectURL(blob);
-    const el = document.createElement("a"); el.href = url; el.download = `${a.name}_press_kit.txt`; el.click(); URL.revokeObjectURL(url);
-    flash(`Press kit generated for ${a.name}`);
+    pressKitPdf(a);
+    flash(`Press kit PDF generated for ${a.name}`);
   }
   return (
     <>

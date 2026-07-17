@@ -120,7 +120,7 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isPublic = pathname.startsWith("/s"); // shared listen-only pages bypass the gate
+  const isPublic = pathname === "/s" || pathname.startsWith("/s/"); // only the share page bypasses the gate
 
   return (
     <QueryClientProvider client={queryClient}>

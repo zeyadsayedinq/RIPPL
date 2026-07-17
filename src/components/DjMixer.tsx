@@ -61,7 +61,7 @@ export function DjMixer() {
   useEffect(() => { applyXf(xf); }, [xf]);
   useEffect(() => { if (!recording) return; const id = setInterval(() => setRecSecs((s) => s + 1), 1000); return () => clearInterval(id); }, [recording]);
 
-  async function resolve(t: Track): Promise<string | null> { return t.url ?? (t.path ? await signedUrl("audio", t.path) : null); }
+  async function resolve(t: Track): Promise<string | null> { return t.path ? await signedUrl("audio", t.path) : (t.url ?? null); }
   async function load(deck: "A" | "B", trackId: string) {
     const t = tracks.find((x) => x.id === trackId); if (!t) return;
     const el = deck === "A" ? audioA.current : audioB.current; if (!el) return;

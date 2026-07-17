@@ -29,8 +29,19 @@ export function SpotlightCard({ children, className = "", spotlight = true }: Pr
       ref={ref}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
-      className={`glass relative overflow-hidden rounded-2xl ${className}`}
+      className={`group glass relative overflow-hidden rounded-2xl ${className}`}
     >
+      {/* Flowing gradient-border glow on hover (dashboard-wide) */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0 rounded-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+        style={{
+          padding: "1px",
+          background: "linear-gradient(135deg, #FF3D77, #7DD3FC, #4361EE)",
+          WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+          WebkitMaskComposite: "xor",
+          maskComposite: "exclude",
+        }}
+      />
       {spotlight && (
         <motion.div
           className="pointer-events-none absolute inset-0 z-0"

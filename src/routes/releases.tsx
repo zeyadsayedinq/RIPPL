@@ -6,7 +6,8 @@ import { SpotlightCard } from "@/components/SpotlightCard";
 import { MagneticButton } from "@/components/MagneticButton";
 import { ModalShell } from "@/components/NewCampaignModal";
 import { useOS, uid, type ContentId, type Release } from "@/lib/os-store";
-import { Disc3, Check, Music, Image as ImageIcon, ListChecks, SlidersHorizontal } from "lucide-react";
+import { releaseOnePagerPdf } from "@/lib/pdf";
+import { Disc3, Check, Music, Image as ImageIcon, ListChecks, SlidersHorizontal, FileDown } from "lucide-react";
 
 export const Route = createFileRoute("/releases")({
   head: () => ({ meta: [{ title: "Releases · RIPPL OS" }, { name: "description", content: "Distribution & label operations." }] }),
@@ -52,12 +53,15 @@ function ReleasesPage() {
                     </span>
                   </td>
                   <td className="py-3 text-right">
-                    <button
-                      onClick={() => update("releases", (all) => all.map((x) => x.id === r.id ? { ...x, contentId: (x.contentId === "green" ? "yellow" : x.contentId === "yellow" ? "red" : "green") as ContentId } : x))}
-                      className="glass rounded-full px-3 py-1.5 text-xs hover:bg-white/5"
-                    >
-                      Request Takedown/Update
-                    </button>
+                    <div className="inline-flex items-center gap-1.5">
+                      <button onClick={() => releaseOnePagerPdf(r)} title="Download one-pager PDF" className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs hover:bg-white/5"><FileDown className="h-3.5 w-3.5" /> One-pager</button>
+                      <button
+                        onClick={() => update("releases", (all) => all.map((x) => x.id === r.id ? { ...x, contentId: (x.contentId === "green" ? "yellow" : x.contentId === "yellow" ? "red" : "green") as ContentId } : x))}
+                        className="glass rounded-full px-3 py-1.5 text-xs hover:bg-white/5"
+                      >
+                        Takedown
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

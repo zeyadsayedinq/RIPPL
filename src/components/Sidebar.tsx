@@ -1,11 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  Home, Users, Disc3, FolderLock, Palette, Cpu, Settings, Music2,
+  Home, Users, Disc3, FolderLock, Palette, Cpu, Settings, Music2, ShieldCheck,
   LayoutDashboard, Megaphone, CalendarDays, Radio, ListChecks, Wallet, FileText, UsersRound, FolderOpen,
   ChevronDown, ChevronLeft, Check,
 } from "lucide-react";
 import { useRole, type Role } from "@/lib/role-context";
 import { useCampaigns } from "@/lib/campaign-store";
+import { useIsHQ } from "@/lib/use-auth";
 import { motion } from "framer-motion";
 import { useState } from "react";
 
@@ -38,6 +39,7 @@ export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { role, setRole } = useRole();
   const { campaigns, active, setActive } = useCampaigns();
+  const isHQ = useIsHQ();
   const [roleOpen, setRoleOpen] = useState(false);
   const [campOpen, setCampOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -100,6 +102,12 @@ export function Sidebar() {
             })}
           </div>
         ))}
+        {isHQ && (
+          <Link to="/admin" title="Admin" className={`group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${collapsed ? "justify-center" : ""} ${pathname === "/admin" ? "text-white" : "text-muted-foreground hover:text-white"}`}>
+            {pathname === "/admin" && <motion.div layoutId="nav-active" className="absolute inset-0 rounded-xl bg-white/[0.06] border border-white/10" />}
+            <ShieldCheck className="relative h-4 w-4 shrink-0" />{!collapsed && <span className="relative">Admin</span>}
+          </Link>
+        )}
         <Link to="/settings" title="Settings" className={`group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${collapsed ? "justify-center" : ""} ${pathname === "/settings" ? "text-white" : "text-muted-foreground hover:text-white"}`}>
           {pathname === "/settings" && <motion.div layoutId="nav-active" className="absolute inset-0 rounded-xl bg-white/[0.06] border border-white/10" />}
           <Settings className="relative h-4 w-4 shrink-0" />{!collapsed && <span className="relative">Settings</span>}

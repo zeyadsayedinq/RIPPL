@@ -37,8 +37,10 @@ export function AudioPlayer() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (track?.url) { setSrcUrl(track.url); return; }
+      // Prefer the cloud path (session blob: URLs die on reload / other devices)
       if (track?.path) { const u = await signedUrl("audio", track.path); if (alive) setSrcUrl(u); return; }
+      if (track?.url && track.url.startsWith("blob:")) { setSrcUrl(track.url); return; }
+      if (track?.url) { setSrcUrl(track.url); return; }
       setSrcUrl(null);
     })();
     return () => { alive = false; };

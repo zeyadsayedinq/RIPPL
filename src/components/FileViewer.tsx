@@ -28,14 +28,11 @@ export function FileViewer({ url, fileName, onClose }: { url: string; fileName: 
     return () => { alive = false; };
   }, [url, isSheet]);
 
-  const rows = useMemo<string[][]>(() => {
-    if (!wb) return [];
+  const html = useMemo<string>(() => {
+    if (!wb) return "";
     const ws = wb.Sheets[wb.SheetNames[sheet]];
-    if (!ws) return [];
-    const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, blankrows: false, defval: "" });
-    // trim fully-empty trailing columns
-    const maxCols = data.reduce((m, r) => Math.max(m, r.length), 0);
-    return data.map((r) => Array.from({ length: maxCols }, (_, i) => (r[i] == null ? "" : String(r[i]))));
+    if (!ws) return "";
+    try { return XLSX.utils.sheet_to_html(ws, { editable: false }); } catch { return ""; }
   }, [wb, sheet]);
 
   return (
@@ -68,30 +65,7 @@ export function FileViewer({ url, fileName, onClose }: { url: string; fileName: 
               <div className="p-4">
                 {err && <div className="text-sm text-[oklch(0.75_0.2_20)]">Couldn't render: {err}. You can still download it.</div>}
                 {!err && !wb && <div className="text-sm text-muted-foreground">Loading spreadsheet…</div>}
-                {rows.length > 0 && (
-                  <div className="overflow-hidden rounded-lg border border-white/10">
-                    <table className="w-full border-collapse text-[13px]">
-                      <thead className="sticky top-0 z-10">
-                        <tr>
-                          <th className="w-10 border-b border-r border-white/10 bg-white/[0.06] px-2 py-2 text-[10px] font-normal text-white/30"></th>
-                          {rows[0].map((cell, ci) => (
-                            <th key={ci} className="border-b border-r border-white/10 bg-white/[0.06] px-3 py-2 text-left font-semibold text-white last:border-r-0">{cell}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.slice(1).map((r, ri) => (
-                          <tr key={ri} className={ri % 2 ? "bg-white/[0.015]" : ""}>
-                            <td className="border-b border-r border-white/[0.06] bg-white/[0.03] px-2 py-1.5 text-center text-[10px] text-white/25">{ri + 1}</td>
-                            {r.map((cell, ci) => (
-                              <td key={ci} className="max-w-[280px] truncate border-b border-r border-white/[0.06] px-3 py-1.5 text-white/80 last:border-r-0" title={cell}>{cell}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                {html && <div className="xlsx-view overflow-auto rounded-lg" dangerouslySetInnerHTML={{ __html: html }} />}
               </div>
             )}
             {!isPdf && !isImg && !isSheet && (
