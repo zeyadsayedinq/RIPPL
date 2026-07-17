@@ -1,18 +1,26 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Search, User, Handshake, Disc3, StickyNote, Megaphone } from "lucide-react";
+import { Search, User, Handshake, Disc3, StickyNote, Megaphone, Plus } from "lucide-react";
 import { Portal } from "@/components/Portal";
-import { useOS } from "@/lib/os-store";
+import { useOS, uid } from "@/lib/os-store";
 import { useCampaigns } from "@/lib/campaign-store";
 
 type Item = { icon: any; label: string; sub: string; to: string };
 
 export function CommandPalette() {
-  const { paletteOpen, setPaletteOpen, artists, deals, releases, notes } = useOS();
+  const { paletteOpen, setPaletteOpen, artists, deals, releases, notes, update } = useOS();
   const { campaigns } = useCampaigns();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
+
+  const creates: { icon: any; label: string; run: () => void }[] = [
+    { icon: StickyNote, label: "New note / idea", run: () => { update("notes", (n) => [{ id: uid("n"), title: "Untitled", body: "", updatedAt: "just now" }, ...n]); go("/studio"); } },
+    { icon: User, label: "New scouting lead", run: () => { update("artists", (a) => [{ id: uid("ar"), name: "New lead", kind: "Music", handle: "", streams: "—", followers: "—", stage: "Discovered", managed: false }, ...a]); go("/roster"); } },
+    { icon: Disc3, label: "New release", run: () => go("/releases") },
+    { icon: Handshake, label: "New brand deal", run: () => { update("deals", (d) => [{ id: uid("d"), brand: "Brand", artist: "—", deliverables: "", value: 0, split: 0, status: "Pitching" }, ...d]); go("/roster"); } },
+    { icon: Megaphone, label: "New campaign", run: () => go("/campaigns") },
+  ];
 
   const items = useMemo<Item[]>(() => {
     const all: Item[] = [
@@ -53,6 +61,20 @@ export function CommandPalette() {
             <kbd className="rounded border border-white/15 px-1.5 py-0.5 text-[10px] text-white/40">ESC</kbd>
           </div>
           <div className="max-h-80 overflow-y-auto p-2">
+            {(() => {
+              const cs = creates.filter((c) => !q.trim() || c.label.toLowerCase().includes(q.toLowerCase()));
+              return cs.length > 0 && (
+                <div className="mb-1">
+                  <div className="px-3 py-1 text-[9px] uppercase tracking-[0.25em] text-white/30">Create</div>
+                  {cs.map((c, idx) => (
+                    <button key={idx} onClick={() => { c.run(); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-white/5">
+                      <span className="grid h-4 w-4 place-items-center"><Plus className="h-3.5 w-3.5 text-white/50" /></span>
+                      <span className="text-sm text-white">{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
             {items.length === 0 && <div className="px-3 py-6 text-center text-sm text-white/40">No matches.</div>}
             {items.map((i, idx) => (
               <button key={idx} onClick={() => go(i.to)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-white/5">

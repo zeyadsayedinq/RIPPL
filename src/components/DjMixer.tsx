@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { useOS, type Track } from "@/lib/os-store";
-import { signedUrl } from "@/lib/cloud";
-import { Play, Pause, RotateCcw, Disc3, Circle, Square, Download } from "lucide-react";
+import { useOS, uid, type Track } from "@/lib/os-store";
+import { signedUrl, cloudEnabled, uploadToBucket } from "@/lib/cloud";
+import { Play, Pause, RotateCcw, Disc3, Circle, Square, Download, Save } from "lucide-react";
 
 /* Interactive DJ / mixer with real Web Audio: per-deck 3-band EQ, volume,
    tempo, cue, spinning platter, equal-power crossfader, tap-tempo BPM, and a
@@ -12,7 +12,8 @@ interface DeckState { trackId: string; playing: boolean; vol: number; low: numbe
 const initial = (): DeckState => ({ trackId: "", playing: false, vol: 0.8, low: 0, mid: 0, high: 0, rate: 1, bpm: null });
 
 export function DjMixer() {
-  const { tracks } = useOS();
+  const { tracks, update } = useOS();
+  const [savedMix, setSavedMix] = useState(false);
   const audioA = useRef<HTMLAudioElement>(null);
   const audioB = useRef<HTMLAudioElement>(null);
   const ctxRef = useRef<AudioContext | null>(null);
@@ -77,6 +78,17 @@ export function DjMixer() {
   }
   function cue(deck: "A" | "B") { const el = deck === "A" ? audioA.current : audioB.current; if (el) el.currentTime = 0; }
 
+  async function saveMix() {
+    if (!recUrl) return;
+    const title = `RIPPL Mix ${new Date().toLocaleDateString()}`;
+    let path: string | undefined;
+    if (cloudEnabled) {
+      try { const blob = await (await fetch(recUrl)).blob(); path = (await uploadToBucket("audio", new File([blob], `${title}.webm`, { type: "audio/webm" }))) ?? undefined; } catch { /* keep session-only */ }
+    }
+    update("tracks", (t) => [{ id: uid("tr"), title, artist: "DJ Mix", url: recUrl, path }, ...t]);
+    setSavedMix(true); setTimeout(() => setSavedMix(false), 1600);
+  }
+
   function toggleRec() {
     ensureEngine();
     if (recording) { recorder.current?.stop(); return; }
@@ -114,7 +126,12 @@ export function DjMixer() {
           {recording ? <><Square className="h-4 w-4" /> Stop ({Math.floor(recSecs / 60)}:{String(recSecs % 60).padStart(2, "0")})</> : <><Circle className="h-4 w-4" /> Record mix</>}
         </button>
         {recUrl && !recording && (
-          <a href={recUrl} download="rippl-mix.webm" className="glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm hover:bg-white/5"><Download className="h-4 w-4" /> Download mix</a>
+          <>
+            <a href={recUrl} download="rippl-mix.webm" className="glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm hover:bg-white/5"><Download className="h-4 w-4" /> Download mix</a>
+            <button onClick={saveMix} className="glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm hover:bg-white/5">
+              <Save className="h-4 w-4" /> {savedMix ? "Saved ✓" : "Save to library"}
+            </button>
+          </>
         )}
       </div>
     </div>

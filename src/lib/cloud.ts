@@ -28,11 +28,23 @@ export async function loadState<T>(key: string, fallback: T): Promise<T> {
   return fallback;
 }
 
+/* ── Sync status pub/sub (for the UI badge) ─────────────────── */
+export type SyncState = "idle" | "saving" | "synced" | "error";
+let syncState: SyncState = "idle";
+let syncError = "";
+const subs = new Set<(s: SyncState, e: string) => void>();
+function setSync(s: SyncState, e = "") { syncState = s; syncError = e; subs.forEach((f) => f(s, e)); }
+export function onSync(cb: (s: SyncState, e: string) => void) { subs.add(cb); cb(syncState, syncError); return () => { subs.delete(cb); }; }
+
 export async function saveState(key: string, data: unknown): Promise<void> {
   if (typeof window !== "undefined") { try { window.localStorage.setItem(key, JSON.stringify(data)); } catch { /* ignore */ } }
   if (isSupabaseConfigured && supabase) {
     const uid = await currentUid();
-    if (uid) { await supabase.from("app_state").upsert({ user_id: uid, key, data }, { onConflict: "user_id,key" }); }
+    if (uid) {
+      setSync("saving");
+      const { error } = await supabase.from("app_state").upsert({ user_id: uid, key, data }, { onConflict: "user_id,key" });
+      setSync(error ? "error" : "synced", error?.message ?? "");
+    }
   }
 }
 

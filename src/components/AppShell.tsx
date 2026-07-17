@@ -4,6 +4,8 @@ import { MeshGradient } from "@/components/MeshGradient";
 import { CommandPalette } from "@/components/CommandPalette";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { QuickActionFAB } from "@/components/QuickActionFAB";
+import { NotificationsBell } from "@/components/NotificationsBell";
+import { SyncBadge } from "@/components/SyncBadge";
 import { motion } from "framer-motion";
 
 // Providers (Campaign, Role, OS) live in __root.tsx, wrapping every route.
@@ -24,6 +26,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
 
       {/* Global chrome */}
+      <NotificationsBell />
+      <SyncBadge />
       <CommandPalette />
       <QuickActionFAB />
       <AudioPlayer />

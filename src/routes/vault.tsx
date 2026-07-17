@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { useOS, uid, type ContractTag } from "@/lib/os-store";
 import { cloudEnabled, uploadToBucket, signedUrl } from "@/lib/cloud";
 import { FileViewer } from "@/components/FileViewer";
 import { AnimatePresence } from "framer-motion";
-import { Upload, FileSignature, AlertTriangle, Trash2, Eye, Download } from "lucide-react";
+import { Upload, FileSignature, AlertTriangle, Trash2, Eye, Download, Search } from "lucide-react";
 
 export const Route = createFileRoute("/vault")({
   head: () => ({ meta: [{ title: "The Vault · RIPPL OS" }, { name: "description", content: "Legal & contract management." }] }),
@@ -29,6 +29,8 @@ function VaultPage() {
   const [blobs, setBlobs] = useState<Record<string, string>>({});
   const [err, setErr] = useState("");
   const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
+  const [q, setQ] = useState("");
+  const shown = useMemo(() => contracts.filter((c) => !q || `${c.name} ${c.tag} ${c.fileName}`.toLowerCase().includes(q.toLowerCase())), [contracts, q]);
 
   function add(files: FileList | null) {
     if (!files) return;
@@ -93,8 +95,16 @@ function VaultPage() {
         <div className="mt-2 text-sm text-muted-foreground">Drop contracts here, or click to upload — split sheets, recording, sync & management agreements.</div>
       </button>
 
-      <section className="mt-6 grid grid-cols-1 gap-3">
-        {contracts.map((c) => {
+      {contracts.length > 0 && (
+        <div className="relative mt-6">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search contracts by name, tag or file…"
+            className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-white/40" />
+        </div>
+      )}
+
+      <section className="mt-4 grid grid-cols-1 gap-3">
+        {shown.map((c) => {
           const d = daysUntil(c.expiresOn);
           const warn = d !== null && d <= 30 && d >= 0;
           return (
@@ -128,6 +138,7 @@ function VaultPage() {
           );
         })}
         {contracts.length === 0 && <div className="glass rounded-2xl p-8 text-center text-sm text-muted-foreground">No contracts yet.</div>}
+        {contracts.length > 0 && shown.length === 0 && <div className="glass rounded-2xl p-8 text-center text-sm text-muted-foreground">No contracts match "{q}".</div>}
       </section>
 
       <AnimatePresence>{viewer && <FileViewer url={viewer.url} fileName={viewer.name} onClose={() => setViewer(null)} />}</AnimatePresence>
