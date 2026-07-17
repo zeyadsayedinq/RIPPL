@@ -23,6 +23,7 @@ export interface Release {
   releaseDate: string; contentId: ContentId; status: "Draft" | "Scheduled" | "Live";
   dsp: { spotify: boolean; anghami: boolean; youtube: boolean };
   qa: { atmos: boolean; eq: boolean };
+  campaignId?: string;
 }
 
 export type ContractTag = "Split Sheet" | "Exclusive Recording" | "Sync License" | "Management" | "Other";

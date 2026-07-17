@@ -1,6 +1,9 @@
 import { jsPDF } from "jspdf";
 import type { Artist, Release } from "./os-store";
 
+export interface SplitEntry { name: string; role: string; percent: number; }
+export interface SplitSheetInput { trackTitle: string; artist: string; date: string; entries: SplitEntry[]; }
+
 /* Client-facing PDF generators (press kit, release one-pager). Minimal,
    monospace-ish, on-brand black/white layout. */
 
@@ -58,4 +61,51 @@ export function releaseOnePagerPdf(r: Release) {
   label(doc, "Content ID", y); value(doc, r.contentId.toUpperCase(), y + 7); y += 24;
   footer(doc);
   doc.save(`${r.title.replace(/\s+/g, "_")}_One_Pager.pdf`);
+}
+
+/* RIPPL v3.0 plan: "Smart Split-Sheet & Contract Generator" — input
+   contributor names/roles/percentages, get a signature-ready PDF. Pure
+   client-side jsPDF, no external API needed. */
+export function splitSheetPdf(s: SplitSheetInput) {
+  const doc = new jsPDF();
+  header(doc, "Split Sheet", s.trackTitle || "Untitled Track");
+  let y = 62;
+  label(doc, "Artist", y); value(doc, s.artist || "—", y + 7); y += 22;
+  label(doc, "Date", y); value(doc, s.date || new Date().toLocaleDateString(), y + 7, 11); y += 26;
+
+  label(doc, "Contributor", y); doc.text("ROLE", 100, y); doc.text("SPLIT", 175, y); y += 8;
+  doc.setDrawColor(180); doc.line(16, y, 194, y); y += 8;
+
+  doc.setFont("courier", "normal"); doc.setFontSize(11); doc.setTextColor(20);
+  s.entries.forEach((e) => {
+    doc.text(e.name || "—", 16, y);
+    doc.text(e.role || "—", 100, y);
+    doc.text(`${e.percent || 0}%`, 175, y);
+    y += 10;
+  });
+
+  const total = s.entries.reduce((sum, e) => sum + (Number(e.percent) || 0), 0);
+  doc.setDrawColor(180); doc.line(16, y, 194, y); y += 10;
+  doc.setFont("courier", "bold"); doc.setFontSize(11);
+  doc.setTextColor(total === 100 ? 20 : 200, total === 100 ? 20 : 60, total === 100 ? 20 : 40);
+  doc.text(`Total: ${total}%${total !== 100 ? "  (does not add up to 100%)" : ""}`, 100, y);
+  y += 20;
+
+  doc.setFont("courier", "normal"); doc.setFontSize(9); doc.setTextColor(90);
+  doc.text(doc.splitTextToSize(
+    "By signing below, each contributor confirms the ownership split above for this composition/recording and assigns royalty shares accordingly.",
+    178,
+  ), 16, y);
+  y += 22;
+
+  s.entries.forEach((e) => {
+    doc.setDrawColor(180); doc.line(16, y, 90, y);
+    doc.setFontSize(8); doc.setTextColor(120);
+    doc.text(`${e.name || "Signature"} — Signature`, 16, y + 5);
+    doc.text("Date: ____________", 100, y + 5);
+    y += 18;
+  });
+
+  footer(doc);
+  doc.save(`${(s.trackTitle || "Split_Sheet").replace(/\s+/g, "_")}_Split_Sheet.pdf`);
 }

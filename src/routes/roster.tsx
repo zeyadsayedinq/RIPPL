@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
@@ -7,8 +7,9 @@ import { Portal } from "@/components/Portal";
 import { useOS, uid, type Artist, type ScoutStage, type DealStatus } from "@/lib/os-store";
 import { pressKitPdf } from "@/lib/pdf";
 import { ModalShell } from "@/components/NewCampaignModal";
-import { getMarketSnapshot } from "@/lib/market-data";
-import { LayoutGrid, Users, Handshake, FileText, DollarSign, BarChart3, Copy, Check, X, Music2, Sparkles, Trash2 } from "lucide-react";
+import { getMarketSnapshot, formatCount, type MarketSnapshot } from "@/lib/market-data";
+import { trendingMusic, youtubeConfigured, type TrendingVideo } from "@/lib/youtube-api";
+import { LayoutGrid, Users, Handshake, FileText, DollarSign, BarChart3, Copy, Check, X, Music2, Sparkles, Trash2, TrendingUp } from "lucide-react";
 
 export const Route = createFileRoute("/roster")({
   head: () => ({ meta: [{ title: "Roster · RIPPL OS" }, { name: "description", content: "A&R and artist management." }] }),
@@ -56,6 +57,56 @@ function RosterPage() {
   );
 }
 
+/* ── Trending on YouTube (MENA) — real, live data for A&R scouting ──
+   Spots what's rising in Egypt/Saudi/UAE before it charts elsewhere. */
+const REGIONS = [["EG", "Egypt"], ["SA", "Saudi"], ["AE", "UAE"]] as const;
+
+function TrendingMusicPanel() {
+  const [region, setRegion] = useState<(typeof REGIONS)[number][0]>("EG");
+  const [videos, setVideos] = useState<TrendingVideo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!youtubeConfigured) return;
+    let cancelled = false;
+    setLoading(true); setErr(null);
+    trendingMusic(region)
+      .then((v) => { if (!cancelled) setVideos(v); })
+      .catch((e) => { if (!cancelled) setErr(e?.message || String(e)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [region]);
+
+  if (!youtubeConfigured) return null;
+
+  return (
+    <SpotlightCard className="mb-4 p-5" spotlight={false}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-muted-foreground"><TrendingUp className="h-3.5 w-3.5" /> Trending on YouTube · Music</div>
+        <div className="flex gap-1.5">
+          {REGIONS.map(([code, label]) => (
+            <button key={code} onClick={() => setRegion(code)} className={`rounded-full border px-3 py-1 text-xs ${region === code ? "border-white bg-white text-black" : "border-white/15 text-muted-foreground hover:text-white"}`}>{label}</button>
+          ))}
+        </div>
+      </div>
+      {err && <div className="mt-3 text-xs text-[oklch(0.8_0.2_20)]">Trending lookup failed: {err}</div>}
+      <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+        {loading && Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-32 w-48 shrink-0 animate-pulse rounded-xl bg-white/[0.04]" />)}
+        {!loading && videos.map((v) => (
+          <a key={v.id} href={`https://www.youtube.com/watch?v=${v.id}`} target="_blank" rel="noreferrer" className="group w-48 shrink-0">
+            <div className="aspect-video overflow-hidden rounded-xl bg-white/5">
+              {v.thumbnail && <img src={v.thumbnail} alt={v.title} className="h-full w-full object-cover transition-transform group-hover:scale-105" />}
+            </div>
+            <div className="mt-1.5 truncate text-xs font-medium">{v.title}</div>
+            <div className="truncate text-[10px] text-muted-foreground">{v.channelTitle} · {formatCount(v.viewCount)} views</div>
+          </a>
+        ))}
+      </div>
+    </SpotlightCard>
+  );
+}
+
 /* ── Scouting Kanban (native drag & drop) ───────────────────── */
 function ScoutingBoard() {
   const { artists, update } = useOS();
@@ -71,6 +122,7 @@ function ScoutingBoard() {
 
   return (
     <>
+      <TrendingMusicPanel />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {STAGES.map((stage) => {
           const cards = artists.filter((a) => a.stage === stage);
@@ -215,28 +267,57 @@ function ActiveRoster() {
 
 /* ── Live DSP / market-data panel (RIPPL v3.0: DSP Feeds + Chartmetric/Soundcharts) ── */
 function MarketStatsModal({ artist, onClose }: { artist: Artist; onClose: () => void }) {
-  const snap = getMarketSnapshot(artist.name);
+  const [snap, setSnap] = useState<MarketSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    getMarketSnapshot(artist.name).then((s) => { if (!cancelled) { setSnap(s); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [artist.name]);
+
   return (
     <ModalShell eyebrow="Market Intelligence" title={`${artist.name} — Live Stats`} onClose={onClose}>
-      {!snap.hasLiveSource && (
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-sm text-muted-foreground">
-          No live data source connected yet. Streaming trends, playlist placements and demographics come from a cross-platform aggregator (Chartmetric or Soundcharts) — Spotify and Apple don't publish that data publicly, only inside their own private artist dashboards. Add an API key as{" "}
-          <code className="rounded bg-white/10 px-1 py-0.5 text-white">VITE_CHARTMETRIC_API_KEY</code> (or Soundcharts) in Vercel env vars and redeploy to activate this panel.
+      {loading && <div className="py-6 text-center text-sm text-muted-foreground">Fetching live stats…</div>}
+
+      {!loading && snap?.youtube && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          {snap.youtube.thumbnail && <img src={snap.youtube.thumbnail} alt="" className="h-12 w-12 rounded-full" />}
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium">{snap.youtube.title}</div>
+            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+              <span>{formatCount(snap.youtube.subscriberCount)} subscribers</span>
+              <span>{formatCount(snap.youtube.viewCount)} views</span>
+              <span>{snap.youtube.videoCount} videos</span>
+            </div>
+          </div>
         </div>
       )}
-      <div className="mt-3 space-y-2">
-        {snap.sources.map((s) => (
-          <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm">
-            <div className="min-w-0">
-              <div className="font-medium">{s.label}</div>
-              <div className="text-[11px] text-muted-foreground">{s.note}</div>
+      {!loading && snap?.youtubeError && (
+        <div className="mb-4 rounded-xl border border-[oklch(0.7_0.2_20)]/30 bg-[oklch(0.7_0.2_20)]/10 p-3 text-xs text-[oklch(0.8_0.2_20)]">YouTube lookup failed: {snap.youtubeError}</div>
+      )}
+      {!loading && !snap?.youtube && !snap?.youtubeError && (
+        <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 text-sm text-muted-foreground">
+          No live data source connected yet. Streaming trends, playlist placements and demographics come from a cross-platform aggregator (Chartmetric or Soundcharts) — Spotify and Apple don't publish that data publicly, only inside their own private artist dashboards.
+        </div>
+      )}
+
+      {!loading && snap && (
+        <div className="space-y-2">
+          {snap.sources.map((s) => (
+            <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm">
+              <div className="min-w-0">
+                <div className="font-medium">{s.label}</div>
+                <div className="text-[11px] text-muted-foreground">{s.note}</div>
+              </div>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider ${s.configured ? "bg-[oklch(0.82_0.18_150)]/15 text-[oklch(0.82_0.18_150)]" : "bg-white/10 text-muted-foreground"}`}>
+                {s.configured ? "Connected" : "Not connected"}
+              </span>
             </div>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider ${s.configured ? "bg-[oklch(0.82_0.18_150)]/15 text-[oklch(0.82_0.18_150)]" : "bg-white/10 text-muted-foreground"}`}>
-              {s.configured ? "Connected" : "Not connected"}
-            </span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </ModalShell>
   );
 }

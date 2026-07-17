@@ -6,8 +6,9 @@ import { SpotlightCard } from "@/components/SpotlightCard";
 import { MagneticButton } from "@/components/MagneticButton";
 import { ModalShell } from "@/components/NewCampaignModal";
 import { useOS, uid, type ContentId, type Release } from "@/lib/os-store";
+import { useCampaigns } from "@/lib/campaign-store";
 import { releaseOnePagerPdf } from "@/lib/pdf";
-import { Disc3, Check, Music, Image as ImageIcon, ListChecks, SlidersHorizontal, FileDown } from "lucide-react";
+import { Disc3, Check, Music, Image as ImageIcon, ListChecks, SlidersHorizontal, FileDown, Pencil, Trash2, Link2 } from "lucide-react";
 
 export const Route = createFileRoute("/releases")({
   head: () => ({ meta: [{ title: "Releases · RIPPL OS" }, { name: "description", content: "Distribution & label operations." }] }),
@@ -20,7 +21,10 @@ const cidColor: Record<ContentId, string> = { red: "oklch(0.65 0.24 20)", yellow
 
 function ReleasesPage() {
   const { releases, update } = useOS();
+  const { campaigns } = useCampaigns();
   const [wizard, setWizard] = useState(false);
+  const [editing, setEditing] = useState<Release | null>(null);
+  const campaignName = (id?: string) => campaigns.find((c) => c.id === id)?.title;
 
   return (
     <AppShell>
@@ -37,11 +41,11 @@ function ReleasesPage() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
             <thead><tr className="text-left text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              <th className="pb-3">Title</th><th className="pb-3">Artist</th><th className="pb-3">ISRC</th><th className="pb-3">Release</th><th className="pb-3">DSPs</th><th className="pb-3">Content ID</th><th className="pb-3 text-right">Action</th>
+              <th className="pb-3">Title</th><th className="pb-3">Artist</th><th className="pb-3">ISRC</th><th className="pb-3">Release</th><th className="pb-3">DSPs</th><th className="pb-3">Content ID</th><th className="pb-3">Campaign</th><th className="pb-3 text-right">Action</th>
             </tr></thead>
             <tbody>
               {releases.map((r) => (
-                <tr key={r.id} className="border-t border-white/[0.06]">
+                <tr key={r.id} onClick={() => setEditing(r)} className="cursor-pointer border-t border-white/[0.06] hover:bg-white/[0.02]">
                   <td className="py-3 font-medium">{r.title}</td>
                   <td className="py-3 text-muted-foreground">{r.artist}</td>
                   <td className="py-3 font-mono text-xs text-muted-foreground">{r.isrc}</td>
@@ -52,9 +56,13 @@ function ReleasesPage() {
                       <span className="h-2 w-2 rounded-full" style={{ background: cidColor[r.contentId] }} />{r.contentId}
                     </span>
                   </td>
-                  <td className="py-3 text-right">
+                  <td className="py-3 text-xs text-muted-foreground">
+                    {campaignName(r.campaignId) ? <span className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" /> {campaignName(r.campaignId)}</span> : "—"}
+                  </td>
+                  <td className="py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="inline-flex items-center gap-1.5">
                       <button onClick={() => releaseOnePagerPdf(r)} title="Download one-pager PDF" className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs hover:bg-white/5"><FileDown className="h-3.5 w-3.5" /> One-pager</button>
+                      <button onClick={() => setEditing(r)} title="Edit release" className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs hover:bg-white/5"><Pencil className="h-3.5 w-3.5" /> Edit</button>
                       <button
                         onClick={() => update("releases", (all) => all.map((x) => x.id === r.id ? { ...x, contentId: (x.contentId === "green" ? "yellow" : x.contentId === "yellow" ? "red" : "green") as ContentId } : x))}
                         className="glass rounded-full px-3 py-1.5 text-xs hover:bg-white/5"
@@ -65,19 +73,102 @@ function ReleasesPage() {
                   </td>
                 </tr>
               ))}
-              {releases.length === 0 && <tr><td colSpan={7} className="py-8 text-center text-muted-foreground">No releases yet.</td></tr>}
+              {releases.length === 0 && <tr><td colSpan={8} className="py-8 text-center text-muted-foreground">No releases yet.</td></tr>}
             </tbody>
           </table>
         </div>
       </SpotlightCard>
 
       <AnimatePresence>{wizard && <ReleaseWizard onClose={() => setWizard(false)} onCreate={(r) => update("releases", (all) => [r, ...all])} />}</AnimatePresence>
+      <AnimatePresence>
+        {editing && (
+          <ReleaseEditModal
+            release={editing}
+            onClose={() => setEditing(null)}
+            onSave={(r) => { update("releases", (all) => all.map((x) => (x.id === r.id ? r : x))); setEditing(null); }}
+            onDelete={(id) => { update("releases", (all) => all.filter((x) => x.id !== id)); setEditing(null); }}
+          />
+        )}
+      </AnimatePresence>
     </AppShell>
+  );
+}
+
+/* ── Edit an existing release: full field edit + link/unlink a campaign ── */
+function ReleaseEditModal({ release, onClose, onSave, onDelete }: { release: Release; onClose: () => void; onSave: (r: Release) => void; onDelete: (id: string) => void }) {
+  const { campaigns } = useCampaigns();
+  const [r, setR] = useState<Release>(release);
+  const set = <K extends keyof Release>(k: K, v: Release[K]) => setR((s) => ({ ...s, [k]: v }));
+
+  return (
+    <ModalShell eyebrow="Distribution" title={`Edit — ${release.title}`} onClose={onClose}>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={lbl}>Title</label><input className={field} value={r.title} onChange={(e) => set("title", e.target.value)} /></div>
+          <div><label className={lbl}>Artist</label><input className={field} value={r.artist} onChange={(e) => set("artist", e.target.value)} /></div>
+          <div><label className={lbl}>ISRC</label><input className={field} value={r.isrc} onChange={(e) => set("isrc", e.target.value)} /></div>
+          <div><label className={lbl}>UPC</label><input className={field} value={r.upc} onChange={(e) => set("upc", e.target.value)} /></div>
+          <div><label className={lbl}>Release date</label><input type="date" className={field} value={r.releaseDate === "TBC" ? "" : r.releaseDate} onChange={(e) => set("releaseDate", e.target.value)} /></div>
+          <div>
+            <label className={lbl}>Status</label>
+            <select className={field} value={r.status} onChange={(e) => set("status", e.target.value as Release["status"])}>
+              {(["Draft", "Scheduled", "Live"] as const).map((s) => <option key={s} className="bg-[#0a0a0c]">{s}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className={lbl}>Content ID</label>
+          <select className={field} value={r.contentId} onChange={(e) => set("contentId", e.target.value as ContentId)}>
+            {(["green", "yellow", "red"] as const).map((c) => <option key={c} className="bg-[#0a0a0c] capitalize">{c}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className={lbl}>Linked campaign</label>
+          <select className={field} value={r.campaignId ?? ""} onChange={(e) => set("campaignId", e.target.value || undefined)}>
+            <option value="" className="bg-[#0a0a0c]">— No campaign —</option>
+            {campaigns.map((c) => <option key={c.id} value={c.id} className="bg-[#0a0a0c]">{c.artist} — {c.title}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className={lbl}>DSPs</label>
+          <div className="flex flex-wrap gap-2">
+            {([["spotify", "Spotify"], ["anghami", "Anghami"], ["youtube", "YouTube"]] as const).map(([k, label]) => (
+              <label key={k} className="glass flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-xs">
+                <input type="checkbox" checked={r.dsp[k]} onChange={(e) => set("dsp", { ...r.dsp, [k]: e.target.checked })} className="h-3.5 w-3.5 accent-white" /> {label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className={lbl}>Audio QA</label>
+          <div className="flex flex-wrap gap-2">
+            {([["atmos", "Dolby Atmos"], ["eq", "Master EQ"]] as const).map(([k, label]) => (
+              <label key={k} className="glass flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-xs">
+                <input type="checkbox" checked={r.qa[k]} onChange={(e) => set("qa", { ...r.qa, [k]: e.target.checked })} className="h-3.5 w-3.5 accent-white" /> {label}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 flex items-center justify-between">
+        <button onClick={() => onDelete(release.id)} className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-[oklch(0.7_0.2_20)] hover:bg-[oklch(0.7_0.2_20)]/10"><Trash2 className="h-4 w-4" /> Delete</button>
+        <div className="flex gap-2">
+          <button onClick={onClose} className="rounded-full px-4 py-2.5 text-sm text-muted-foreground hover:text-white">Cancel</button>
+          <MagneticButton onClick={() => onSave(r)}>Save changes</MagneticButton>
+        </div>
+      </div>
+    </ModalShell>
   );
 }
 
 /* ── Release Wizard (4 steps) ───────────────────────────────── */
 function ReleaseWizard({ onClose, onCreate }: { onClose: () => void; onCreate: (r: Release) => void }) {
+  const { campaigns } = useCampaigns();
   const [step, setStep] = useState(1);
   const [f, setF] = useState<Record<string, string>>({});
   const [dsp, setDsp] = useState({ spotify: true, anghami: true, youtube: false });
@@ -95,6 +186,7 @@ function ReleaseWizard({ onClose, onCreate }: { onClose: () => void; onCreate: (
       id: uid("r"), title: f.title || "Untitled", artist: f.primary || "—",
       isrc: f.isrc || "—", upc: f.upc || "—", releaseDate: f.date || "TBC",
       contentId: "yellow", status: "Draft", dsp, qa,
+      campaignId: f.campaignId || undefined,
     });
     onClose();
   }
@@ -125,6 +217,13 @@ function ReleaseWizard({ onClose, onCreate }: { onClose: () => void; onCreate: (
             <div><label className={lbl}>Secondary artist(s)</label><input className={field} value={f.secondary || ""} onChange={(e) => set("secondary", e.target.value)} placeholder="feat. …" /></div>
           </div>
           <div><label className={lbl}>Release date</label><input type="date" className={field} value={f.date || ""} onChange={(e) => set("date", e.target.value)} /></div>
+          <div>
+            <label className={lbl}>Link to campaign (optional)</label>
+            <select className={field} value={f.campaignId || ""} onChange={(e) => set("campaignId", e.target.value)}>
+              <option value="" className="bg-[#0a0a0c]">— No campaign —</option>
+              {campaigns.map((c) => <option key={c.id} value={c.id} className="bg-[#0a0a0c]">{c.artist} — {c.title}</option>)}
+            </select>
+          </div>
         </div>
       )}
       {step === 2 && (

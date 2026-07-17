@@ -8,7 +8,8 @@ import { ModalShell } from "@/components/NewCampaignModal";
 import { useOS, uid, type Member, type MemberRole } from "@/lib/os-store";
 import { useCampaigns } from "@/lib/campaign-store";
 import { useIsHQ } from "@/lib/use-auth";
-import { ShieldCheck, UserPlus, Trash2, Settings2, Lock } from "lucide-react";
+import { inviteMember } from "@/lib/invite-member";
+import { ShieldCheck, UserPlus, Trash2, Settings2, Lock, Mail } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin · RIPPL HQ" }] }),
@@ -23,6 +24,7 @@ function AdminPage() {
   const { members, update } = useOS();
   const [assigning, setAssigning] = useState<Member | null>(null);
   const [f, setF] = useState({ name: "", email: "", role: "Creator" as MemberRole });
+  const [inviteMsg, setInviteMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   if (!isHQ) {
     return (
@@ -36,11 +38,20 @@ function AdminPage() {
     );
   }
 
-  function addMember(e: React.FormEvent) {
+  async function addMember(e: React.FormEvent) {
     e.preventDefault();
-    if (!f.email.trim()) return;
-    update("members", (m) => [{ id: uid("m"), email: f.email.trim(), name: f.name.trim() || f.email.trim(), role: f.role, campaigns: [], releases: [], tracks: [], contracts: [] }, ...m]);
+    const email = f.email.trim();
+    if (!email) return;
+    const name = f.name.trim() || email;
+    update("members", (m) => [{ id: uid("m"), email, name, role: f.role, campaigns: [], releases: [], tracks: [], contracts: [] }, ...m]);
     setF({ name: "", email: "", role: "Creator" });
+    setInviteMsg({ text: `Sending invite to ${email}…`, ok: true });
+    try {
+      const res = await inviteMember({ data: { email, name } });
+      setInviteMsg(res.ok ? { text: `Invite email sent to ${email}.`, ok: true } : { text: `Member added, but the invite email failed: ${res.error}`, ok: false });
+    } catch (err: any) {
+      setInviteMsg({ text: `Member added, but the invite email failed: ${err?.message || err}`, ok: false });
+    }
   }
 
   return (
@@ -59,7 +70,12 @@ function AdminPage() {
           <div className="col-span-8 sm:col-span-2"><label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Role</label><select className={field} value={f.role} onChange={(e) => setF({ ...f, role: e.target.value as MemberRole })}>{ROLES.map((r) => <option key={r} className="bg-[#0a0a0c]">{r}</option>)}</select></div>
           <div className="col-span-4 sm:col-span-2"><MagneticButton>Add</MagneticButton></div>
         </form>
-        <p className="mt-2 text-[11px] text-muted-foreground/70">Members sign in with their own email (they register on the login screen). Assignments below control what each person is responsible for.</p>
+        <p className="mt-2 text-[11px] text-muted-foreground/70">Members sign in with their own email — adding them here also sends a real invite email via Supabase Auth. Assignments below control what each person is responsible for.</p>
+        {inviteMsg && (
+          <div className={`mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs ${inviteMsg.ok ? "bg-[oklch(0.82_0.18_150)]/10 text-[oklch(0.82_0.18_150)]" : "bg-[oklch(0.7_0.2_20)]/10 text-[oklch(0.8_0.2_20)]"}`}>
+            <Mail className="h-3.5 w-3.5 shrink-0" /> {inviteMsg.text}
+          </div>
+        )}
       </SpotlightCard>
 
       <section className="mt-4 grid grid-cols-1 gap-3">
