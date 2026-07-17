@@ -78,20 +78,25 @@ function TrendingMusicPanel() {
     return () => { cancelled = true; };
   }, [region]);
 
-  if (!youtubeConfigured) return null;
-
   return (
     <SpotlightCard className="mb-4 p-5" spotlight={false}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-muted-foreground"><TrendingUp className="h-3.5 w-3.5" /> Trending on YouTube · Music</div>
-        <div className="flex gap-1.5">
-          {REGIONS.map(([code, label]) => (
-            <button key={code} onClick={() => setRegion(code)} className={`rounded-full border px-3 py-1 text-xs ${region === code ? "border-white bg-white text-black" : "border-white/15 text-muted-foreground hover:text-white"}`}>{label}</button>
-          ))}
-        </div>
+        {youtubeConfigured && (
+          <div className="flex gap-1.5">
+            {REGIONS.map(([code, label]) => (
+              <button key={code} onClick={() => setRegion(code)} className={`rounded-full border px-3 py-1 text-xs ${region === code ? "border-white bg-white text-black" : "border-white/15 text-muted-foreground hover:text-white"}`}>{label}</button>
+            ))}
+          </div>
+        )}
       </div>
+      {!youtubeConfigured && (
+        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] p-4 text-sm text-muted-foreground">
+          Not connected. Add <code className="rounded bg-white/10 px-1 py-0.5 text-white">VITE_YOUTUBE_API_KEY</code> in Vercel → Settings → Environment Variables and redeploy to see trending music here.
+        </div>
+      )}
       {err && <div className="mt-3 text-xs text-[oklch(0.8_0.2_20)]">Trending lookup failed: {err}</div>}
-      <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+      {youtubeConfigured && <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
         {loading && Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-32 w-48 shrink-0 animate-pulse rounded-xl bg-white/[0.04]" />)}
         {!loading && videos.map((v) => (
           <a key={v.id} href={`https://www.youtube.com/watch?v=${v.id}`} target="_blank" rel="noreferrer" className="group w-48 shrink-0">
@@ -102,7 +107,7 @@ function TrendingMusicPanel() {
             <div className="truncate text-[10px] text-muted-foreground">{v.channelTitle} · {formatCount(v.viewCount)} views</div>
           </a>
         ))}
-      </div>
+      </div>}
     </SpotlightCard>
   );
 }

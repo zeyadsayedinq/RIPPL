@@ -47,7 +47,44 @@ function Universe() {
 
   return (
     <div className="relative w-full bg-black font-display">
-      {/* ═══════ HERO ═══════ */}
+      {/* ═══════ INTRO (was the footer) — now the top of the page ═══════ */}
+      <header className="relative z-[100] overflow-hidden bg-black text-white">
+        <div className="footer-dots" aria-hidden="true"><div className="footer-dots__line" /></div>
+        <div className="mx-auto w-[min(100%-48px,1820px)] pb-8 pt-10">
+          <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.25fr_repeat(3,0.42fr)]">
+            <h2 className="max-w-[680px] text-4xl font-light leading-[1.06] tracking-tight md:col-auto" style={{ fontSize: "clamp(28px,3.2vw,54px)", fontWeight: 300 }}>Everything I build, in one universe.</h2>
+            <FooterNav links={[["Home", "/home"], ["Roster", "/roster"], ["Releases", "/releases"], ["The Vault", "/vault"], ["Studio", "/studio"]]} />
+            <FooterNav links={[["Tech Lab", "/techlab"], ["Audio", "/audio"], ["Marketing", "/dashboard"], ["Campaigns", "/campaigns"]]} />
+            <FooterNav links={[["Settings", "/settings"]]} />
+          </div>
+
+          <div className="mt-10 w-full">
+            <Link to="/home" className="flex w-full items-center gap-4 text-white">
+              <span className="footer-wordmark block flex-1">RIPPL</span>
+            </Link>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] text-white/50">
+            <span>© 2026 RIPPL. All rights reserved. Built by Zeyad Sayedin.</span>
+            <span>This is my universe.</span>
+          </div>
+        </div>
+      </header>
+
+      {/* ═══════ MODULES (glow cards) ═══════ */}
+      <section className="bg-[#0A0A0B] px-6 py-20">
+        <div className="mx-auto max-w-[936px]">
+          <div className="text-[11px] uppercase tracking-[0.35em] text-white/40">The whole universe</div>
+          <h2 className="mt-2 text-3xl font-bold text-white">Everything, in one place</h2>
+          <div className="mt-10 grid grid-cols-1 gap-10 md:grid-cols-3 md:gap-3">
+            {modules.map((m) => (
+              <FeatureCard key={m.to} to={m.to} title={m.label} description={m.desc} icon={m.icon} gradient={m.gradient} count={m.count} delay={m.delay} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════ HERO (was the top) — now the bottom, closing "scene" ═══════ */}
       <section className="relative h-screen overflow-hidden">
         <div className="absolute inset-0 z-0">
           {SCENES.map((s, i) => (
@@ -75,19 +112,19 @@ function Universe() {
           </nav>
 
           <div className="flex flex-1 flex-col justify-center pb-16">
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.5 }}
+            <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1, duration: 0.5 }}
               className="liquid-glass w-fit rounded-full px-4 py-2 text-[11px] uppercase tracking-[0.35em] text-white/70">RIPPL // MY UNIVERSE</motion.div>
-            <motion.h1 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.6 }}
+            <motion.h1 initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2, duration: 0.6 }}
               className="mt-5 font-bold leading-[1.02] text-white" style={{ fontSize: "clamp(2.6rem, 7vw, 5.5rem)" }}>
               Zeyad's <span className="text-gradient-neon">Universe</span>
             </motion.h1>
-            <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.55 }}
+            <motion.p initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3, duration: 0.55 }}
               className="mt-5 max-w-2xl text-base leading-relaxed text-white/65 sm:text-lg">
               Not a dashboard — a command center for everything I build. A&R and artist management, music distribution,
               360° marketing, and the AI tools I ship. Every artist I scout, every record I drop, every deal I close,
               every contract I sign — it all lives here. One brain for the whole operation.
             </motion.p>
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }}
+            <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.4, duration: 0.5 }}
               className="mt-8 grid grid-cols-3 gap-3 sm:grid-cols-6">
               {stats.map((s) => (
                 <div key={s.label} className="liquid-glass rounded-2xl px-4 py-3 text-center">
@@ -106,43 +143,6 @@ function Universe() {
           ))}
         </div>
       </section>
-
-      {/* ═══════ MODULES (glow cards) ═══════ */}
-      <section className="bg-[#0A0A0B] px-6 py-20">
-        <div className="mx-auto max-w-[936px]">
-          <div className="text-[11px] uppercase tracking-[0.35em] text-white/40">The whole universe</div>
-          <h2 className="mt-2 text-3xl font-bold text-white">Everything, in one place</h2>
-          <div className="mt-10 grid grid-cols-1 gap-10 md:grid-cols-3 md:gap-3">
-            {modules.map((m) => (
-              <FeatureCard key={m.to} to={m.to} title={m.label} description={m.desc} icon={m.icon} gradient={m.gradient} count={m.count} delay={m.delay} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════ FOOTER ═══════ */}
-      <footer className="relative z-[100] overflow-hidden bg-black text-white">
-        <div className="footer-dots" aria-hidden="true"><div className="footer-dots__line" /></div>
-        <div className="mx-auto w-[min(100%-48px,1820px)] pb-8 pt-10">
-          <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.25fr_repeat(3,0.42fr)]">
-            <h2 className="max-w-[680px] text-4xl font-light leading-[1.06] tracking-tight md:col-auto" style={{ fontSize: "clamp(28px,3.2vw,54px)", fontWeight: 300 }}>Everything I build, in one universe.</h2>
-            <FooterNav links={[["Home", "/home"], ["Roster", "/roster"], ["Releases", "/releases"], ["The Vault", "/vault"], ["Studio", "/studio"]]} />
-            <FooterNav links={[["Tech Lab", "/techlab"], ["Audio", "/audio"], ["Marketing", "/dashboard"], ["Campaigns", "/campaigns"]]} />
-            <FooterNav links={[["Settings", "/settings"]]} />
-          </div>
-
-          <div className="mt-10 w-full">
-            <Link to="/home" className="flex w-full items-center gap-4 text-white">
-              <span className="footer-wordmark block flex-1">RIPPL</span>
-            </Link>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] text-white/50">
-            <span>© 2026 RIPPL. All rights reserved. Built by Zeyad Sayedin.</span>
-            <span>This is my universe.</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

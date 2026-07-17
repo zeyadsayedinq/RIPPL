@@ -26,7 +26,29 @@ Restart `npm run dev`. An "Analyze Vibe" button appears next to every track in *
 
 ## Deploying it (so it's not just localhost)
 
-This is a real Python process — it can't run on Vercel next to the frontend. Cheapest options: [Railway](https://railway.app), [Render](https://render.com), or [Fly.io](https://fly.io) all support a `Dockerfile`-less Python service off this `requirements.txt` + `main.py`. Once deployed, set `VITE_VIBE_ANALYZER_URL` to that URL in Vercel's env vars and redeploy the frontend.
+This is a real, stateful-ish Python process — it can't run on Vercel next to the frontend. `Procfile`, `railway.json`, `render.yaml`, and `runtime.txt` are already in this folder so either of the two options below is close to a 2-click deploy.
+
+### Option A — Railway (recommended)
+
+1. Go to [railway.app](https://railway.app) → sign in with GitHub → **New Project → Deploy from GitHub repo** → pick `zeyadsayedinq/RIPPL`.
+2. Railway will try to build the whole repo — open the new service's **Settings → Root Directory** and set it to `services/vibe-analyzer`. It'll pick up `railway.json` automatically from there (Nixpacks build, `uvicorn` start command already configured).
+3. Once it deploys, **Settings → Networking → Generate Domain** to get a public URL like `https://rippl-vibe-analyzer.up.railway.app`.
+4. Test it: `curl https://<your-domain>/health` → should return `{"status":"ok"}`.
+
+### Option B — Render
+
+1. Go to [render.com](https://render.com) → **New → Blueprint** → connect the `zeyadsayedinq/RIPPL` repo. Render will read `services/vibe-analyzer/render.yaml` automatically.
+2. Deploy. Note: Render's free tier spins the service down after 15 min idle — the first request after a gap takes ~30-50s to wake up (RIPPL's UI will just show the "isn't reachable" message during that window, then work once it's up). Fine for testing, worth upgrading off free tier for real use.
+
+### Then wire it to the frontend
+
+In Vercel → your RIPPL project → **Settings → Environment Variables**, add:
+
+```
+VITE_VIBE_ANALYZER_URL=https://<your-railway-or-render-domain>
+```
+
+Redeploy the frontend (Vercel → Deployments → ⋯ → Redeploy). "Analyze Vibe" in Audio Lab will now hit the real deployed service instead of `localhost`.
 
 ## ⚠️ The Hit Scoring baseline is a placeholder
 
