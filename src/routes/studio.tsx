@@ -9,6 +9,15 @@ import { PenLine, LayoutGrid, TrendingUp, Plus, Heading1, List, Image as ImageIc
 
 export const Route = createFileRoute("/studio")({
   head: () => ({ meta: [{ title: "Studio · RIPPL OS" }, { name: "description", content: "Creative studio & marketing." }] }),
+  // The Moodboard tab embeds Excalidraw, a canvas library that touches
+  // `window` at import time — TanStack Start's docs call this out by name
+  // ("When the route component depends on browser-only APIs, e.g. canvas").
+  // Without this, every route's component (this one included) gets bundled
+  // into the single shared SSR entry that runs on every request, so loading
+  // "/" was enough to evaluate Excalidraw's module and crash with
+  // "window is not defined" — even though "/" never renders this route.
+  // ssr: false code-splits /studio out of that shared server bundle entirely.
+  ssr: false,
   component: StudioPage,
 });
 
