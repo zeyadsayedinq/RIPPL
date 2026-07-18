@@ -12,4 +12,17 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    ssr: {
+      // @excalidraw/excalidraw touches `window` at module-evaluation time and
+      // is only ever dynamically imported client-side (see
+      // src/components/MoodboardCanvas.tsx). Without this, Rollup's SSR
+      // bundler was still resolving/inlining that dynamic import into the
+      // server build, so it got evaluated on every request (crashing "/"
+      // with "ReferenceError: window is not defined") regardless of the
+      // runtime guard around the import call. Marking it external keeps it
+      // out of the server bundle's module graph entirely.
+      external: ["@excalidraw/excalidraw"],
+    },
+  },
 });

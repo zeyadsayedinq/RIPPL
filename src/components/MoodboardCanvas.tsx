@@ -7,14 +7,15 @@ import "@excalidraw/excalidraw/index.css";
    rollouts right in the dashboard, saving the state to your database."
 
    Excalidraw touches window/canvas at import + render time, so it can't run
-   during SSR. The `mounted`-state gate below stops *this component* from
-   rendering it during SSR, but that alone wasn't enough: in production the
-   SSR bundle was still invoking this lazy() factory on the Node server,
-   crashing every route with "ReferenceError: window is not defined" — since
-   OSProvider/CampaignProvider wrap the whole app, this took down "/" itself,
-   not just /studio. Guard *inside* the factory too, so the real browser-only
-   package can never actually be imported on the server no matter what
-   triggers the factory call. */
+   during SSR. This runtime guard stops OUR code from ever calling into the
+   real package on the server. It's paired with `ssr.external` in
+   vite.config.ts, which stops Vite/Rollup's SSR bundler from bundling
+   Excalidraw into the server output at all — without that, the server build
+   was resolving/loading the chunk as part of handling every request even
+   though this branch was never reached (confirmed via Vercel logs:
+   `ModuleJob.run` — real module evaluation — fired regardless of this
+   check). Since OSProvider/CampaignProvider wrap the whole app, this crashed
+   "/" itself, not just /studio. Both pieces are required together. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the stub and the real Excalidraw component have deliberately incompatible prop shapes; this file is the only place either is used
 const ExcalidrawLazy = lazy(async (): Promise<{ default: ComponentType<any> }> => {
   if (typeof window === "undefined") {
