@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Home, Users, Disc3, FolderLock, Palette, Cpu, Settings, Music2, ShieldCheck,
   LayoutDashboard, Megaphone, CalendarDays, Radio, ListChecks, Wallet, FileText, UsersRound, FolderOpen,
-  ChevronDown, ChevronLeft, Check,
+  ChevronDown, ChevronLeft, Check, Clapperboard,
 } from "lucide-react";
 import { useRole, type Role } from "@/lib/role-context";
 import { useCampaigns } from "@/lib/campaign-store";
@@ -22,6 +22,7 @@ const groups: { label: string; items: { to: string; label: string; icon: any }[]
   ]},
   { label: "Marketing", items: [
     { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
+    { to: "/dashboard/tiktok", label: "TikTok", icon: Clapperboard },
     { to: "/campaigns", label: "Campaigns", icon: Megaphone },
     { to: "/calendar", label: "Calendar", icon: CalendarDays },
     { to: "/channels", label: "Channels", icon: Radio },

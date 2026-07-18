@@ -29,6 +29,7 @@ import { Route as AudioRouteImport } from './routes/audio'
 import { Route as AssetsRouteImport } from './routes/assets'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardTiktokRouteImport } from './routes/dashboard_.tiktok'
 
 const VaultRoute = VaultRouteImport.update({
   id: '/vault',
@@ -130,6 +131,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardTiktokRoute = DashboardTiktokRouteImport.update({
+  id: '/dashboard_/tiktok',
+  path: '/dashboard/tiktok',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/techlab': typeof TechlabRoute
   '/templates': typeof TemplatesRoute
   '/vault': typeof VaultRoute
+  '/dashboard/tiktok': typeof DashboardTiktokRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/techlab': typeof TechlabRoute
   '/templates': typeof TemplatesRoute
   '/vault': typeof VaultRoute
+  '/dashboard/tiktok': typeof DashboardTiktokRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/techlab': typeof TechlabRoute
   '/templates': typeof TemplatesRoute
   '/vault': typeof VaultRoute
+  '/dashboard_/tiktok': typeof DashboardTiktokRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
     | '/techlab'
     | '/templates'
     | '/vault'
+    | '/dashboard/tiktok'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/techlab'
     | '/templates'
     | '/vault'
+    | '/dashboard/tiktok'
   id:
     | '__root__'
     | '/'
@@ -265,6 +276,7 @@ export interface FileRouteTypes {
     | '/techlab'
     | '/templates'
     | '/vault'
+    | '/dashboard_/tiktok'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -288,6 +300,7 @@ export interface RootRouteChildren {
   TechlabRoute: typeof TechlabRoute
   TemplatesRoute: typeof TemplatesRoute
   VaultRoute: typeof VaultRoute
+  DashboardTiktokRoute: typeof DashboardTiktokRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -432,6 +445,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard_/tiktok': {
+      id: '/dashboard_/tiktok'
+      path: '/dashboard/tiktok'
+      fullPath: '/dashboard/tiktok'
+      preLoaderRoute: typeof DashboardTiktokRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -456,6 +476,7 @@ const rootRouteChildren: RootRouteChildren = {
   TechlabRoute: TechlabRoute,
   TemplatesRoute: TemplatesRoute,
   VaultRoute: VaultRoute,
+  DashboardTiktokRoute: DashboardTiktokRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
