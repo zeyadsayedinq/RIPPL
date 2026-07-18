@@ -1,6 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { useOS, type MoodboardScene } from "@/lib/os-store";
-import "@excalidraw/excalidraw/index.css";
 
 /* RIPPL v3.0 plan: "Excalidraw Embed (Moodboards) — visually map out music
    video treatments, creative direction, brand identities, and release
@@ -21,7 +20,16 @@ const ExcalidrawLazy = lazy(async (): Promise<{ default: ComponentType<any> }> =
   if (typeof window === "undefined") {
     return { default: () => null };
   }
-  const m = await import("@excalidraw/excalidraw");
+  // CSS must be imported here (not at the top of this file): a top-level
+  // `import "@excalidraw/excalidraw/index.css"` is a STATIC import of the
+  // ssr.external package, so it survives into the server module graph and
+  // nitro resolves/evaluates the whole package (from _libs) on every
+  // request — reproducing "window is not defined" on "/" despite all the
+  // other guards. Inside this factory it only ever runs in the browser.
+  const [m] = await Promise.all([
+    import("@excalidraw/excalidraw"),
+    import("@excalidraw/excalidraw/index.css"),
+  ]);
   return { default: m.Excalidraw };
 });
 

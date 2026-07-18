@@ -5,6 +5,51 @@
 //     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import type { Plugin } from "vite";
+
+/* Excalidraw touches `window` at module-evaluation time, so it must never be
+   evaluated on the server. Every in-code guard (route `ssr: false`, the
+   `typeof window` check around the dynamic import, dynamic CSS import) failed
+   in production because the breakage happens at the BUNDLER level, not in app
+   code: nitro bundles the package into `_libs/@excalidraw/excalidraw+[...].mjs`,
+   and Rollup hoists the shared CommonJS interop shims for react/react-dom/
+   jsx-runtime into that chunk. Result (verified by inspecting .output/server):
+   every SSR route chunk contains
+     `import { require_react, ... } from "../_libs/@excalidraw/excalidraw+[...].mjs"`
+   so rendering ANY route — including "/" — eagerly evaluates Excalidraw and
+   crashes with "ReferenceError: window is not defined".
+
+   The only deterministic fix is to make sure no Excalidraw code exists in the
+   server build at all: this plugin resolves every `@excalidraw/excalidraw*`
+   import (JS and CSS subpaths) to an inert stub, but only for the SSR
+   environment. The client build still gets the real package, which
+   MoodboardCanvas dynamically imports behind a `typeof window` guard.
+   (`ssr.external` was removed — it's what routed the package into `_libs`
+   for nitro to bundle in the first place.) */
+function excalidrawSsrStub(): Plugin {
+  const STUB_ID = "\0excalidraw-ssr-stub";
+  return {
+    name: "rippl:excalidraw-ssr-stub",
+    enforce: "pre",
+    resolveId(id, _importer, opts) {
+      const isServer =
+        opts?.ssr === true ||
+        // Vite environments API (client build has consumer === "client")
+        this.environment?.config?.consumer === "server";
+      if (isServer && (id === "@excalidraw/excalidraw" || id.startsWith("@excalidraw/excalidraw/"))) {
+        return STUB_ID;
+      }
+      return null;
+    },
+    load(id) {
+      if (id === STUB_ID) {
+        // Matches the shape MoodboardCanvas uses; never rendered server-side.
+        return "export const Excalidraw = () => null;\nexport default {};";
+      }
+      return null;
+    },
+  };
+}
 
 export default defineConfig({
   tanstackStart: {
@@ -13,16 +58,6 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    ssr: {
-      // @excalidraw/excalidraw touches `window` at module-evaluation time and
-      // is only ever dynamically imported client-side (see
-      // src/components/MoodboardCanvas.tsx). Without this, Rollup's SSR
-      // bundler was still resolving/inlining that dynamic import into the
-      // server build, so it got evaluated on every request (crashing "/"
-      // with "ReferenceError: window is not defined") regardless of the
-      // runtime guard around the import call. Marking it external keeps it
-      // out of the server bundle's module graph entirely.
-      external: ["@excalidraw/excalidraw"],
-    },
+    plugins: [excalidrawSsrStub()],
   },
 });
