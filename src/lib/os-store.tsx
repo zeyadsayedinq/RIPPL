@@ -1,5 +1,7 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { loadState, saveState } from "./cloud";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { loadState, saveState, cloudEnabled } from "./cloud";
+import { supabase } from "./supabase";
+import { fetchShared, pushSharedEdit, type SharedPayload } from "./shared-workspace";
 
 /* ═══════════════════════════════════════════════════════════
    RIPPL PERSONAL OS — global frontend-only store (localStorage).
@@ -43,6 +45,8 @@ export type MemberRole = "Admin" | "Manager" | "A&R" | "Marketing" | "Creator" |
 export interface Member {
   id: string; email: string; name: string; role: MemberRole;
   campaigns: string[]; releases: string[]; tracks: string[]; contracts: string[];
+  /** ids (from the lists above) this member may EDIT; everything else assigned is view-only */
+  edit: string[];
 }
 
 export interface MoodboardScene { elements: unknown[]; appState: Record<string, unknown> }
@@ -86,13 +90,24 @@ function normalizeOS(raw: Partial<OS> | null | undefined): OS {
     releases: Array.isArray(m.releases) ? m.releases : [],
     tracks: Array.isArray(m.tracks) ? m.tracks : [],
     contracts: Array.isArray(m.contracts) ? m.contracts : [],
+    edit: Array.isArray(m.edit) ? m.edit : [],
   }));
   return o;
 }
 
+/* Collections that HQ can assign to members (see /admin + shared-workspace.ts). */
+type SharedKey = "releases" | "tracks" | "contracts";
+const SHARED_KEYS: SharedKey[] = ["releases", "tracks", "contracts"];
+
 interface Ctx extends OS {
   set: <K extends keyof OS>(key: K, val: OS[K]) => void;
   update: <K extends keyof OS>(key: K, fn: (cur: OS[K]) => OS[K]) => void;
+  /** true when the item was assigned by HQ (not created by this account) */
+  isShared: (id: string) => boolean;
+  /** false only for HQ-assigned items the member has no edit access to */
+  canEdit: (id: string) => boolean;
+  /** shared campaign data for campaign-store (null for HQ / signed-out) */
+  shared: SharedPayload | null;
   // global UI
   paletteOpen: boolean; setPaletteOpen: (b: boolean) => void;
   currentTrack: Track | null; playing: boolean;
@@ -102,12 +117,40 @@ const C = createContext<Ctx | null>(null);
 
 export function OSProvider({ children }: { children: ReactNode }) {
   const [os, setOs] = useState<OS>(seed);
+  const [shared, setShared] = useState<SharedPayload | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [playing, setPlaying] = useState(false);
+  const pushTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  useEffect(() => { (async () => { setOs(normalizeOS(await loadState<Partial<OS>>(LS, seed))); setHydrated(true); })(); }, []);
+  useEffect(() => {
+    (async () => {
+      let own = normalizeOS(await loadState<Partial<OS>>(LS, seed));
+      // Members: fetch what HQ assigned to this account (server-side filtered).
+      if (cloudEnabled && supabase) {
+        try {
+          const { data: s } = await supabase.auth.getSession();
+          const token = s.session?.access_token;
+          if (token) {
+            const res = await fetchShared({ data: { accessToken: token } });
+            if (res.ok && res.payload) {
+              const hq = new Set(res.payload.hqIds);
+              // Heal the historical leak: copies of HQ's items that got
+              // synced into this account's own state (via the shared
+              // localStorage cache) are recognized by id and dropped —
+              // the member's OWN creations have different ids and stay.
+              for (const k of SHARED_KEYS) own = { ...own, [k]: own[k].filter((x) => !hq.has(x.id)) };
+              own = { ...own, artists: own.artists.filter((x) => !hq.has(x.id)), deals: own.deals.filter((x) => !hq.has(x.id)), notes: own.notes.filter((x) => !hq.has(x.id)), mood: own.mood.filter((x) => !hq.has(x.id)), projects: own.projects.filter((x) => !hq.has(x.id)), prompts: own.prompts.filter((x) => !hq.has(x.id)), todos: own.todos.filter((x) => !hq.has(x.id)), members: [] };
+              setShared(res.payload);
+            }
+          }
+        } catch { /* offline / server fn unavailable — show own data only */ }
+      }
+      setOs(own);
+      setHydrated(true);
+    })();
+  }, []);
   useEffect(() => { if (hydrated) { void saveState(LS, os); } }, [os, hydrated]);
 
   // Cmd/Ctrl + K
@@ -120,14 +163,73 @@ export function OSProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
-  function set<K extends keyof OS>(key: K, val: OS[K]) { setOs((p) => ({ ...p, [key]: val })); }
-  function update<K extends keyof OS>(key: K, fn: (cur: OS[K]) => OS[K]) { setOs((p) => ({ ...p, [key]: fn(p[key]) })); }
+  const sharedIds = (key: SharedKey) => new Set((shared?.[key] ?? []).map((x) => x.id));
+  const editableSet = new Set(shared?.editable ?? []);
+  const isShared = (id: string) => !!shared && (sharedIds("releases").has(id) || sharedIds("tracks").has(id) || sharedIds("contracts").has(id) || (shared.campaigns ?? []).some((c) => c.id === id));
+  const canEdit = (id: string) => !isShared(id) || editableSet.has(id);
+
+  /* Persist an edited HQ-assigned item back to HQ's workspace (debounced
+     per item; server re-checks edit permission with the service key). */
+  function pushEdit(kind: "release" | "track" | "contract", item: Release | Track | Contract) {
+    if (!supabase) return;
+    const tKey = `${kind}:${item.id}`;
+    clearTimeout(pushTimers.current[tKey]);
+    pushTimers.current[tKey] = setTimeout(async () => {
+      const { data: s } = await supabase!.auth.getSession();
+      const token = s.session?.access_token;
+      if (token) void pushSharedEdit({ data: { accessToken: token, kind, item } });
+    }, 600);
+  }
+
+  /* set/update operate on the MERGED view (own + assigned). Results are
+     split back apart: own items → this account's state; edited assigned
+     items → pushed to HQ if the member has edit access, silently reverted
+     if view-only. Assigned items can never be deleted by a member — they
+     simply reappear (un-assign them from /admin instead). */
+  function applyShared<K extends keyof OS>(key: K, next: OS[K]): OS[K] {
+    if (!shared || !SHARED_KEYS.includes(key as SharedKey)) return next;
+    const k = key as SharedKey;
+    const sIds = sharedIds(k);
+    const arr = next as { id: string }[];
+    const nextOwn = arr.filter((x) => !sIds.has(x.id));
+    // detect changes to assigned items
+    const kindOf: Record<SharedKey, "release" | "track" | "contract"> = { releases: "release", tracks: "track", contracts: "contract" };
+    const nextSharedArr = (shared[k] as { id: string }[]).map((prev) => {
+      const cand = arr.find((x) => x.id === prev.id);
+      if (!cand || JSON.stringify(cand) === JSON.stringify(prev)) return prev; // unchanged or deleted → keep
+      if (!editableSet.has(prev.id)) return prev; // view-only → revert
+      pushEdit(kindOf[k], cand as Release & Track & Contract);
+      return cand;
+    });
+    setShared((p) => (p ? { ...p, [k]: nextSharedArr } : p));
+    return nextOwn as OS[K];
+  }
+
+  function set<K extends keyof OS>(key: K, val: OS[K]) { setOs((p) => ({ ...p, [key]: applyShared(key, val) })); }
+  function update<K extends keyof OS>(key: K, fn: (cur: OS[K]) => OS[K]) {
+    setOs((p) => {
+      const merged = shared && SHARED_KEYS.includes(key as SharedKey)
+        ? ([...(p[key] as unknown[]), ...(shared[key as SharedKey] as unknown[])] as OS[K])
+        : p[key];
+      return { ...p, [key]: applyShared(key, fn(merged)) };
+    });
+  }
 
   function playTrack(t: Track) { setCurrentTrack(t); setPlaying(true); }
   function togglePlay() { setPlaying((p) => !p); }
 
+  /* Exposed view = own items + whatever HQ assigned to this account. */
+  const view: OS = shared
+    ? {
+        ...os,
+        releases: [...os.releases, ...shared.releases],
+        tracks: [...os.tracks, ...shared.tracks],
+        contracts: [...os.contracts, ...shared.contracts],
+      }
+    : os;
+
   return (
-    <C.Provider value={{ ...os, set, update, paletteOpen, setPaletteOpen, currentTrack, playing, playTrack, togglePlay }}>
+    <C.Provider value={{ ...view, set, update, isShared, canEdit, shared, paletteOpen, setPaletteOpen, currentTrack, playing, playTrack, togglePlay }}>
       {children}
     </C.Provider>
   );

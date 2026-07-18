@@ -14,18 +14,41 @@ async function currentUid(): Promise<string | null> {
   return data.session?.user.id ?? null;
 }
 
+/* localStorage cache keys are namespaced PER ACCOUNT. Before this, the cache
+   key was shared: on a shared browser, logging in as a different account
+   inherited the previous account's entire workspace from localStorage — and
+   then saveState() synced that inherited copy into the NEW account's cloud
+   rows, permanently leaking everything (audio, contracts, roster…) to every
+   user. With no Supabase configured (local password-gate mode) the plain key
+   is kept so existing local data survives. */
+function localKey(key: string, uid: string | null): string {
+  return uid ? `u.${uid}.${key}` : key;
+}
+
+function readLocal<T>(key: string, uid: string | null): T | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(localKey(key, uid));
+    if (raw) return JSON.parse(raw) as T;
+  } catch { /* ignore */ }
+  return undefined;
+}
+
 export async function loadState<T>(key: string, fallback: T): Promise<T> {
   if (isSupabaseConfigured && supabase) {
     const uid = await currentUid();
     if (uid) {
       const { data, error } = await supabase.from("app_state").select("data").eq("user_id", uid).eq("key", key).maybeSingle();
       if (!error && data) return data.data as T;
+      // Signed in but no cloud row / offline → only THIS account's cache.
+      // Never fall through to the un-namespaced key: that's how one
+      // account's data used to leak into another on the same browser.
+      const cached = readLocal<T>(key, uid);
+      return cached !== undefined ? cached : fallback;
     }
   }
-  if (typeof window !== "undefined") {
-    try { const raw = window.localStorage.getItem(key); if (raw) return JSON.parse(raw) as T; } catch { /* ignore */ }
-  }
-  return fallback;
+  const cached = readLocal<T>(key, null);
+  return cached !== undefined ? cached : fallback;
 }
 
 /* ── Sync status pub/sub (for the UI badge) ─────────────────── */
@@ -37,21 +60,19 @@ function setSync(s: SyncState, e = "") { syncState = s; syncError = e; subs.forE
 export function onSync(cb: (s: SyncState, e: string) => void) { subs.add(cb); cb(syncState, syncError); return () => { subs.delete(cb); }; }
 
 export async function saveState(key: string, data: unknown): Promise<void> {
-  if (typeof window !== "undefined") { try { window.localStorage.setItem(key, JSON.stringify(data)); } catch { /* ignore */ } }
-  if (isSupabaseConfigured && supabase) {
-    const uid = await currentUid();
-    if (uid) {
-      setSync("saving");
-      const { error } = await supabase.from("app_state").upsert({ user_id: uid, key, data }, { onConflict: "user_id,key" });
-      setSync(error ? "error" : "synced", error?.message ?? "");
-    }
+  const uid = isSupabaseConfigured && supabase ? await currentUid() : null;
+  if (typeof window !== "undefined") { try { window.localStorage.setItem(localKey(key, uid), JSON.stringify(data)); } catch { /* ignore */ } }
+  if (uid && supabase) {
+    setSync("saving");
+    const { error } = await supabase.from("app_state").upsert({ user_id: uid, key, data }, { onConflict: "user_id,key" });
+    setSync(error ? "error" : "synced", error?.message ?? "");
   }
 }
 
 export async function clearEverything(): Promise<void> {
-  // wipe local
+  // wipe local (both legacy plain keys and per-account namespaced keys)
   if (typeof window !== "undefined") {
-    try { Object.keys(window.localStorage).filter((k) => k.startsWith("rippl.")).forEach((k) => window.localStorage.removeItem(k)); } catch { /* ignore */ }
+    try { Object.keys(window.localStorage).filter((k) => k.startsWith("rippl.") || k.includes(".rippl.")).forEach((k) => window.localStorage.removeItem(k)); } catch { /* ignore */ }
   }
   // wipe cloud state + storage files
   if (isSupabaseConfigured && supabase) {

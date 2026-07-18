@@ -1,7 +1,10 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { seedCampaigns, type Campaign, type ChecklistPhase } from "./campaign-data";
 import { campaignTemplates, type CampaignTemplate } from "./campaign-templates";
 import { loadState, saveState } from "./cloud";
+import { useOS } from "./os-store";
+import { supabase } from "./supabase";
+import { pushSharedEdit } from "./shared-workspace";
 
 /* Frontend-only persistent store (localStorage). Everything is scoped
    per-campaign: task checklist state, influencer assignments and uploaded
@@ -46,6 +49,10 @@ interface StoreCtx {
   campaigns: Campaign[];
   activeId: string;
   active: Campaign | null;
+  /** active campaign was assigned by HQ (not created by this account) */
+  activeIsShared: boolean;
+  /** false only when the active campaign is HQ-assigned view-only */
+  activeEditable: boolean;
   setActive: (id: string) => void;
   addCampaign: (c: Omit<Campaign, "id" | "seeded"> & { id?: string }) => Campaign;
 
@@ -101,6 +108,42 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<EventMap>({});
   const [hydrated, setHydrated] = useState(false);
 
+  /* ── HQ-assigned campaigns (see shared-workspace.ts / os-store.tsx) ──
+     Members get campaigns HQ assigned to them merged in read-only, or
+     editable when HQ granted edit access. Their collaboration data
+     (tasks/assets/budget/events) lives in `sharedData`, NOT in this
+     account's own persisted maps. */
+  const { shared } = useOS();
+  const sharedCampaigns = useMemo(() => shared?.campaigns ?? [], [shared]);
+  const sharedCampaignIds = useMemo(() => new Set(sharedCampaigns.map((c) => c.id)), [sharedCampaigns]);
+  const canEditShared = (id: string) => !!shared?.editable.includes(id);
+  const [sharedData, setSharedData] = useState<{ tasks: TaskMap; assets: AssetMap; budget: Record<string, BudgetLineItem[]>; events: EventMap }>({ tasks: {}, assets: {}, budget: {}, events: {} });
+  useEffect(() => {
+    if (shared) setSharedData({ tasks: asObject(shared.tasks), assets: asObject(shared.assets), budget: asObject(shared.budget), events: asObject(shared.events) });
+  }, [shared]);
+
+  // Heal the historical leak: HQ campaigns (and their per-campaign data)
+  // that were copied into this account via the shared localStorage cache.
+  useEffect(() => {
+    if (!shared || !hydrated) return;
+    const hq = new Set(shared.hqIds);
+    const dropHq = <T,>(m: Record<string, T>) => Object.fromEntries(Object.entries(m).filter(([k]) => !hq.has(k)));
+    setCampaigns((prev) => prev.filter((c) => c.seeded || !hq.has(c.id)));
+    setTasks((p) => dropHq(p)); setAssets((p) => dropHq(p)); setBudgetLines((p) => dropHq(p)); setEvents((p) => dropHq(p)); setAssignments((p) => dropHq(p));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shared, hydrated]);
+
+  const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function pushCampaignData(campaignId: string, patch: Partial<{ tasks: Record<string, boolean>; assets: UploadedAsset[]; budget: BudgetLineItem[]; events: CalendarPost[] }>) {
+    if (!supabase || !canEditShared(campaignId)) return;
+    if (pushTimer.current) clearTimeout(pushTimer.current);
+    pushTimer.current = setTimeout(async () => {
+      const { data: s } = await supabase!.auth.getSession();
+      const token = s.session?.access_token;
+      if (token) void pushSharedEdit({ data: { accessToken: token, kind: "campaignData", campaignId, ...patch } });
+    }, 600);
+  }
+
   useEffect(() => {
     (async () => {
       const userMade = asArray<Campaign>(await loadState<Campaign[]>(LS_CAMPAIGNS, [])).filter((c) => c && !c.seeded);
@@ -126,11 +169,15 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (hydrated) save(LS_TEMPLATES, customTemplates); }, [customTemplates, hydrated]);
   useEffect(() => { if (hydrated) save(LS_EVENTS, events); }, [events, hydrated]);
 
+  /* Own campaigns + whatever HQ assigned to this account. */
+  const allCampaigns = useMemo(() => [...campaigns, ...sharedCampaigns.filter((c) => !campaigns.some((o) => o.id === c.id))], [campaigns, sharedCampaigns]);
   const active = useMemo(
-    () => campaigns.find((c) => c.id === activeId) ?? campaigns[0] ?? null,
-    [campaigns, activeId]
+    () => allCampaigns.find((c) => c.id === activeId) ?? allCampaigns[0] ?? null,
+    [allCampaigns, activeId]
   );
-  const allTemplates = useMemo(() => [...campaignTemplates, ...customTemplates], [customTemplates]);
+  const activeIsShared = !!active && sharedCampaignIds.has(active.id);
+  const activeEditable = !activeIsShared || canEditShared(active?.id ?? "");
+  const allTemplates = useMemo(() => [...campaignTemplates, ...customTemplates, ...(shared?.templates ?? []).filter((t) => !campaignTemplates.some((b) => b.id === t.id) && !customTemplates.some((c) => c.id === t.id))], [customTemplates, shared]);
   const activeTemplate = useMemo(() => allTemplates.find((t) => t.id === active?.templateId), [allTemplates, active]);
   const activeChecklist = activeTemplate?.checklist ?? [];
 
@@ -150,8 +197,20 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     return created;
   }
 
-  const isTaskDone = (itemId: string) => !!tasks[activeId]?.[itemId];
+  /* Every per-campaign read/write goes through these: shared campaigns
+     read from sharedData and (with edit access) write back to HQ;
+     view-only mutations are silently ignored. */
+  const taskMapFor = (cid: string) => (sharedCampaignIds.has(cid) ? sharedData.tasks[cid] : tasks[cid]) ?? {};
+
+  const isTaskDone = (itemId: string) => !!taskMapFor(activeId)[itemId];
   function toggleTask(itemId: string) {
+    if (activeIsShared) {
+      if (!activeEditable) return;
+      const next = { ...taskMapFor(activeId), [itemId]: !taskMapFor(activeId)[itemId] };
+      setSharedData((p) => ({ ...p, tasks: { ...p.tasks, [activeId]: next } }));
+      pushCampaignData(activeId, { tasks: next });
+      return;
+    }
     setTasks((prev) => {
       const cur = prev[activeId] ?? {};
       return { ...prev, [activeId]: { ...cur, [itemId]: !cur[itemId] } };
@@ -160,9 +219,10 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const taskProgress = useMemo(() => {
     const ids = activeChecklist.flatMap((p) => p.items.map((i) => i.id));
     if (!ids.length) return 0;
-    const done = ids.filter((id) => tasks[activeId]?.[id]).length;
+    const map = (sharedCampaignIds.has(activeId) ? sharedData.tasks[activeId] : tasks[activeId]) ?? {};
+    const done = ids.filter((id) => map[id]).length;
     return Math.round((done / ids.length) * 100);
-  }, [activeChecklist, tasks, activeId]);
+  }, [activeChecklist, tasks, activeId, sharedCampaignIds, sharedData.tasks]);
 
   const assignedIds = assignments[activeId] ?? [];
   const isAssigned = (creatorId: string) => (assignments[activeId] ?? []).includes(creatorId);
@@ -173,7 +233,23 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     });
   }
 
-  const activeAssets = assets[activeId] ?? [];
+  /* Generic helper for the array-valued per-campaign maps. */
+  function mutateList<T>(
+    kind: "assets" | "budget" | "events",
+    own: [Record<string, T[]>, React.Dispatch<React.SetStateAction<Record<string, T[]>>>],
+    fn: (cur: T[]) => T[],
+  ) {
+    if (activeIsShared) {
+      if (!activeEditable) return;
+      const next = fn((sharedData[kind][activeId] as T[] | undefined) ?? []);
+      setSharedData((p) => ({ ...p, [kind]: { ...p[kind], [activeId]: next } }));
+      pushCampaignData(activeId, { [kind]: next } as Partial<{ assets: UploadedAsset[]; budget: BudgetLineItem[]; events: CalendarPost[] }>);
+      return;
+    }
+    own[1]((prev) => ({ ...prev, [activeId]: fn(prev[activeId] ?? []) }));
+  }
+
+  const activeAssets = (activeIsShared ? sharedData.assets[activeId] : assets[activeId]) ?? [];
   function addAsset(a: Omit<UploadedAsset, "id" | "addedAt" | "status"> & { status?: AssetStatus }) {
     const item: UploadedAsset = {
       ...a,
@@ -181,41 +257,41 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       status: a.status ?? "Draft",
       addedAt: new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit" }),
     };
-    setAssets((prev) => ({ ...prev, [activeId]: [item, ...(prev[activeId] ?? [])] }));
+    mutateList<UploadedAsset>("assets", [assets, setAssets], (cur) => [item, ...cur]);
   }
   function setAssetStatus(assetId: string, status: AssetStatus) {
-    setAssets((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? []).map((x) => (x.id === assetId ? { ...x, status } : x)) }));
+    mutateList<UploadedAsset>("assets", [assets, setAssets], (cur) => cur.map((x) => (x.id === assetId ? { ...x, status } : x)));
   }
   function removeAsset(assetId: string) {
-    setAssets((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? []).filter((x) => x.id !== assetId) }));
+    mutateList<UploadedAsset>("assets", [assets, setAssets], (cur) => cur.filter((x) => x.id !== assetId));
   }
 
-  const activeBudgetLines = budgetLines[activeId] ?? [];
+  const activeBudgetLines = (activeIsShared ? sharedData.budget[activeId] : budgetLines[activeId]) ?? [];
   function addBudgetLine(line: Omit<BudgetLineItem, "id">) {
-    setBudgetLines((prev) => ({ ...prev, [activeId]: [{ ...line, id: `b-${Date.now()}-${Math.random().toString(36).slice(2, 5)}` }, ...(prev[activeId] ?? [])] }));
+    mutateList<BudgetLineItem>("budget", [budgetLines, setBudgetLines], (cur) => [{ ...line, id: `b-${Date.now()}-${Math.random().toString(36).slice(2, 5)}` }, ...cur]);
   }
   function updateBudgetLine(id: string, patch: Partial<BudgetLineItem>) {
-    setBudgetLines((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? []).map((x) => x.id === id ? { ...x, ...patch } : x) }));
+    mutateList<BudgetLineItem>("budget", [budgetLines, setBudgetLines], (cur) => cur.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   }
   function removeBudgetLine(id: string) {
-    setBudgetLines((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? []).filter((x) => x.id !== id) }));
+    mutateList<BudgetLineItem>("budget", [budgetLines, setBudgetLines], (cur) => cur.filter((x) => x.id !== id));
   }
 
-  const activeEvents = events[activeId] ?? [];
+  const activeEvents = (activeIsShared ? sharedData.events[activeId] : events[activeId]) ?? [];
   function addEvent(e: Omit<CalendarPost, "id">) {
     const item: CalendarPost = { ...e, id: `ce-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` };
-    setEvents((prev) => ({ ...prev, [activeId]: [...(prev[activeId] ?? []), item] }));
+    mutateList<CalendarPost>("events", [events, setEvents], (cur) => [...cur, item]);
   }
   function moveEvent(id: string, date: string) {
-    setEvents((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? []).map((x) => (x.id === id ? { ...x, date } : x)) }));
+    mutateList<CalendarPost>("events", [events, setEvents], (cur) => cur.map((x) => (x.id === id ? { ...x, date } : x)));
   }
   function removeEvent(id: string) {
-    setEvents((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? []).filter((x) => x.id !== id) }));
+    mutateList<CalendarPost>("events", [events, setEvents], (cur) => cur.filter((x) => x.id !== id));
   }
 
   return (
     <Ctx.Provider value={{
-      campaigns, activeId, active, setActive: setActiveId, addCampaign,
+      campaigns: allCampaigns, activeId, active, activeIsShared, activeEditable, setActive: setActiveId, addCampaign,
       activeTemplate, activeChecklist, isTaskDone, toggleTask, taskProgress,
       assignedIds, isAssigned, toggleAssignment,
       activeAssets, addAsset, setAssetStatus, removeAsset,

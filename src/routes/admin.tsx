@@ -43,7 +43,7 @@ function AdminPage() {
     const email = f.email.trim();
     if (!email) return;
     const name = f.name.trim() || email;
-    update("members", (m) => [{ id: uid("m"), email, name, role: f.role, campaigns: [], releases: [], tracks: [], contracts: [] }, ...m]);
+    update("members", (m) => [{ id: uid("m"), email, name, role: f.role, campaigns: [], releases: [], tracks: [], contracts: [], edit: [] }, ...m]);
     setF({ name: "", email: "", role: "Creator" });
     setInviteMsg({ text: `Sending invite to ${email}…`, ok: true });
     try {
@@ -110,7 +110,17 @@ function AssignModal({ member, onClose }: { member: Member; onClose: () => void 
 
   function toggle(key: keyof Pick<Member, "campaigns" | "releases" | "tracks" | "contracts">, id: string) {
     update("members", (all) => all.map((m) => m.id === member.id
-      ? { ...m, [key]: m[key].includes(id) ? m[key].filter((x) => x !== id) : [...m[key], id] } : m));
+      ? m[key].includes(id)
+        // un-assigning also revokes any edit grant for that item
+        ? { ...m, [key]: m[key].filter((x) => x !== id), edit: (m.edit ?? []).filter((x) => x !== id) }
+        : { ...m, [key]: [...m[key], id] }
+      : m));
+  }
+  /** flip an assigned item between View (default) and Full edit */
+  function toggleEdit(id: string) {
+    update("members", (all) => all.map((m) => m.id === member.id
+      ? { ...m, edit: (m.edit ?? []).includes(id) ? (m.edit ?? []).filter((x) => x !== id) : [...(m.edit ?? []), id] }
+      : m));
   }
   // read latest from store
   const { members } = useOS();
@@ -131,15 +141,28 @@ function AssignModal({ member, onClose }: { member: Member; onClose: () => void 
           <button key={t.key} onClick={() => setTab(t.key)} className={`rounded-full border px-3 py-1.5 text-xs ${tab === t.key ? "border-white bg-white text-black" : "border-white/15 text-muted-foreground hover:text-white"}`}>{t.label} ({(m as any)[t.key].length})</button>
         ))}
       </div>
+      <p className="mt-2 text-[11px] text-muted-foreground/70">Assigned items are <b>view-only</b> by default — click the View pill to grant full edit (their changes sync back to your workspace).</p>
       <div className="mt-4 max-h-72 space-y-1 overflow-y-auto">
         {active.items.length === 0 && <div className="py-6 text-center text-sm text-muted-foreground">Nothing to assign here yet.</div>}
         {active.items.map((it) => {
           const on = (m[active.key] as string[]).includes(it.id);
+          const editOn = (m.edit ?? []).includes(it.id);
           return (
-            <button key={it.id} onClick={() => toggle(active.key, it.id)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-white/5">
-              <span className={`grid h-5 w-5 shrink-0 place-items-center rounded border ${on ? "border-[oklch(0.82_0.18_150)] bg-[oklch(0.82_0.18_150)]" : "border-white/25"}`}>{on && <span className="text-[10px] text-black">✓</span>}</span>
-              <span className="truncate text-sm">{it.label}</span>
-            </button>
+            <div key={it.id} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 hover:bg-white/5">
+              <button onClick={() => toggle(active.key, it.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                <span className={`grid h-5 w-5 shrink-0 place-items-center rounded border ${on ? "border-[oklch(0.82_0.18_150)] bg-[oklch(0.82_0.18_150)]" : "border-white/25"}`}>{on && <span className="text-[10px] text-black">✓</span>}</span>
+                <span className="truncate text-sm">{it.label}</span>
+              </button>
+              {on && (
+                <button
+                  onClick={() => toggleEdit(it.id)}
+                  title={editOn ? "Member can edit this item (changes sync back to your workspace)" : "View-only — click to grant edit access"}
+                  className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wider ${editOn ? "border-[oklch(0.85_0.25_328)] bg-[oklch(0.85_0.25_328)]/15 text-[oklch(0.85_0.25_328)]" : "border-white/15 text-muted-foreground hover:text-white"}`}
+                >
+                  {editOn ? "Edit" : "View"}
+                </button>
+              )}
+            </div>
           );
         })}
       </div>
