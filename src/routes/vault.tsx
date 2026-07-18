@@ -10,6 +10,7 @@ import { MagneticButton } from "@/components/MagneticButton";
 import { splitSheetPdf, type SplitEntry } from "@/lib/pdf";
 import { AnimatePresence } from "framer-motion";
 import { Upload, FileSignature, AlertTriangle, Trash2, Eye, Download, Search, FilePlus2, Plus } from "lucide-react";
+import { SharedBadge } from "@/components/SharedBadge";
 
 export const Route = createFileRoute("/vault")({
   head: () => ({ meta: [{ title: "The Vault · RIPPL OS" }, { name: "description", content: "Legal & contract management." }] }),
@@ -25,7 +26,7 @@ function daysUntil(iso: string): number | null {
 }
 
 function VaultPage() {
-  const { contracts, update } = useOS();
+  const { contracts, update, isShared, canEdit } = useOS();
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   // in-memory object URLs for files uploaded this session (instant view before cloud round-trip).
@@ -118,12 +119,13 @@ function VaultPage() {
             <div key={c.id} className="glass flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center">
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/5"><FileSignature className="h-5 w-5 text-white/50" /></div>
-                <div className="min-w-0"><div className="truncate font-medium">{c.name}</div><div className="truncate text-xs text-muted-foreground">{c.fileName}</div></div>
+                <div className="min-w-0"><div className="flex items-center gap-2 truncate font-medium">{c.name}{isShared(c.id) && <SharedBadge editable={canEdit(c.id)} />}</div><div className="truncate text-xs text-muted-foreground">{c.fileName}</div></div>
               </div>
               <select
                 value={c.tag}
+                disabled={!canEdit(c.id)}
                 onChange={(e) => update("contracts", (all) => all.map((x) => x.id === c.id ? { ...x, tag: e.target.value as ContractTag } : x))}
-                className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs outline-none"
+                className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs outline-none disabled:opacity-60"
               >
                 {TAGS.map((t) => <option key={t} className="bg-[#140a1e]">{t}</option>)}
               </select>
@@ -140,7 +142,7 @@ function VaultPage() {
               ) : (
                 <span title="Metadata only — no file bytes stored" className="text-[10px] text-muted-foreground/60">no file</span>
               )}
-              <button onClick={() => update("contracts", (all) => all.filter((x) => x.id !== c.id))} className="text-muted-foreground hover:text-[oklch(0.7_0.2_20)]"><Trash2 className="h-4 w-4" /></button>
+              {!isShared(c.id) && <button onClick={() => update("contracts", (all) => all.filter((x) => x.id !== c.id))} className="text-muted-foreground hover:text-[oklch(0.7_0.2_20)]"><Trash2 className="h-4 w-4" /></button>}
             </div>
           );
         })}

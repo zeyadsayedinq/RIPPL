@@ -23,6 +23,7 @@ import {
 import { useRole } from "@/lib/role-context";
 import { useCampaigns } from "@/lib/campaign-store";
 import { NewCampaignModal, ModalShell } from "@/components/NewCampaignModal";
+import { SharedBadge } from "@/components/SharedBadge";
 import { EmptyState } from "@/components/EmptyState";
 import {
   TrendingUp, TrendingDown, Sparkles, ArrowUpRight, CheckCircle2,
@@ -145,13 +146,14 @@ function Dashboard() {
 /* ── header ──────────────────────────────────────────────── */
 function Header() {
   const [modal, setModal] = useState<null | "new" | "export">(null);
-  const { active } = useCampaigns();
+  const { active, activeIsShared, activeEditable } = useCampaigns();
   return (
     <header className="glass flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl p-5">
       <div className="min-w-0">
         <div className="text-[10px] uppercase tracking-[0.35em] text-[oklch(0.85_0.25_328)]">360° Command{active ? ` · ${active.status} · Live` : ""}</div>
-        <h1 className="mt-1 font-display text-3xl font-bold tracking-tight">
+        <h1 className="mt-1 flex flex-wrap items-center gap-3 font-display text-3xl font-bold tracking-tight">
           {active ? <>{active.artist} / <span className="text-gradient-neon">{active.title}</span></> : <span className="text-gradient-neon">Campaign HQ</span>}
+          {activeIsShared && <SharedBadge editable={activeEditable} className="!text-[10px]" />}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">{active ? `${active.subtitle} · ${active.platforms.length} channels · full-funnel attribution` : "No active campaign — create one to begin."}</p>
       </div>

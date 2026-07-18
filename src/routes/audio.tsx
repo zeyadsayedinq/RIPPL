@@ -7,6 +7,7 @@ import { useOS, uid, type Track } from "@/lib/os-store";
 import { cloudEnabled, uploadToBucket, signedUrl } from "@/lib/cloud";
 import { DjMixer } from "@/components/DjMixer";
 import { Upload, Play, Pause, Trash2, Share2, Check, Gauge, Sparkles, Loader2 } from "lucide-react";
+import { SharedBadge } from "@/components/SharedBadge";
 import { analyze } from "web-audio-beat-detector";
 import { analyzeVibe, scoreHit } from "@/lib/vibe-api";
 
@@ -20,7 +21,7 @@ export const Route = createFileRoute("/audio")({
 });
 
 function AudioPage() {
-  const { tracks, update, currentTrack, playing, playTrack, togglePlay } = useOS();
+  const { tracks, update, currentTrack, playing, playTrack, togglePlay, isShared: isHqShared, canEdit } = useOS();
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -128,7 +129,7 @@ function AudioPage() {
                     {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 translate-x-[1px]" />}
                   </button>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{t.title}</div>
+                    <div className="flex items-center gap-2 truncate text-sm font-medium">{t.title}{isHqShared(t.id) && <SharedBadge editable={canEdit(t.id)} />}</div>
                     <div className="truncate text-[11px] text-muted-foreground">{t.artist}{t.path ? " · cloud" : t.url ? " · this session" : ""}</div>
                   </div>
                   {t.bpm && (
@@ -142,7 +143,7 @@ function AudioPage() {
                   <button onClick={() => share(t)} title="Copy view-only share link" className="text-muted-foreground hover:text-white">
                     {shared === t.id ? <Check className="h-4 w-4 text-[oklch(0.85_0.18_150)]" /> : <Share2 className="h-4 w-4" />}
                   </button>
-                  <button onClick={() => update("tracks", (all) => all.filter((x) => x.id !== t.id))} className="text-muted-foreground hover:text-[oklch(0.7_0.2_20)]"><Trash2 className="h-4 w-4" /></button>
+                  {!isHqShared(t.id) && <button onClick={() => update("tracks", (all) => all.filter((x) => x.id !== t.id))} className="text-muted-foreground hover:text-[oklch(0.7_0.2_20)]"><Trash2 className="h-4 w-4" /></button>}
                   {(t.key || t.mood || t.hitScore !== undefined) && (
                     <div className="flex w-full flex-wrap gap-1.5 pl-12">
                       {t.key && <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-muted-foreground">Key: {t.key}</span>}

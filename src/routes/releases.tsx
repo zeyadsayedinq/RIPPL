@@ -9,6 +9,7 @@ import { useOS, uid, type ContentId, type Release } from "@/lib/os-store";
 import { useCampaigns } from "@/lib/campaign-store";
 import { releaseOnePagerPdf } from "@/lib/pdf";
 import { Disc3, Check, Music, Image as ImageIcon, ListChecks, SlidersHorizontal, FileDown, Pencil, Trash2, Link2 } from "lucide-react";
+import { SharedBadge } from "@/components/SharedBadge";
 
 export const Route = createFileRoute("/releases")({
   head: () => ({ meta: [{ title: "Releases · RIPPL OS" }, { name: "description", content: "Distribution & label operations." }] }),
@@ -20,7 +21,7 @@ const lbl = "mb-1.5 block text-[11px] uppercase tracking-wider text-muted-foregr
 const cidColor: Record<ContentId, string> = { red: "oklch(0.65 0.24 20)", yellow: "oklch(0.82 0.16 90)", green: "oklch(0.82 0.18 150)" };
 
 function ReleasesPage() {
-  const { releases, update } = useOS();
+  const { releases, update, isShared, canEdit } = useOS();
   const { campaigns } = useCampaigns();
   const [wizard, setWizard] = useState(false);
   const [editing, setEditing] = useState<Release | null>(null);
@@ -45,8 +46,10 @@ function ReleasesPage() {
             </tr></thead>
             <tbody>
               {releases.map((r) => (
-                <tr key={r.id} onClick={() => setEditing(r)} className="cursor-pointer border-t border-white/[0.06] hover:bg-white/[0.02]">
-                  <td className="py-3 font-medium">{r.title}</td>
+                <tr key={r.id} onClick={() => canEdit(r.id) && setEditing(r)} className="cursor-pointer border-t border-white/[0.06] hover:bg-white/[0.02]">
+                  <td className="py-3 font-medium">
+                    <span className="inline-flex items-center gap-2">{r.title}{isShared(r.id) && <SharedBadge editable={canEdit(r.id)} />}</span>
+                  </td>
                   <td className="py-3 text-muted-foreground">{r.artist}</td>
                   <td className="py-3 font-mono text-xs text-muted-foreground">{r.isrc}</td>
                   <td className="py-3 text-muted-foreground">{r.releaseDate}</td>
@@ -62,13 +65,17 @@ function ReleasesPage() {
                   <td className="py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="inline-flex items-center gap-1.5">
                       <button onClick={() => releaseOnePagerPdf(r)} title="Download one-pager PDF" className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs hover:bg-white/5"><FileDown className="h-3.5 w-3.5" /> One-pager</button>
-                      <button onClick={() => setEditing(r)} title="Edit release" className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs hover:bg-white/5"><Pencil className="h-3.5 w-3.5" /> Edit</button>
-                      <button
-                        onClick={() => update("releases", (all) => all.map((x) => x.id === r.id ? { ...x, contentId: (x.contentId === "green" ? "yellow" : x.contentId === "yellow" ? "red" : "green") as ContentId } : x))}
-                        className="glass rounded-full px-3 py-1.5 text-xs hover:bg-white/5"
-                      >
-                        Takedown
-                      </button>
+                      {canEdit(r.id) && (
+                        <>
+                          <button onClick={() => setEditing(r)} title="Edit release" className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs hover:bg-white/5"><Pencil className="h-3.5 w-3.5" /> Edit</button>
+                          <button
+                            onClick={() => update("releases", (all) => all.map((x) => x.id === r.id ? { ...x, contentId: (x.contentId === "green" ? "yellow" : x.contentId === "yellow" ? "red" : "green") as ContentId } : x))}
+                            className="glass rounded-full px-3 py-1.5 text-xs hover:bg-white/5"
+                          >
+                            Takedown
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

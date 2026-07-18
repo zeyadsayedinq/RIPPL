@@ -1,8 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
+import { SharedBadge } from "@/components/SharedBadge";
 import { useOS } from "@/lib/os-store";
-import { TrendingUp, FileSignature, Disc3, Cpu, Check, Clock, UserPlus } from "lucide-react";
+import { useAuthEmail, useIsHQ } from "@/lib/use-auth";
+import { TrendingUp, FileSignature, Disc3, Cpu, Check, Clock, UserPlus, Megaphone, Music2, FileText, Inbox } from "lucide-react";
 
 export const Route = createFileRoute("/home")({
   head: () => ({ meta: [{ title: "Home · RIPPL OS" }, { name: "description", content: "Your 360 command center." }] }),
@@ -10,7 +12,10 @@ export const Route = createFileRoute("/home")({
 });
 
 function Home() {
-  const { deals, contracts, releases, projects, todos, update } = useOS();
+  const { deals, contracts, releases, projects, todos, update, shared, canEdit } = useOS();
+  const isHQ = useIsHQ();
+  const email = useAuthEmail();
+  const firstName = isHQ ? "Zeyad" : (email?.split("@")[0] ?? "there");
 
   const pendingSignatures = deals.filter((d) => d.status === "Contracting").length + contracts.length;
   const upcoming = releases.filter((r) => r.status === "Scheduled").length;
@@ -31,9 +36,48 @@ function Home() {
     <AppShell>
       <header className="glass rounded-2xl p-5">
         <div className="text-[10px] uppercase tracking-[0.35em] text-white/40">Command Center</div>
-        <h1 className="mt-1 font-display text-3xl font-bold">Good to see you, <span className="text-gradient-neon">Zeyad</span></h1>
+        <h1 className="mt-1 font-display text-3xl font-bold">Good to see you, <span className="text-gradient-neon">{firstName}</span></h1>
         <p className="mt-1 text-sm text-muted-foreground">Your whole universe — A&R, releases, deals and tech — in one view. Press <kbd className="rounded border border-white/15 px-1 text-[10px]">⌘K</kbd> to search anything.</p>
       </header>
+
+      {/* Member portal — what HQ assigned to this account */}
+      {!isHQ && shared && (
+        <SpotlightCard className="mt-6 p-6" spotlight={false}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Your workspace{shared.role !== "None" ? ` · ${shared.role}` : ""}</div>
+              <h2 className="mt-1 font-display text-2xl font-bold">Assigned to <span className="text-gradient-neon">you</span></h2>
+            </div>
+          </div>
+          {shared.campaigns.length + shared.releases.length + shared.tracks.length + shared.contracts.length === 0 ? (
+            <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-4 text-sm text-muted-foreground">
+              <Inbox className="h-4 w-4 shrink-0" /> Nothing assigned to you yet — anything you create here is your own, and HQ can assign campaigns, releases, audio or contracts to this account at any time.
+            </div>
+          ) : (
+            <div className="mt-4 grid grid-cols-12 gap-3">
+              {([
+                { label: "Campaigns", icon: Megaphone, to: "/dashboard", items: shared.campaigns.map((c) => ({ id: c.id, text: `${c.artist} — ${c.title}` })) },
+                { label: "Releases", icon: Disc3, to: "/releases", items: shared.releases.map((r) => ({ id: r.id, text: `${r.title} · ${r.artist}` })) },
+                { label: "Audio", icon: Music2, to: "/audio", items: shared.tracks.map((t) => ({ id: t.id, text: t.title })) },
+                { label: "Contracts", icon: FileText, to: "/vault", items: shared.contracts.map((c) => ({ id: c.id, text: c.name })) },
+              ] as const).filter((g) => g.items.length > 0).map((g) => (
+                <Link key={g.label} to={g.to} className="col-span-12 rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:bg-white/[0.04] sm:col-span-6 xl:col-span-3">
+                  <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground"><g.icon className="h-3.5 w-3.5" /> {g.label} ({g.items.length})</div>
+                  <ul className="mt-2 space-y-1.5">
+                    {g.items.slice(0, 4).map((it) => (
+                      <li key={it.id} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="truncate">{it.text}</span>
+                        <SharedBadge editable={canEdit(it.id)} />
+                      </li>
+                    ))}
+                    {g.items.length > 4 && <li className="text-[11px] text-muted-foreground">+ {g.items.length - 4} more…</li>}
+                  </ul>
+                </Link>
+              ))}
+            </div>
+          )}
+        </SpotlightCard>
+      )}
 
       <section className="mt-6 grid grid-cols-12 gap-4">
         {metrics.map((m) => (
