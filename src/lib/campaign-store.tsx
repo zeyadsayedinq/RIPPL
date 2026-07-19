@@ -107,6 +107,10 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const [customTemplates, setCustomTemplates] = useState<CampaignTemplate[]>([]);
   const [events, setEvents] = useState<EventMap>({});
   const [hydrated, setHydrated] = useState(false);
+  /* Wipe guard — see os-store.tsx: never let an empty first load auto-save
+     over real cloud data. Saves only run after a user mutation (or when
+     hydration itself produced content). */
+  const dirty = useRef(false);
 
   /* ── HQ-assigned campaigns (see shared-workspace.ts / os-store.tsx) ──
      Members get campaigns HQ assigned to them merged in read-only, or
@@ -128,6 +132,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     if (!shared || !hydrated) return;
     const hq = new Set(shared.hqIds);
     const dropHq = <T,>(m: Record<string, T>) => Object.fromEntries(Object.entries(m).filter(([k]) => !hq.has(k)));
+    dirty.current = true; // healed state must persist
     setCampaigns((prev) => prev.filter((c) => c.seeded || !hq.has(c.id)));
     setTasks((p) => dropHq(p)); setAssets((p) => dropHq(p)); setBudgetLines((p) => dropHq(p)); setEvents((p) => dropHq(p)); setAssignments((p) => dropHq(p));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -150,24 +155,26 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       const all = [...seedCampaigns, ...userMade];
       if (userMade.length) setCampaigns(all);
       setActiveId(await loadState<string>(LS_ACTIVE, all[0]?.id ?? ""));
-      setTasks(asObject<TaskMap>(await loadState<TaskMap>(LS_TASKS, {})));
-      setAssignments(asObject<AssignMap>(await loadState<AssignMap>(LS_ASSIGN, {})));
-      setAssets(asObject<AssetMap>(await loadState<AssetMap>(LS_ASSETS, {})));
-      setBudgetLines(asObject<Record<string, BudgetLineItem[]>>(await loadState<Record<string, BudgetLineItem[]>>(LS_BUDGET, {})));
-      setCustomTemplates(asArray<CampaignTemplate>(await loadState<CampaignTemplate[]>(LS_TEMPLATES, [])));
-      setEvents(asObject<EventMap>(await loadState<EventMap>(LS_EVENTS, {})));
+      const tk = asObject<TaskMap>(await loadState<TaskMap>(LS_TASKS, {}));
+      const asg = asObject<AssignMap>(await loadState<AssignMap>(LS_ASSIGN, {}));
+      const ast = asObject<AssetMap>(await loadState<AssetMap>(LS_ASSETS, {}));
+      const bl = asObject<Record<string, BudgetLineItem[]>>(await loadState<Record<string, BudgetLineItem[]>>(LS_BUDGET, {}));
+      const tpl = asArray<CampaignTemplate>(await loadState<CampaignTemplate[]>(LS_TEMPLATES, []));
+      const ev = asObject<EventMap>(await loadState<EventMap>(LS_EVENTS, {}));
+      setTasks(tk); setAssignments(asg); setAssets(ast); setBudgetLines(bl); setCustomTemplates(tpl); setEvents(ev);
+      if (userMade.length || [tk, asg, ast, bl, tpl, ev].some((m) => (Array.isArray(m) ? m.length : Object.keys(m).length) > 0)) dirty.current = true;
       setHydrated(true);
     })();
   }, []);
 
-  useEffect(() => { if (hydrated) save(LS_CAMPAIGNS, campaigns.filter((c) => !c.seeded)); }, [campaigns, hydrated]);
-  useEffect(() => { if (hydrated) save(LS_ACTIVE, activeId); }, [activeId, hydrated]);
-  useEffect(() => { if (hydrated) save(LS_TASKS, tasks); }, [tasks, hydrated]);
-  useEffect(() => { if (hydrated) save(LS_ASSIGN, assignments); }, [assignments, hydrated]);
-  useEffect(() => { if (hydrated) save(LS_ASSETS, assets); }, [assets, hydrated]);
-  useEffect(() => { if (hydrated) save(LS_BUDGET, budgetLines); }, [budgetLines, hydrated]);
-  useEffect(() => { if (hydrated) save(LS_TEMPLATES, customTemplates); }, [customTemplates, hydrated]);
-  useEffect(() => { if (hydrated) save(LS_EVENTS, events); }, [events, hydrated]);
+  useEffect(() => { if (hydrated && dirty.current) save(LS_CAMPAIGNS, campaigns.filter((c) => !c.seeded)); }, [campaigns, hydrated]);
+  useEffect(() => { if (hydrated && dirty.current) save(LS_ACTIVE, activeId); }, [activeId, hydrated]);
+  useEffect(() => { if (hydrated && dirty.current) save(LS_TASKS, tasks); }, [tasks, hydrated]);
+  useEffect(() => { if (hydrated && dirty.current) save(LS_ASSIGN, assignments); }, [assignments, hydrated]);
+  useEffect(() => { if (hydrated && dirty.current) save(LS_ASSETS, assets); }, [assets, hydrated]);
+  useEffect(() => { if (hydrated && dirty.current) save(LS_BUDGET, budgetLines); }, [budgetLines, hydrated]);
+  useEffect(() => { if (hydrated && dirty.current) save(LS_TEMPLATES, customTemplates); }, [customTemplates, hydrated]);
+  useEffect(() => { if (hydrated && dirty.current) save(LS_EVENTS, events); }, [events, hydrated]);
 
   /* Own campaigns + whatever HQ assigned to this account. */
   const allCampaigns = useMemo(() => [...campaigns, ...sharedCampaigns.filter((c) => !campaigns.some((o) => o.id === c.id))], [campaigns, sharedCampaigns]);
@@ -182,11 +189,13 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const activeChecklist = activeTemplate?.checklist ?? [];
 
   function saveTemplate(t: CampaignTemplate) {
+    dirty.current = true;
     setCustomTemplates((prev) => (prev.some((x) => x.id === t.id) ? prev.map((x) => (x.id === t.id ? t : x)) : [...prev, t]));
   }
-  function deleteTemplate(id: string) { setCustomTemplates((prev) => prev.filter((x) => x.id !== id)); }
+  function deleteTemplate(id: string) { dirty.current = true; setCustomTemplates((prev) => prev.filter((x) => x.id !== id)); }
 
   function addCampaign(c: Omit<Campaign, "id" | "seeded"> & { id?: string }) {
+    dirty.current = true;
     const id = c.id ?? `c-${Date.now()}`;
     const created: Campaign = { ...c, id, seeded: false };
     setCampaigns((prev) => [...prev, created]);
@@ -211,6 +220,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       pushCampaignData(activeId, { tasks: next });
       return;
     }
+    dirty.current = true;
     setTasks((prev) => {
       const cur = prev[activeId] ?? {};
       return { ...prev, [activeId]: { ...cur, [itemId]: !cur[itemId] } };
@@ -227,6 +237,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const assignedIds = assignments[activeId] ?? [];
   const isAssigned = (creatorId: string) => (assignments[activeId] ?? []).includes(creatorId);
   function toggleAssignment(creatorId: string) {
+    dirty.current = true;
     setAssignments((prev) => {
       const cur = prev[activeId] ?? [];
       return { ...prev, [activeId]: cur.includes(creatorId) ? cur.filter((x) => x !== creatorId) : [...cur, creatorId] };
@@ -246,6 +257,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       pushCampaignData(activeId, { [kind]: next } as Partial<{ assets: UploadedAsset[]; budget: BudgetLineItem[]; events: CalendarPost[] }>);
       return;
     }
+    dirty.current = true;
     own[1]((prev) => ({ ...prev, [activeId]: fn(prev[activeId] ?? []) }));
   }
 
@@ -291,7 +303,8 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={{
-      campaigns: allCampaigns, activeId, active, activeIsShared, activeEditable, setActive: setActiveId, addCampaign,
+      campaigns: allCampaigns, activeId, active, activeIsShared, activeEditable,
+      setActive: (id: string) => { dirty.current = true; setActiveId(id); }, addCampaign,
       activeTemplate, activeChecklist, isTaskDone, toggleTask, taskProgress,
       assignedIds, isAssigned, toggleAssignment,
       activeAssets, addAsset, setAssetStatus, removeAsset,

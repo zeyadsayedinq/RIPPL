@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
+import { HQ_EMAIL } from "./use-auth";
 
 /* Cloud state-sync + file storage.
    • loadState/saveState mirror each store key into Supabase `app_state`
@@ -34,16 +35,42 @@ function readLocal<T>(key: string, uid: string | null): T | undefined {
   return undefined;
 }
 
+/* "Empty" = no meaningful content (null, [], "", or an object whose values
+   are all empty). Used to prefer real data over wiped/blank values. */
+function looksEmpty(v: unknown): boolean {
+  if (v == null) return true;
+  if (Array.isArray(v)) return v.length === 0;
+  if (typeof v === "string") return v === "";
+  if (typeof v === "object") return Object.values(v as object).every(looksEmpty);
+  return false; // numbers / booleans count as content
+}
+
 export async function loadState<T>(key: string, fallback: T): Promise<T> {
   if (isSupabaseConfigured && supabase) {
-    const uid = await currentUid();
+    const { data: s } = await supabase.auth.getSession();
+    const uid = s.session?.user.id ?? null;
+    const email = s.session?.user.email?.toLowerCase() ?? "";
     if (uid) {
       const { data, error } = await supabase.from("app_state").select("data").eq("user_id", uid).eq("key", key).maybeSingle();
-      if (!error && data) return data.data as T;
-      // Signed in but no cloud row / offline → only THIS account's cache.
-      // Never fall through to the un-namespaced key: that's how one
-      // account's data used to leak into another on the same browser.
+      const cloudVal = !error && data ? (data.data as T) : undefined;
+      if (cloudVal !== undefined && !looksEmpty(cloudVal)) return cloudVal;
+      // Cloud row missing/empty → this account's namespaced cache.
       const cached = readLocal<T>(key, uid);
+      if (cached !== undefined && !looksEmpty(cached)) return cached;
+      /* LEGACY RECOVERY (HQ only): data created in the password-gate era —
+         or any key that never got re-synced after Supabase accounts were
+         configured — lives ONLY under the old un-namespaced localStorage
+         key. The old code silently fell back to it; the per-account
+         namespacing cut that off and HQ's library "vanished". Reading it
+         here (and letting the normal save path push it to cloud +
+         namespaced cache) restores everything. Members intentionally get
+         no legacy fallback — that shared cache is exactly how data used
+         to leak between accounts. */
+      if (email === HQ_EMAIL) {
+        const legacy = readLocal<T>(key, null);
+        if (legacy !== undefined && !looksEmpty(legacy)) return legacy;
+      }
+      if (cloudVal !== undefined) return cloudVal;
       return cached !== undefined ? cached : fallback;
     }
   }

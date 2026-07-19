@@ -123,6 +123,11 @@ export function OSProvider({ children }: { children: ReactNode }) {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [playing, setPlaying] = useState(false);
   const pushTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  /* Wipe guard: only auto-save once the user actually changed something, or
+     when hydration produced real data. Without this, a transient failed /
+     empty load followed by the save effect would overwrite good cloud rows
+     with an empty state — destroying data. */
+  const dirty = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -147,11 +152,12 @@ export function OSProvider({ children }: { children: ReactNode }) {
           }
         } catch { /* offline / server fn unavailable — show own data only */ }
       }
+      if (Object.keys(seed).some((k) => Array.isArray(own[k as keyof OS]) && (own[k as keyof OS] as unknown[]).length > 0)) dirty.current = true;
       setOs(own);
       setHydrated(true);
     })();
   }, []);
-  useEffect(() => { if (hydrated) { void saveState(LS, os); } }, [os, hydrated]);
+  useEffect(() => { if (hydrated && dirty.current) { void saveState(LS, os); } }, [os, hydrated]);
 
   // Cmd/Ctrl + K
   useEffect(() => {
@@ -205,8 +211,9 @@ export function OSProvider({ children }: { children: ReactNode }) {
     return nextOwn as OS[K];
   }
 
-  function set<K extends keyof OS>(key: K, val: OS[K]) { setOs((p) => ({ ...p, [key]: applyShared(key, val) })); }
+  function set<K extends keyof OS>(key: K, val: OS[K]) { dirty.current = true; setOs((p) => ({ ...p, [key]: applyShared(key, val) })); }
   function update<K extends keyof OS>(key: K, fn: (cur: OS[K]) => OS[K]) {
+    dirty.current = true;
     setOs((p) => {
       const merged = shared && SHARED_KEYS.includes(key as SharedKey)
         ? ([...(p[key] as unknown[]), ...(shared[key as SharedKey] as unknown[])] as OS[K])
