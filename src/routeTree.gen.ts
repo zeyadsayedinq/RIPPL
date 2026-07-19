@@ -29,7 +29,11 @@ import { Route as AudioRouteImport } from './routes/audio'
 import { Route as AssetsRouteImport } from './routes/assets'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardYoutubeRouteImport } from './routes/dashboard_.youtube'
+import { Route as DashboardXRouteImport } from './routes/dashboard_.x'
 import { Route as DashboardTiktokRouteImport } from './routes/dashboard_.tiktok'
+import { Route as DashboardInstagramRouteImport } from './routes/dashboard_.instagram'
+import { Route as DashboardFacebookRouteImport } from './routes/dashboard_.facebook'
 
 const VaultRoute = VaultRouteImport.update({
   id: '/vault',
@@ -131,9 +135,29 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardYoutubeRoute = DashboardYoutubeRouteImport.update({
+  id: '/dashboard_/youtube',
+  path: '/dashboard/youtube',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardXRoute = DashboardXRouteImport.update({
+  id: '/dashboard_/x',
+  path: '/dashboard/x',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardTiktokRoute = DashboardTiktokRouteImport.update({
   id: '/dashboard_/tiktok',
   path: '/dashboard/tiktok',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardInstagramRoute = DashboardInstagramRouteImport.update({
+  id: '/dashboard_/instagram',
+  path: '/dashboard/instagram',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardFacebookRoute = DashboardFacebookRouteImport.update({
+  id: '/dashboard_/facebook',
+  path: '/dashboard/facebook',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -158,7 +182,11 @@ export interface FileRoutesByFullPath {
   '/techlab': typeof TechlabRoute
   '/templates': typeof TemplatesRoute
   '/vault': typeof VaultRoute
+  '/dashboard/facebook': typeof DashboardFacebookRoute
+  '/dashboard/instagram': typeof DashboardInstagramRoute
   '/dashboard/tiktok': typeof DashboardTiktokRoute
+  '/dashboard/x': typeof DashboardXRoute
+  '/dashboard/youtube': typeof DashboardYoutubeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -181,7 +209,11 @@ export interface FileRoutesByTo {
   '/techlab': typeof TechlabRoute
   '/templates': typeof TemplatesRoute
   '/vault': typeof VaultRoute
+  '/dashboard/facebook': typeof DashboardFacebookRoute
+  '/dashboard/instagram': typeof DashboardInstagramRoute
   '/dashboard/tiktok': typeof DashboardTiktokRoute
+  '/dashboard/x': typeof DashboardXRoute
+  '/dashboard/youtube': typeof DashboardYoutubeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -205,7 +237,11 @@ export interface FileRoutesById {
   '/techlab': typeof TechlabRoute
   '/templates': typeof TemplatesRoute
   '/vault': typeof VaultRoute
+  '/dashboard_/facebook': typeof DashboardFacebookRoute
+  '/dashboard_/instagram': typeof DashboardInstagramRoute
   '/dashboard_/tiktok': typeof DashboardTiktokRoute
+  '/dashboard_/x': typeof DashboardXRoute
+  '/dashboard_/youtube': typeof DashboardYoutubeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -230,7 +266,11 @@ export interface FileRouteTypes {
     | '/techlab'
     | '/templates'
     | '/vault'
+    | '/dashboard/facebook'
+    | '/dashboard/instagram'
     | '/dashboard/tiktok'
+    | '/dashboard/x'
+    | '/dashboard/youtube'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -253,7 +293,11 @@ export interface FileRouteTypes {
     | '/techlab'
     | '/templates'
     | '/vault'
+    | '/dashboard/facebook'
+    | '/dashboard/instagram'
     | '/dashboard/tiktok'
+    | '/dashboard/x'
+    | '/dashboard/youtube'
   id:
     | '__root__'
     | '/'
@@ -276,7 +320,11 @@ export interface FileRouteTypes {
     | '/techlab'
     | '/templates'
     | '/vault'
+    | '/dashboard_/facebook'
+    | '/dashboard_/instagram'
     | '/dashboard_/tiktok'
+    | '/dashboard_/x'
+    | '/dashboard_/youtube'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -300,7 +348,11 @@ export interface RootRouteChildren {
   TechlabRoute: typeof TechlabRoute
   TemplatesRoute: typeof TemplatesRoute
   VaultRoute: typeof VaultRoute
+  DashboardFacebookRoute: typeof DashboardFacebookRoute
+  DashboardInstagramRoute: typeof DashboardInstagramRoute
   DashboardTiktokRoute: typeof DashboardTiktokRoute
+  DashboardXRoute: typeof DashboardXRoute
+  DashboardYoutubeRoute: typeof DashboardYoutubeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -445,11 +497,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard_/youtube': {
+      id: '/dashboard_/youtube'
+      path: '/dashboard/youtube'
+      fullPath: '/dashboard/youtube'
+      preLoaderRoute: typeof DashboardYoutubeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard_/x': {
+      id: '/dashboard_/x'
+      path: '/dashboard/x'
+      fullPath: '/dashboard/x'
+      preLoaderRoute: typeof DashboardXRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard_/tiktok': {
       id: '/dashboard_/tiktok'
       path: '/dashboard/tiktok'
       fullPath: '/dashboard/tiktok'
       preLoaderRoute: typeof DashboardTiktokRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard_/instagram': {
+      id: '/dashboard_/instagram'
+      path: '/dashboard/instagram'
+      fullPath: '/dashboard/instagram'
+      preLoaderRoute: typeof DashboardInstagramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard_/facebook': {
+      id: '/dashboard_/facebook'
+      path: '/dashboard/facebook'
+      fullPath: '/dashboard/facebook'
+      preLoaderRoute: typeof DashboardFacebookRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -476,7 +556,11 @@ const rootRouteChildren: RootRouteChildren = {
   TechlabRoute: TechlabRoute,
   TemplatesRoute: TemplatesRoute,
   VaultRoute: VaultRoute,
+  DashboardFacebookRoute: DashboardFacebookRoute,
+  DashboardInstagramRoute: DashboardInstagramRoute,
   DashboardTiktokRoute: DashboardTiktokRoute,
+  DashboardXRoute: DashboardXRoute,
+  DashboardYoutubeRoute: DashboardYoutubeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

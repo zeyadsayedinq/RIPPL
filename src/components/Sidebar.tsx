@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Home, Users, Disc3, FolderLock, Palette, Cpu, Settings, Music2, ShieldCheck,
   LayoutDashboard, Megaphone, CalendarDays, Radio, ListChecks, Wallet, FileText, UsersRound, FolderOpen,
-  ChevronDown, ChevronLeft, Check, Clapperboard,
+  ChevronDown, ChevronLeft, Check, Clapperboard, Instagram, Youtube, Facebook, Twitter,
 } from "lucide-react";
 import { useRole, type Role } from "@/lib/role-context";
 import { useCampaigns } from "@/lib/campaign-store";
@@ -22,7 +22,6 @@ const groups: { label: string; items: { to: string; label: string; icon: any }[]
   ]},
   { label: "Marketing", items: [
     { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
-    { to: "/dashboard/tiktok", label: "TikTok", icon: Clapperboard },
     { to: "/campaigns", label: "Campaigns", icon: Megaphone },
     { to: "/calendar", label: "Calendar", icon: CalendarDays },
     { to: "/channels", label: "Channels", icon: Radio },
@@ -31,6 +30,13 @@ const groups: { label: string; items: { to: string; label: string; icon: any }[]
     { to: "/templates", label: "Templates", icon: FileText },
     { to: "/creators", label: "Creators", icon: UsersRound },
     { to: "/assets", label: "Assets", icon: FolderOpen },
+  ]},
+  { label: "Platforms", items: [
+    { to: "/dashboard/tiktok", label: "TikTok", icon: Clapperboard },
+    { to: "/dashboard/instagram", label: "Instagram", icon: Instagram },
+    { to: "/dashboard/youtube", label: "YouTube", icon: Youtube },
+    { to: "/dashboard/facebook", label: "Facebook", icon: Facebook },
+    { to: "/dashboard/x", label: "X", icon: Twitter },
   ]},
 ];
 

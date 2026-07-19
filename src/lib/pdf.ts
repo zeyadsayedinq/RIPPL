@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import type { Artist, Release } from "./os-store";
+import type { Campaign, ChecklistPhase } from "./campaign-data";
 
 export interface SplitEntry { name: string; role: string; percent: number; }
 export interface SplitSheetInput { trackTitle: string; artist: string; date: string; entries: SplitEntry[]; }
@@ -108,4 +109,41 @@ export function splitSheetPdf(s: SplitSheetInput) {
 
   footer(doc);
   doc.save(`${(s.trackTitle || "Split_Sheet").replace(/\s+/g, "_")}_Split_Sheet.pdf`);
+}
+
+/* RIPPL workplan §7: "Brief generator — once a campaign has creators +
+   deliverables, generate a brief PDF that can be sent to each creator." */
+export function campaignBriefPdf(c: Campaign, checklist: ChecklistPhase[], creatorNames: string[]) {
+  const doc = new jsPDF();
+  header(doc, "Campaign Brief", `${c.artist} — ${c.title}`);
+  let y = 62;
+  label(doc, "Campaign", y); value(doc, c.title || "—", y + 7); y += 22;
+  label(doc, "Artist", y); value(doc, c.artist || "—", y + 7); y += 22;
+  label(doc, "Window", y); value(doc, `${c.startDate || "TBC"} → ${c.endDate || "TBC"}`, y + 7, 11); y += 22;
+  label(doc, "Platforms", y); value(doc, (c.platforms ?? []).join(" · ") || "—", y + 7, 11); y += 22;
+  label(doc, "Goal", y); value(doc, c.goal || "—", y + 7, 11); y += 24;
+
+  if (creatorNames.length) {
+    label(doc, `Creators on this campaign (${creatorNames.length})`, y); y += 8;
+    doc.setTextColor(40); doc.setFont("courier", "normal"); doc.setFontSize(10);
+    doc.text(doc.splitTextToSize(creatorNames.join(" · "), 178), 16, y);
+    y += Math.ceil(creatorNames.join(" · ").length / 70) * 5 + 12;
+  }
+
+  if (checklist.length) {
+    label(doc, "Rollout plan", y); y += 9;
+    for (const phase of checklist) {
+      if (y > 262) { doc.addPage(); y = 24; }
+      doc.setTextColor(20); doc.setFont("courier", "bold"); doc.setFontSize(11);
+      doc.text(phase.phase, 16, y); y += 7;
+      doc.setFont("courier", "normal"); doc.setFontSize(9); doc.setTextColor(70);
+      for (const item of phase.items) {
+        if (y > 275) { doc.addPage(); y = 24; }
+        doc.text(`[ ] ${item.label}`, 20, y); y += 5.5;
+      }
+      y += 5;
+    }
+  }
+  footer(doc);
+  doc.save(`${(c.title || "Campaign").replace(/\s+/g, "_")}_Brief.pdf`);
 }
