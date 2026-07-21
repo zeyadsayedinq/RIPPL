@@ -9,7 +9,9 @@ import { useOS, uid, type Member, type MemberRole } from "@/lib/os-store";
 import { useCampaigns } from "@/lib/campaign-store";
 import { useIsHQ } from "@/lib/use-auth";
 import { inviteMember } from "@/lib/invite-member";
-import { ShieldCheck, UserPlus, Trash2, Settings2, Lock, Mail } from "lucide-react";
+import { setMemberPassword } from "@/lib/admin-actions";
+import { supabase } from "@/lib/supabase";
+import { ShieldCheck, UserPlus, Trash2, Settings2, Lock, Mail, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin · RIPPL HQ" }] }),
@@ -23,6 +25,7 @@ function AdminPage() {
   const isHQ = useIsHQ();
   const { members, update } = useOS();
   const [assigning, setAssigning] = useState<Member | null>(null);
+  const [resettingPw, setResettingPw] = useState<Member | null>(null);
   const [f, setF] = useState({ name: "", email: "", role: "Creator" as MemberRole });
   const [inviteMsg, setInviteMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -93,13 +96,49 @@ function AdminPage() {
             </select>
             <div className="hidden text-[11px] text-muted-foreground md:block">{m.campaigns.length + m.releases.length + m.tracks.length + m.contracts.length} assignments</div>
             <button onClick={() => setAssigning(m)} className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs hover:bg-white/5"><Settings2 className="h-3.5 w-3.5" /> Assign</button>
+            <button onClick={() => setResettingPw(m)} title="Set this member's password" className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs hover:bg-white/5"><KeyRound className="h-3.5 w-3.5" /> Password</button>
             <button onClick={() => update("members", (all) => all.filter((x) => x.id !== m.id))} className="text-muted-foreground hover:text-[oklch(0.7_0.2_20)]"><Trash2 className="h-4 w-4" /></button>
           </div>
         ))}
       </section>
 
       <AnimatePresence>{assigning && <AssignModal member={assigning} onClose={() => setAssigning(null)} />}</AnimatePresence>
+      <AnimatePresence>{resettingPw && <SetPasswordModal member={resettingPw} onClose={() => setResettingPw(null)} />}</AnimatePresence>
     </AppShell>
+  );
+}
+
+function SetPasswordModal({ member, onClose }: { member: Member; onClose: () => void }) {
+  const [pw, setPw] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pw.length < 6) { setMsg({ text: "Password must be at least 6 characters.", ok: false }); return; }
+    if (pw !== confirm) { setMsg({ text: "Passwords don't match.", ok: false }); return; }
+    if (!supabase) { setMsg({ text: "Supabase isn't configured on this deployment.", ok: false }); return; }
+    setBusy(true); setMsg(null);
+    const { data: s } = await supabase.auth.getSession();
+    const token = s.session?.access_token;
+    if (!token) { setBusy(false); setMsg({ text: "Not signed in.", ok: false }); return; }
+    const res = await setMemberPassword({ data: { accessToken: token, targetEmail: member.email, newPassword: pw } });
+    setBusy(false);
+    if (res.ok) setMsg({ text: `Password set for ${member.email}. Share it with them directly — this doesn't send an email.`, ok: true });
+    else setMsg({ text: res.error || "Something went wrong.", ok: false });
+  }
+
+  return (
+    <ModalShell eyebrow={`Password · ${member.name}`} title="Set member password" onClose={onClose}>
+      <p className="text-[11px] text-muted-foreground/70">Sets this member's sign-in password directly — useful if their invite email never arrived or they're locked out. They can change it themselves later from Settings.</p>
+      <form onSubmit={submit} className="mt-3 flex flex-col gap-2">
+        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="new password" className={field} />
+        <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="confirm password" className={field} />
+        <button type="submit" disabled={busy || !pw} className="glass mt-1 rounded-full px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50">{busy ? "Saving…" : "Set password"}</button>
+      </form>
+      {msg && <p className={`mt-2 text-xs ${msg.ok ? "text-[oklch(0.82_0.18_150)]" : "text-[oklch(0.8_0.2_20)]"}`}>{msg.text}</p>}
+    </ModalShell>
   );
 }
 

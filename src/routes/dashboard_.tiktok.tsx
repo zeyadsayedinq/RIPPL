@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { PlatformDashboard, fmt, type PlatformConfig, type PlatformPanelState } from "@/components/PlatformDashboard";
 import { useCampaigns } from "@/lib/campaign-store";
 import { getTikTokSoundStats } from "@/lib/platform-live";
-import { Music4, Radio, Video, Heart, Eye, MessageCircle, Share2, Link2 } from "lucide-react";
+import { Music4, Radio, Video, Heart, Eye, MessageCircle, Share2 } from "lucide-react";
 
 /* TikTok sound scanner — real creations/likes/views/comments/shares for the
    campaign's linked sound, via Soundcharts (see platform-live.ts for why
@@ -21,11 +21,8 @@ const cfg: PlatformConfig = {
 };
 
 function TikTokDashboard() {
-  const { active, activeEditable, updateActiveLinks } = useCampaigns();
-  const [linkInput, setLinkInput] = useState(active?.links?.tiktokSound ?? "");
+  const { active, updateActiveLinks } = useCampaigns();
   const [panel, setPanel] = useState<PlatformPanelState>({ loading: false, connected: false });
-
-  useEffect(() => setLinkInput(active?.links?.tiktokSound ?? ""), [active?.id]);
 
   useEffect(() => {
     const url = active?.links?.tiktokSound;
@@ -48,20 +45,14 @@ function TikTokDashboard() {
   }, [active?.id, active?.links?.tiktokSound]);
 
   return (
-    <>
-      <PlatformDashboard cfg={cfg} panel={panel} />
-      {active && activeEditable && (
-        <div className="glass mx-auto mt-4 flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl p-4">
-          <Link2 className="h-4 w-4 shrink-0 text-white/40" />
-          <input
-            value={linkInput} onChange={(e) => setLinkInput(e.target.value)}
-            placeholder="Paste the TikTok sound URL (e.g. tiktok.com/music/...)"
-            className="min-w-[240px] flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm outline-none focus:border-white/40"
-          />
-          <button onClick={() => updateActiveLinks({ tiktokSound: linkInput.trim() || undefined })} className="glass rounded-full px-4 py-2 text-sm hover:bg-white/5">Save link</button>
-        </div>
-      )}
-    </>
+    <PlatformDashboard
+      cfg={cfg} panel={panel}
+      linkEditor={{
+        value: active?.links?.tiktokSound ?? "",
+        placeholder: "Paste the TikTok sound URL (e.g. tiktok.com/music/...)",
+        onSave: (v) => updateActiveLinks({ tiktokSound: v || undefined }),
+      }}
+    />
   );
 }
 

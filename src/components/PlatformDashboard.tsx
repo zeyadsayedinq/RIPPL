@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { MagneticButton } from "@/components/MagneticButton";
@@ -47,11 +47,23 @@ export interface PlatformPanelState {
   helpHref?: string;
 }
 
+/** Lets HQ paste/change the campaign's link for this platform (e.g. the
+ *  YouTube video URL or TikTok sound URL) directly inside the panel, right
+ *  where the "not connected" message is — not bolted on elsewhere on the
+ *  page where it's easy to miss. */
+export interface PlatformLinkEditor {
+  value: string;
+  placeholder: string;
+  onSave: (value: string) => void;
+}
+
 export const fmt = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : `${Math.round(n)}`);
 
-export function PlatformDashboard({ cfg, panel }: { cfg: PlatformConfig; panel: PlatformPanelState }) {
+export function PlatformDashboard({ cfg, panel, linkEditor }: { cfg: PlatformConfig; panel: PlatformPanelState; linkEditor?: PlatformLinkEditor }) {
   const { active, activeIsShared, activeEditable, activeAssets, taskProgress, setAssetStatus, activeChecklist, assignedIds } = useCampaigns();
   const { role, canSeePrice } = useRole();
+  const [linkInput, setLinkInput] = useState(linkEditor?.value ?? "");
+  useEffect(() => setLinkInput(linkEditor?.value ?? ""), [linkEditor?.value, active?.id]);
 
   const spent = active?.spent ?? 0;
   const budget = active?.budget ?? 0;
@@ -142,6 +154,19 @@ export function PlatformDashboard({ cfg, panel }: { cfg: PlatformConfig; panel: 
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{panel.reason || `Wire a real ${cfg.name} data source to activate this panel.`}</p>
                 {panel.helpHref && <Link to={panel.helpHref} className="mt-2 inline-flex items-center gap-1 text-xs text-white underline underline-offset-2"><Link2 className="h-3 w-3" /> Set it up</Link>}
               </div>
+            </div>
+          )}
+
+          {linkEditor && active && activeEditable && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+              <Link2 className="h-4 w-4 shrink-0 text-white/40" />
+              <input
+                value={linkInput} onChange={(e) => setLinkInput(e.target.value)} placeholder={linkEditor.placeholder}
+                className="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm outline-none focus:border-white/40"
+              />
+              <button onClick={() => linkEditor.onSave(linkInput.trim())} className="glass shrink-0 rounded-full px-4 py-2 text-sm hover:bg-white/5">
+                {linkEditor.value ? "Update link" : "Save link"}
+              </button>
             </div>
           )}
         </SpotlightCard>

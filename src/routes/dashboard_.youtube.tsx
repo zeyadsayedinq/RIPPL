@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { PlatformDashboard, fmt, type PlatformConfig, type PlatformPanelState } from "@/components/PlatformDashboard";
 import { useCampaigns } from "@/lib/campaign-store";
 import { getVideoStats, youtubeConfigured } from "@/lib/youtube-api";
-import { Youtube, PlaySquare, Eye, ThumbsUp, MessageCircle, Link2 } from "lucide-react";
+import { Youtube, PlaySquare, Eye, ThumbsUp, MessageCircle } from "lucide-react";
 
 /* YouTube — real, live view/like/comment counts for the campaign's linked
    video via the Data API v3 (already working elsewhere in the app — see
@@ -23,11 +23,8 @@ const cfg: PlatformConfig = {
 };
 
 function YoutubeDashboard() {
-  const { active, activeEditable, updateActiveLinks } = useCampaigns();
-  const [linkInput, setLinkInput] = useState(active?.links?.youtube ?? "");
+  const { active, updateActiveLinks } = useCampaigns();
   const [panel, setPanel] = useState<PlatformPanelState>({ loading: false, connected: false });
-
-  useEffect(() => setLinkInput(active?.links?.youtube ?? ""), [active?.id]);
 
   useEffect(() => {
     const url = active?.links?.youtube;
@@ -48,20 +45,14 @@ function YoutubeDashboard() {
   }, [active?.id, active?.links?.youtube]);
 
   return (
-    <>
-      <PlatformDashboard cfg={cfg} panel={panel} />
-      {active && activeEditable && (
-        <div className="glass mx-auto mt-4 flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl p-4">
-          <Link2 className="h-4 w-4 shrink-0 text-white/40" />
-          <input
-            value={linkInput} onChange={(e) => setLinkInput(e.target.value)}
-            placeholder="Paste the YouTube video URL"
-            className="min-w-[240px] flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm outline-none focus:border-white/40"
-          />
-          <button onClick={() => updateActiveLinks({ youtube: linkInput.trim() || undefined })} className="glass rounded-full px-4 py-2 text-sm hover:bg-white/5">Save link</button>
-        </div>
-      )}
-    </>
+    <PlatformDashboard
+      cfg={cfg} panel={panel}
+      linkEditor={{
+        value: active?.links?.youtube ?? "",
+        placeholder: "Paste the YouTube video URL",
+        onSave: (v) => updateActiveLinks({ youtube: v || undefined }),
+      }}
+    />
   );
 }
 
