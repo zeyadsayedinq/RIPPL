@@ -3,12 +3,14 @@ import { useEffect, useState } from "react";
 import { PlatformDashboard, fmt, type PlatformConfig, type PlatformPanelState } from "@/components/PlatformDashboard";
 import { useCampaigns } from "@/lib/campaign-store";
 import { getTikTokSoundStats } from "@/lib/platform-live";
-import { Music4, Radio, Video, Heart, Eye, MessageCircle, Share2 } from "lucide-react";
+import { Music4, Radio, Video } from "lucide-react";
 
-/* TikTok sound scanner — real creations/likes/views/comments/shares for the
+/* TikTok sound scanner — real "creations using this sound" count for the
    campaign's linked sound, via Soundcharts (see platform-live.ts for why
-   Soundcharts rather than TikTok's own API, and for the caveat that the
-   exact response shape there is best-effort pending live verification). */
+   Soundcharts rather than TikTok's own API). Video count is the ONLY
+   per-sound TikTok metric Soundcharts tracks — no likes/views/comments/
+   shares breakdown exists for TikTok on their platform, confirmed against
+   their live docs, so this panel only ever shows the one real number. */
 
 const cfg: PlatformConfig = {
   name: "TikTok",
@@ -17,7 +19,7 @@ const cfg: PlatformConfig = {
   paidLabel: "Spark Ads",
   panelTitle: "Sound Performance",
   panelIcon: Radio,
-  subtitle: "Real sound-usage counts for the linked TikTok sound.",
+  subtitle: "Real sound-usage count for the linked TikTok sound.",
 };
 
 function TikTokDashboard() {
@@ -32,13 +34,9 @@ function TikTokDashboard() {
       if (!res.ok || !res.data) { setPanel({ loading: false, connected: false, reason: res.reason, helpHref: "/settings" }); return; }
       const d = res.data;
       setPanel({
-        loading: false, connected: true, views: d.viewCount,
+        loading: false, connected: true, views: d.videoCount,
         stats: [
-          { icon: Video, label: "Creations with sound", value: fmt(d.videoCount), hint: "videos using this sound (Soundcharts, updates daily)" },
-          { icon: Heart, label: "Likes", value: fmt(d.likeCount), hint: "across tracked videos" },
-          { icon: Eye, label: "Views", value: fmt(d.viewCount), hint: "across tracked videos" },
-          { icon: MessageCircle, label: "Comments", value: fmt(d.commentCount), hint: "across tracked videos" },
-          { icon: Share2, label: "Shares", value: fmt(d.shareCount), hint: "across tracked videos" },
+          { icon: Video, label: "Creations with sound", value: fmt(d.videoCount), hint: d.asOf ? `as of ${d.asOf} · Soundcharts` : "Soundcharts video count" },
         ],
       });
     }).catch((e) => setPanel({ loading: false, connected: false, reason: e?.message || String(e) }));

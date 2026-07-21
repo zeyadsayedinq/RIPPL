@@ -15,15 +15,30 @@ import { createServerFn } from "@tanstack/react-start";
    surface (hashtag/content APIs) requires app review and, per TikTok's own
    for-developers docs, isn't free for commercial use. Soundcharts (and
    Chartmetric) get this via their own platform partnerships/licensing and
-   expose it as a straightforward API — that's the realistic path, and
-   .env.example already anticipates it (SOUNDCHARTS_API_KEY). This module
-   implements Soundcharts' documented OAuth2 client-credentials flow
-   (developers.soundcharts.com/api/authorization). NOTE: I could not render
-   Soundcharts' JS-based API reference pages to confirm the exact response
-   field names for the song "current stats" endpoint, so treat the shape
-   below as best-effort — verify against your account's live reference
-   once SOUNDCHARTS_CLIENT_ID/SECRET are set, and adjust the field mapping
-   in `mapSoundStats` if it doesn't match.
+   expose it as a straightforward API — that's the realistic path.
+
+   Verified against Soundcharts' actual docs (developers.soundcharts.com,
+   incl. their openapi.json) on 2026-07-21:
+   - Auth: POST https://account.soundcharts.com/oauth/token, HTTP Basic
+     client_id:client_secret, body grant_type=client_credentials — confirmed
+     correct, this was already implemented right.
+   - Resolving a pasted TikTok link to a Soundcharts song: GET
+     /api/v2/search/external/url?platformUrl=<encoded> ("Get Soundcharts URL
+     from platform URL"). Confirmed exact path; exact JSON key for the
+     returned identifier is unverified (their reference pages don't render
+     schema definitions outside the interactive Try-it-out widget), so the
+     resolver below tries the couple of shapes their docs style implies.
+   - IMPORTANT — TikTok only has ONE tracked metric on Soundcharts: video
+     count. Per their own "Get audience" docs table (song/{uuid}/audience/
+     {platform}), the value tracked per platform is: Spotify → streams,
+     YouTube → views, YouTube Shorts → shorts count, Instagram → reel count,
+     TikTok → video count. There is no likes/views/comments/shares breakdown
+     for TikTok — Soundcharts genuinely does not track those per-sound. The
+     previous version of this file promised all five and was wrong; fixed
+     to only ever surface videoCount. Also note: several of the relevant
+     endpoints (song current/stats, song audience, TikTok chart) are flagged
+     "restricted to specific plans" in their docs — a free/base Soundcharts
+     plan may 403 on these even with valid credentials.
 
    Meta (Facebook Page / Instagram Business): real and well-documented, but
    needs a Meta App + a long-lived Page Access Token (60-day expiry, must be
@@ -45,11 +60,8 @@ export interface LiveResult<T> {
 /* ── Soundcharts (TikTok sound scanner) ──────────────────────── */
 
 export interface TikTokSoundStats {
-  videoCount: number;    // "creations with sound"
-  likeCount: number;
-  viewCount: number;
-  commentCount: number;
-  shareCount: number;
+  videoCount: number;    // "creations using this sound" — the only metric Soundcharts tracks for TikTok
+  asOf?: string;         // date of the latest data point, if Soundcharts returned one
 }
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
@@ -84,34 +96,47 @@ async function soundchartsGet(path: string): Promise<any> {
   return res.json();
 }
 
-/** Best-effort mapping — see module note above about unverified field names. */
-function mapSoundStats(body: any): TikTokSoundStats {
-  const s = body?.object ?? body ?? {};
-  return {
-    videoCount: Number(s.videoCount ?? s.video_count ?? 0),
-    likeCount: Number(s.likeCount ?? s.like_count ?? 0),
-    viewCount: Number(s.viewCount ?? s.view_count ?? s.playCount ?? s.play_count ?? 0),
-    commentCount: Number(s.commentCount ?? s.comment_count ?? 0),
-    shareCount: Number(s.shareCount ?? s.share_count ?? 0),
-  };
-}
+const UUID_RE = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
 
 /** Resolves a public platform URL (e.g. the TikTok sound page link you'd
- *  paste from the app) to Soundcharts' own song UUID. Best-effort — this is
- *  documented on their site as "Get Soundcharts URL from platform URL" but
- *  I couldn't render the exact request/response shape, so this is the one
- *  spot most likely to need a fix once you have real credentials to test
- *  against (check developers.soundcharts.com/api/reference/search). */
+ *  paste from the app) to Soundcharts' own song UUID via the confirmed
+ *  endpoint GET /api/v2/search/external/url?platformUrl=. Soundcharts'
+ *  reference page confirms the path and describes the response as "the
+ *  Soundcharts URL and the type" for that entity, but doesn't render the
+ *  exact JSON key names — so this checks the couple of shapes that phrasing
+ *  implies (a bare `uuid`, or a `url` with the uuid as its last segment). */
 async function resolveSoundchartsSongUuid(platformUrl: string): Promise<string> {
-  const body = await soundchartsGet(`/song/by-platform-url?url=${encodeURIComponent(platformUrl)}`);
-  const uuid = body?.object?.uuid ?? body?.uuid;
+  const body = await soundchartsGet(`/search/external/url?platformUrl=${encodeURIComponent(platformUrl)}`);
+  const type = body?.type ?? body?.object?.type;
+  if (type && type !== "song") {
+    throw new Error(`That link resolved to a Soundcharts "${type}", not a song — paste the TikTok sound/music page link for the track itself.`);
+  }
+  const candidate: string | undefined = body?.object?.uuid ?? body?.uuid ?? body?.object?.url ?? body?.url;
+  const uuid = candidate && UUID_RE.test(candidate) ? candidate.match(UUID_RE)![0] : undefined;
   if (!uuid) throw new Error("Soundcharts didn't recognize that TikTok sound link — try pasting the exact URL from the TikTok sound/music page.");
   return uuid;
 }
 
+/** GET /api/v2/song/{uuid}/audience/tiktok — the only TikTok metric
+ *  Soundcharts tracks per song is video count (see module note). This is a
+ *  time-series endpoint (default window: last 30 days); we take the most
+ *  recent point. Exact item field names are unverified (same reference-page
+ *  limitation as above) so this checks a couple of likely shapes. */
+async function getTikTokVideoCount(uuid: string): Promise<TikTokSoundStats> {
+  const body = await soundchartsGet(`/song/${uuid}/audience/tiktok`);
+  const items = body?.items ?? body?.object?.items ?? [];
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("Soundcharts has no TikTok video-count data for this song yet — it may need a moment after being added, or your plan may not include this endpoint.");
+  }
+  const latest = items[items.length - 1];
+  const videoCount = Number(latest?.value ?? latest?.count ?? latest?.plots?.value ?? 0);
+  return { videoCount, asOf: latest?.date };
+}
+
 /** `tiktokSoundUrl` is whatever you pasted into the campaign's TikTok sound
  *  link (Campaign.links.tiktokSound). Resolves it to a Soundcharts song and
- *  returns its current TikTok video/like/view/comment/share counts. */
+ *  returns the current TikTok video count for it — the only per-sound
+ *  metric Soundcharts actually tracks for TikTok. */
 export const getTikTokSoundStats = createServerFn({ method: "POST" })
   .validator((d: { tiktokSoundUrl: string }) => d)
   .handler(async ({ data }): Promise<LiveResult<TikTokSoundStats>> => {
@@ -120,8 +145,8 @@ export const getTikTokSoundStats = createServerFn({ method: "POST" })
     }
     try {
       const uuid = await resolveSoundchartsSongUuid(data.tiktokSoundUrl);
-      const body = await soundchartsGet(`/song/${uuid}/current/stats`);
-      return { ok: true, data: mapSoundStats(body) };
+      const stats = await getTikTokVideoCount(uuid);
+      return { ok: true, data: stats };
     } catch (e: any) {
       return { ok: false, reason: e?.message || String(e) };
     }
