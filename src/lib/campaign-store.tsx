@@ -55,6 +55,8 @@ interface StoreCtx {
   activeEditable: boolean;
   setActive: (id: string) => void;
   addCampaign: (c: Omit<Campaign, "id" | "seeded"> & { id?: string }) => Campaign;
+  /** Patch the active campaign's real platform links (see CampaignLinks) — owner-only, not part of the shared-member edit model. */
+  updateActiveLinks: (patch: Partial<import("./campaign-data").CampaignLinks>) => void;
 
   activeTemplate: CampaignTemplate | undefined;
   activeChecklist: ChecklistPhase[];
@@ -206,6 +208,12 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     return created;
   }
 
+  function updateActiveLinks(patch: Partial<import("./campaign-data").CampaignLinks>) {
+    if (!activeId || activeIsShared) return; // links are HQ-owned metadata, not part of the member share model
+    dirty.current = true;
+    setCampaigns((prev) => prev.map((c) => (c.id === activeId ? { ...c, links: { ...c.links, ...patch } } : c)));
+  }
+
   /* Every per-campaign read/write goes through these: shared campaigns
      read from sharedData and (with edit access) write back to HQ;
      view-only mutations are silently ignored. */
@@ -304,7 +312,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={{
       campaigns: allCampaigns, activeId, active, activeIsShared, activeEditable,
-      setActive: (id: string) => { dirty.current = true; setActiveId(id); }, addCampaign,
+      setActive: (id: string) => { dirty.current = true; setActiveId(id); }, addCampaign, updateActiveLinks,
       activeTemplate, activeChecklist, isTaskDone, toggleTask, taskProgress,
       assignedIds, isAssigned, toggleAssignment,
       activeAssets, addAsset, setAssetStatus, removeAsset,

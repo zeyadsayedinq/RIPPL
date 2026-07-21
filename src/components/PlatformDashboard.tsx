@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState, type ComponentType } from "react";
+import { type ComponentType } from "react";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { MagneticButton } from "@/components/MagneticButton";
@@ -9,14 +9,17 @@ import { useRole } from "@/lib/role-context";
 import { campaignBriefPdf } from "@/lib/pdf";
 import { creators as allCreators } from "@/lib/mock-data";
 import {
-  Flame, Clapperboard, Rocket, CheckCircle2, UploadCloud, FileDown, BadgeCheck, Wallet, Video, Check,
+  Flame, Clapperboard, FileDown, Video, Link2, PlugZap,
 } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
-/* RIPPL workplan §3 — platform-specific dashboards. One shared engine;
-   each route supplies a PlatformConfig with its platform-only stat panel.
-   All analytics are deterministic per-campaign placeholders (seeded PRNG,
-   same approach as market-data.ts) until real platform feeds are wired. */
+/* Platform-specific dashboards — one shared shell, each route supplies a
+   PlatformConfig (display-only: name/icon/colors) plus a `panel` describing
+   whatever real data it managed to fetch. This used to run entirely on a
+   seeded PRNG (deterministic fake numbers dressed up as "campaign
+   analytics") — reset per the plan to make this real: no source, no
+   number. Each route now does its own live fetch (YouTube Data API,
+   Soundcharts, Meta Graph API — see platform-live.ts / youtube-api.ts) and
+   passes the result in; this component only renders it. */
 
 type IconT = ComponentType<{ className?: string }>;
 
@@ -25,51 +28,35 @@ export interface PlatformConfig {
   name: string;                 // "TikTok"
   icon: IconT;
   accent: string;               // oklch color for eyebrow/organic line
-  paidLabel: string;            // "Spark Ads" / "Boosted" / "Paid"
+  paidLabel: string;            // "Spark Ads" / "Boosted" / "Paid" — kept for copy, no fake numbers attached
   panelTitle: string;           // "Sound Performance" / "Reels Performance" …
   panelIcon: IconT;
-  panelNote?: string;
-  /** platform-specific stats — r() gives deterministic randoms, views/spent for derived math */
-  stats: (r: () => number, views: number, spent: number) => PlatformStat[];
   subtitle: string;
 }
 
-/* Deterministic pseudo-random stream from a string seed (mulberry32). */
-export function rng(seed: string) {
-  let h = 1779033703 ^ seed.length;
-  for (let i = 0; i < seed.length; i++) { h = Math.imul(h ^ seed.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
-  let a = h >>> 0;
-  return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+/** What a route's live-data fetch produced. `views`, when present, drives
+ *  the "progress toward goal" bar with a REAL number for this platform. */
+export interface PlatformPanelState {
+  loading: boolean;
+  connected: boolean;
+  /** why it's not connected — shown verbatim in the "connect" card */
+  reason?: string;
+  stats?: PlatformStat[];
+  views?: number;
+  /** a source page to link to from the "connect" card, if any (e.g. Settings) */
+  helpHref?: string;
 }
+
 export const fmt = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : `${Math.round(n)}`);
 
-export function PlatformDashboard({ cfg }: { cfg: PlatformConfig }) {
+export function PlatformDashboard({ cfg, panel }: { cfg: PlatformConfig; panel: PlatformPanelState }) {
   const { active, activeIsShared, activeEditable, activeAssets, taskProgress, setAssetStatus, activeChecklist, assignedIds } = useCampaigns();
   const { role, canSeePrice } = useRole();
-  const [queued, setQueued] = useState<string | null>(null);
 
-  const stats = useMemo(() => {
-    const r = rng(`${cfg.name}:${active?.id ?? "no-campaign"}`);
-    const goal = 10_000_000;
-    const views = Math.round(goal * (0.15 + r() * 0.65));
-    const spent = active ? Math.min(active.spent || Math.round((active.budget || 50000) * (0.2 + r() * 0.5)), active.budget || Infinity) : 0;
-    const cpm = views ? (spent / views) * 1000 : 0;
-    const engagements = Math.round(views * (0.05 + r() * 0.07));
-    const cpe = engagements ? spent / engagements : 0;
-    const series = Array.from({ length: 14 }, (_, i) => {
-      const day = new Date(Date.now() - (13 - i) * 86400000);
-      return {
-        d: day.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        organic: Math.round((views / 24) * (0.4 + r())),
-        paid: Math.round((views / 30) * (0.3 + r())),
-        eng: +((4 + r() * 6).toFixed(1)),
-      };
-    });
-    const panel = cfg.stats(r, views, spent);
-    return { goal, views, spent, cpm, cpe, series, panel };
-  }, [active, cfg]);
-
-  const progress = Math.min(100, Math.round((stats.views / stats.goal) * 100));
+  const spent = active?.spent ?? 0;
+  const budget = active?.budget ?? 0;
+  // No synthetic progress bar: `goal` is free-text (e.g. "10M views") and there's
+  // no real numeric target field to measure real `panel.views` against.
   const creatives = activeAssets.filter((a) => a.type === "Video" || a.type === "Art" || a.type === "Other");
 
   function downloadBrief() {
@@ -77,16 +64,12 @@ export function PlatformDashboard({ cfg }: { cfg: PlatformConfig }) {
     const names = allCreators.filter((c) => assignedIds.includes(c.id)).map((c) => c.name);
     campaignBriefPdf(active, activeChecklist, names);
   }
-  function act(label: string) {
-    if (label === "Download Brief") { downloadBrief(); return; }
-    setQueued(label); setTimeout(() => setQueued(null), 1800);
-  }
-  const actions: { label: string; icon: IconT; primary?: boolean }[] =
+  const actions: { label: string; icon: IconT; primary?: boolean; onClick?: () => void }[] =
     role === "Marketing Manager"
-      ? [{ label: `Push to ${cfg.paidLabel}`, icon: Rocket, primary: true }, { label: "Approve Content", icon: CheckCircle2 }, { label: "Download Brief", icon: FileDown }]
+      ? [{ label: "Download Brief", icon: FileDown, primary: true, onClick: downloadBrief }]
       : role === "Team Member"
-        ? [{ label: "Submit New Draft", icon: UploadCloud, primary: true }, { label: "Download Brief", icon: FileDown }]
-        : [{ label: "Approve Contract Amendment", icon: BadgeCheck, primary: true }, { label: "Verify Payout", icon: Wallet }];
+        ? [{ label: "Download Brief", icon: FileDown, primary: true, onClick: downloadBrief }]
+        : [{ label: "Download Brief", icon: FileDown, onClick: downloadBrief }];
 
   const statusColor: Record<UploadedAsset["status"], string> = {
     "Draft": "oklch(0.75 0.02 260)",
@@ -95,7 +78,6 @@ export function PlatformDashboard({ cfg }: { cfg: PlatformConfig }) {
     "Needs Revision": "oklch(0.7 0.2 20)",
   };
   const CfgIcon = cfg.icon; const PanelIcon = cfg.panelIcon;
-  const visibleStats = stats.panel.filter((s) => !s.priceGated || canSeePrice);
 
   return (
     <AppShell>
@@ -110,14 +92,14 @@ export function PlatformDashboard({ cfg }: { cfg: PlatformConfig }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {actions.map((a) => (
-            <MagneticButton key={a.label} variant={a.primary ? undefined : "ghost"} onClick={() => act(a.label)}>
-              {queued === a.label ? <Check className="h-4 w-4" /> : <a.icon className="h-4 w-4" />} {queued === a.label ? "Queued ✓" : a.label}
+            <MagneticButton key={a.label} variant={a.primary ? undefined : "ghost"} onClick={a.onClick}>
+              <a.icon className="h-4 w-4" /> {a.label}
             </MagneticButton>
           ))}
         </div>
       </header>
 
-      {/* Campaign status */}
+      {/* Campaign status — real fields only (budget/spent are what HQ entered in Budget; no fabricated view counts). */}
       <section className="mt-6 grid grid-cols-12 gap-4">
         <SpotlightCard className="col-span-12 p-5 xl:col-span-5">
           <div className="flex items-center justify-between">
@@ -126,64 +108,44 @@ export function PlatformDashboard({ cfg }: { cfg: PlatformConfig }) {
           </div>
           <div className="mt-3 flex items-end justify-between gap-4">
             <div>
-              <div className="font-display text-3xl font-bold">{fmt(stats.views)} <span className="text-base font-normal text-muted-foreground">/ {fmt(stats.goal)} views</span></div>
-              <div className="mt-1 text-[11px] text-muted-foreground">{active?.goal || "Goal: 10M views"} · checklist {taskProgress}% done</div>
+              <div className="font-display text-3xl font-bold">
+                {panel.views !== undefined ? fmt(panel.views) : "—"} <span className="text-base font-normal text-muted-foreground">{cfg.name} views {panel.views === undefined && "(connect a source below)"}</span>
+              </div>
+              <div className="mt-1 text-[11px] text-muted-foreground">{active?.goal || "No goal set"} · checklist {taskProgress}% done</div>
             </div>
             {canSeePrice && (
               <div className="text-right">
-                <div className="font-display text-xl font-bold">${fmt(stats.spent)}</div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">spent</div>
+                <div className="font-display text-xl font-bold">${fmt(spent)}{budget ? ` / $${fmt(budget)}` : ""}</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">spent (from Budget)</div>
               </div>
             )}
           </div>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/[0.06]">
-            <div className="h-full rounded-full" style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${cfg.accent}, oklch(0.85 0.25 328))` }} />
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {canSeePrice && <Metric label="CPM (live)" value={`$${stats.cpm.toFixed(2)}`} />}
-            {canSeePrice && <Metric label="CPE (live)" value={`$${stats.cpe.toFixed(3)}`} />}
-            <Metric label="Progress" value={`${progress}%`} />
-            <Metric label="Engagement rate" value={`${stats.series.at(-1)?.eng ?? 0}%`} />
-          </div>
         </SpotlightCard>
 
-        {/* Platform-specific panel */}
+        {/* Platform-specific panel — real data if connected, honest "connect" card otherwise. */}
         <SpotlightCard className="col-span-12 p-5 xl:col-span-7">
           <div className="flex items-center justify-between">
             <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">{cfg.panelTitle}</div>
             <PanelIcon className="h-4 w-4 text-white/40" />
           </div>
-          <div className={`mt-3 grid grid-cols-1 gap-3 ${visibleStats.length >= 4 ? "sm:grid-cols-2 xl:grid-cols-4" : "sm:grid-cols-3"}`}>
-            {visibleStats.map((s) => <SoundStat key={s.label} icon={s.icon} label={s.label} value={s.value} hint={s.hint} />)}
-          </div>
-          <p className="mt-3 text-[11px] text-muted-foreground/70">{cfg.panelNote ?? <>Deterministic placeholder metrics — wire the {cfg.name} feed in <code className="text-[10px]">market-data.ts</code> to go live.</>}</p>
+          {panel.loading ? (
+            <div className="mt-4 grid place-items-center rounded-xl border border-dashed border-white/10 p-8 text-sm text-muted-foreground">Loading live data…</div>
+          ) : panel.connected && panel.stats ? (
+            <div className={`mt-3 grid grid-cols-1 gap-3 ${panel.stats.length >= 4 ? "sm:grid-cols-2 xl:grid-cols-4" : "sm:grid-cols-3"}`}>
+              {panel.stats.filter((s) => !s.priceGated || canSeePrice).map((s) => <SoundStat key={s.label} icon={s.icon} label={s.label} value={s.value} hint={s.hint} />)}
+            </div>
+          ) : (
+            <div className="mt-4 flex items-start gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-5">
+              <PlugZap className="mt-0.5 h-4 w-4 shrink-0 text-white/40" />
+              <div className="text-sm">
+                <div className="font-medium text-white/80">Not connected</div>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{panel.reason || `Wire a real ${cfg.name} data source to activate this panel.`}</p>
+                {panel.helpHref && <Link to={panel.helpHref} className="mt-2 inline-flex items-center gap-1 text-xs text-white underline underline-offset-2"><Link2 className="h-3 w-3" /> Set it up</Link>}
+              </div>
+            </div>
+          )}
         </SpotlightCard>
       </section>
-
-      {/* Analytics */}
-      <SpotlightCard className="mt-4 p-5" spotlight={false}>
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Analytics · last 14 days</div>
-          <h2 className="mt-1 font-display text-xl font-bold">Organic vs {cfg.paidLabel}</h2>
-        </div>
-        <div className="mt-4 h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={stats.series} margin={{ top: 4, right: 8, left: -14, bottom: 0 }}>
-              <defs>
-                <linearGradient id={`org-${cfg.name}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={cfg.accent} stopOpacity={0.5} /><stop offset="100%" stopColor={cfg.accent} stopOpacity={0} /></linearGradient>
-                <linearGradient id={`paid-${cfg.name}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="oklch(0.85 0.25 328)" stopOpacity={0.5} /><stop offset="100%" stopColor="oklch(0.85 0.25 328)" stopOpacity={0} /></linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-              <XAxis dataKey="d" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v: number) => fmt(v)} />
-              <Tooltip contentStyle={{ background: "#0a0a0c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }} formatter={(v: number, name: string) => [fmt(v), name === "organic" ? "Organic views" : `${cfg.paidLabel} views`]} />
-              <Legend formatter={(v: string) => <span className="text-xs text-muted-foreground">{v === "organic" ? "Organic" : cfg.paidLabel}</span>} />
-              <Area type="monotone" dataKey="organic" stroke={cfg.accent} fill={`url(#org-${cfg.name})`} strokeWidth={2} />
-              <Area type="monotone" dataKey="paid" stroke="oklch(0.85 0.25 328)" fill={`url(#paid-${cfg.name})`} strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </SpotlightCard>
 
       {/* Creatives & assets */}
       <SpotlightCard className="mt-4 p-5" spotlight={false}>
@@ -225,16 +187,7 @@ export function PlatformDashboard({ cfg }: { cfg: PlatformConfig }) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-1 font-display text-lg font-bold">{value}</div>
-    </div>
-  );
-}
-
-function SoundStat({ icon: Icon, label, value, hint }: { icon: IconT; label: string; value: string; hint: string }) {
+export function SoundStat({ icon: Icon, label, value, hint }: { icon: IconT; label: string; value: string; hint: string }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
       <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground"><Icon className="h-3.5 w-3.5" /> {label}</div>

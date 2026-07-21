@@ -9,7 +9,7 @@ import { DjMixer } from "@/components/DjMixer";
 import { Upload, Play, Pause, Trash2, Share2, Check, Gauge, Sparkles, Loader2 } from "lucide-react";
 import { SharedBadge } from "@/components/SharedBadge";
 import { analyze } from "web-audio-beat-detector";
-import { analyzeVibe, scoreHit } from "@/lib/vibe-api";
+import { analyzeVibe, scoreHit, wakeVibeService } from "@/lib/vibe-api";
 
 function encodeShare(o: { title: string; artist: string; url: string }) {
   return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(o)))));
@@ -27,6 +27,7 @@ function AudioPage() {
   const [err, setErr] = useState("");
   const [shared, setShared] = useState<string | null>(null);
   const [vibeBusy, setVibeBusy] = useState<string | null>(null);
+  const [vibeWaking, setVibeWaking] = useState<string | null>(null);
 
   async function runVibe(t: Track) {
     setErr("");
@@ -35,6 +36,16 @@ function AudioPage() {
       const url = t.path ? await signedUrl("audio", t.path) : t.url;
       if (!url) throw new Error("No audio source available for this track.");
       const blob = await (await fetch(url)).blob();
+
+      // Render's free tier sleeps after ~15min idle; waking it re-imports
+      // librosa/numpy/sklearn and can take past a minute on its own. Surface
+      // that as a friendly "waking up" state instead of letting the real
+      // analyze/score calls race the cold start and time out.
+      setVibeWaking(t.id);
+      const awake = await wakeVibeService();
+      setVibeWaking(null);
+      if (!awake) throw new Error("Vibe Analyzer is taking longer than usual to wake up (free-tier host). Give it a minute and try again.");
+
       const [feats, hit] = await Promise.all([analyzeVibe(blob, t.title), scoreHit(blob, t.title)]);
       update("tracks", (all) => all.map((x) => x.id === t.id
         ? { ...x, bpm: Math.round(feats.bpm), key: feats.key, energy: feats.energy, mood: feats.mood, hitScore: hit.hit_probability }
@@ -43,6 +54,7 @@ function AudioPage() {
       setErr(e?.message || String(e));
     } finally {
       setVibeBusy(null);
+      setVibeWaking(null);
     }
   }
 
@@ -137,8 +149,8 @@ function AudioPage() {
                       <Gauge className="h-3 w-3" /> {t.bpm} BPM
                     </span>
                   )}
-                  <button onClick={() => runVibe(t)} disabled={vibeBusy === t.id} title="Analyze Key / Mood / Hit Score" className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[11px] text-muted-foreground hover:text-white disabled:opacity-50">
-                    {vibeBusy === t.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />} {vibeBusy === t.id ? "Analyzing…" : "Analyze Vibe"}
+                  <button onClick={() => runVibe(t)} disabled={vibeBusy === t.id} title={vibeWaking === t.id ? "Waking up the analyzer (free-tier host) — can take up to a minute on first use" : "Analyze Key / Mood / Hit Score"} className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[11px] text-muted-foreground hover:text-white disabled:opacity-50">
+                    {vibeBusy === t.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />} {vibeWaking === t.id ? "Waking up…" : vibeBusy === t.id ? "Analyzing…" : "Analyze Vibe"}
                   </button>
                   <button onClick={() => share(t)} title="Copy view-only share link" className="text-muted-foreground hover:text-white">
                     {shared === t.id ? <Check className="h-4 w-4 text-[oklch(0.85_0.18_150)]" /> : <Share2 className="h-4 w-4" />}

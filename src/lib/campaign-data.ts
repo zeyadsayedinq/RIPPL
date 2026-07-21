@@ -54,6 +54,17 @@ export interface BudgetLine { category: string; planned: number; spent: number; 
 export const budgetLines: BudgetLine[] = [];
 
 /* ── Campaigns ──────────────────────────────────────────────── */
+/** Real per-platform URLs for this campaign — paste the actual posted
+ *  content here so its dashboard can pull real live stats instead of
+ *  placeholder numbers. Optional; each platform dashboard shows a
+ *  "not connected" state until its link (and any required API key) is set. */
+export interface CampaignLinks {
+  youtube?: string;    // a specific video URL — Data API v3 gives real views/likes/comments
+  tiktokSound?: string; // the sound/music URL on TikTok — needs Soundcharts (see platform-live.ts)
+  facebookPage?: string; // Page URL/ID — needs a Meta Page Access Token (see platform-live.ts)
+  instagram?: string;    // IG Business account username — needs the same Meta token
+}
+
 export interface Campaign {
   id: string;
   artist: string;
@@ -69,5 +80,6 @@ export interface Campaign {
   reach: string;
   templateId?: string;
   seeded?: boolean;
+  links?: CampaignLinks;
 }
 export const seedCampaigns: Campaign[] = [];

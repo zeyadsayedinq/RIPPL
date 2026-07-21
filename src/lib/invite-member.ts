@@ -34,9 +34,24 @@ export const inviteMember = createServerFn({ method: "POST" })
     // Without an explicit redirectTo, Supabase sends people to whatever
     // "Site URL" is configured in the dashboard — which defaults to
     // http://localhost:3000 and will send every invite to a dead link.
-    // Prefer an explicit VITE_APP_URL (set this to your real domain once
-    // you have one), fall back to Vercel's auto-injected deployment URL.
-    const appUrl = process.env.VITE_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+    // Preference order:
+    //   1. VITE_APP_URL — explicit, set this if you're on a custom domain.
+    //   2. VERCEL_PROJECT_PRODUCTION_URL — Vercel's stable production alias
+    //      (unlike VERCEL_URL, this doesn't change per-deployment).
+    //   3. VERCEL_URL — the current deployment's own URL, always present on Vercel.
+    //   4. Hardcoded fallback to the known production domain, so an invite
+    //      is never sent with an undefined/localhost redirect even if no
+    //      env vars are configured on this deployment.
+    // NOTE: setting this correctly is necessary but not sufficient — the
+    // exact URL must ALSO be added under Supabase Dashboard → Authentication
+    // → URL Configuration → Redirect URLs, or Supabase silently ignores
+    // redirectTo and falls back to "Site URL" (often still localhost:3000).
+    const KNOWN_PRODUCTION_URL = "https://rippl-mu.vercel.app";
+    const appUrl =
+      process.env.VITE_APP_URL ||
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined) ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
+      KNOWN_PRODUCTION_URL;
 
     const { error } = await admin.auth.admin.inviteUserByEmail(data.email, {
       data: data.name ? { name: data.name } : undefined,
@@ -50,11 +65,18 @@ export const inviteMember = createServerFn({ method: "POST" })
       }
       return { ok: false, error: error.message };
     }
-    return appUrl
-      ? { ok: true }
-      : {
-          ok: true,
-          warning:
-            "Sent, but VITE_APP_URL isn't set — the link inside will use whatever 'Site URL' is configured in Supabase (often still the localhost default). Set VITE_APP_URL to your real domain, and add it under Supabase → Authentication → URL Configuration → Redirect URLs, or the link will 404.",
-        };
+
+    // appUrl always resolves now (see fallback chain above), but Supabase
+    // still silently ignores redirectTo — and falls back to its dashboard
+    // "Site URL" (often localhost) — unless this exact URL is also
+    // allow-listed under Authentication → URL Configuration → Redirect URLs.
+    // We can't check that allow-list from here, so surface a one-time nudge
+    // rather than a hard error.
+    if (!process.env.VITE_APP_URL) {
+      return {
+        ok: true,
+        warning: `Sent using ${appUrl} as a guessed redirect (VITE_APP_URL isn't set — set it explicitly in Vercel for reliability). Either way, make sure ${appUrl}/home is added under Supabase → Authentication → URL Configuration → Redirect URLs, or Supabase will ignore it and send people to the dashboard's "Site URL" instead (often localhost).`,
+      };
+    }
+    return { ok: true };
   });

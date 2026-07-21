@@ -23,6 +23,7 @@ export const VIBE_OFFLINE_HINT =
   "Vibe Analyzer service isn't reachable. Run it with: cd services/vibe-analyzer && uvicorn main:app --reload (see services/vibe-analyzer/README.md).";
 
 const TIMEOUT_MS = 60_000; // free-tier hosts cold-start slowly; don't spin forever past that
+const WAKE_TIMEOUT_MS = 100_000; // /health on a cold Render instance waits on the same heavy imports (librosa/numpy/sklearn) as a real request, so give it more room than a normal call
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024; // ~30MB — big master WAVs will crawl on a free-tier upload
 
 async function postAudio<T>(path: string, blob: Blob, filename: string): Promise<T> {
@@ -62,11 +63,25 @@ export function scoreHit(blob: Blob, filename: string): Promise<HitScoreResult> 
   return postAudio<HitScoreResult>("/score", blob, filename);
 }
 
-export async function vibeServiceOnline(): Promise<boolean> {
+export async function vibeServiceOnline(timeoutMs = 4_000): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const r = await fetch(`${BASE}/health`);
+    const r = await fetch(`${BASE}/health`, { signal: controller.signal });
     return r.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
+}
+
+/** Cold Render instances spend most of the delay importing librosa/numpy/sklearn
+ *  before they can answer even /health — that only happens once per sleep cycle.
+ *  Ping /health with a long timeout so the real analyze/score calls (which reuse
+ *  that now-warm process) land inside their normal 60s window instead of racing
+ *  the cold start themselves. Returns false if the service never woke up in time. */
+export async function wakeVibeService(): Promise<boolean> {
+  if (await vibeServiceOnline(4_000)) return true;
+  return vibeServiceOnline(WAKE_TIMEOUT_MS);
 }

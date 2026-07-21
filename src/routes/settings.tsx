@@ -4,8 +4,9 @@ import { SpotlightCard } from "@/components/SpotlightCard";
 import { useRole, type Role } from "@/lib/role-context";
 import { useState } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { useAuthEmail } from "@/lib/use-auth";
 import { clearEverything, diagnose, type Diag } from "@/lib/cloud";
-import { Lock, Trash2, ShieldCheck, Database, LogOut, Check, Minus, X } from "lucide-react";
+import { Lock, Trash2, ShieldCheck, Database, LogOut, Check, Minus, X, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings · RIPPL OS" }] }),
@@ -35,6 +36,42 @@ function DiagRow({ label, ok, note }: { label: string; ok: boolean; note: string
         {note}{ok ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
       </span>
     </div>
+  );
+}
+
+function PasswordCard() {
+  const email = useAuthEmail();
+  const [pw, setPw] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!supabase) return;
+    if (pw.length < 6) { setMsg({ text: "Password must be at least 6 characters.", ok: false }); return; }
+    if (pw !== confirm) { setMsg({ text: "Passwords don't match.", ok: false }); return; }
+    setBusy(true); setMsg(null);
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    setBusy(false);
+    if (error) setMsg({ text: error.message, ok: false });
+    else { setMsg({ text: "Password set. You can sign in with it next time.", ok: true }); setPw(""); setConfirm(""); }
+  }
+
+  if (!email) return null;
+  return (
+    <SpotlightCard className="col-span-12 md:col-span-6 p-6" spotlight={false}>
+      <div className="flex items-center gap-2 text-sm font-semibold"><KeyRound className="h-4 w-4 text-white/50" /> Password</div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {"Signed in as "}<span className="text-white/70">{email}</span>{". Invited members land here via an email link with no password set yet — set one below so you can sign in directly next time (works alongside Google sign-in too)."}
+      </p>
+      <form onSubmit={submit} className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start">
+        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="new password" className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm outline-none focus:border-white/40 sm:max-w-[180px]" />
+        <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="confirm" className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm outline-none focus:border-white/40 sm:max-w-[180px]" />
+        <button type="submit" disabled={busy || !pw} className="glass shrink-0 rounded-full px-4 py-2 text-sm hover:bg-white/5 disabled:opacity-50">{busy ? "Saving…" : "Set password"}</button>
+      </form>
+      {msg && <p className={`mt-2 text-xs ${msg.ok ? "text-[oklch(0.82_0.18_150)]" : "text-[oklch(0.8_0.2_20)]"}`}>{msg.text}</p>}
+    </SpotlightCard>
   );
 }
 
@@ -114,6 +151,8 @@ function SettingsPage() {
             </div>
           )}
         </SpotlightCard>
+
+        {isSupabaseConfigured && <PasswordCard />}
 
         <SpotlightCard className="col-span-12 md:col-span-6 p-6" spotlight={false}>
           <div className="text-sm font-semibold">Security & data</div>

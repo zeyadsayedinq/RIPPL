@@ -8,7 +8,9 @@ import { createServerFn } from "@tanstack/react-start";
 export const getMarketConfig = createServerFn({ method: "GET" }).handler(async () => {
   return {
     chartmetric: Boolean(process.env.CHARTMETRIC_API_KEY),
-    soundcharts: Boolean(process.env.SOUNDCHARTS_API_KEY),
+    // Soundcharts uses OAuth2 client-credentials (see platform-live.ts) —
+    // both a client ID and secret are required, not a single API key.
+    soundcharts: Boolean(process.env.SOUNDCHARTS_CLIENT_ID && process.env.SOUNDCHARTS_CLIENT_SECRET),
     spotify: Boolean(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET),
     apple: Boolean(process.env.APPLE_MUSIC_TOKEN),
   };
