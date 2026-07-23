@@ -86,8 +86,28 @@ function CreatorsPage() {
   const [assignedOnly, setAssignedOnly] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const { active, assignedIds, isAssigned } = useCampaigns();
-  const { creators, update } = useOS();
+  const {
+    active,
+    assignedIds,
+    isAssigned,
+    sharedCreators,
+    isSharedCreator,
+    canEditSharedCreator,
+    pushCreatorEdit,
+  } = useCampaigns();
+  const { creators: ownCreators, update } = useOS();
+
+  // Merge in creators shared via HQ-assigned campaigns. HQ's copy wins for
+  // any id both accounts happen to have (the seeded roster starts with the
+  // same ids everywhere) — otherwise a member would see their own stale
+  // local copy instead of the deliverable/status HQ actually set.
+  const creators = useMemo(() => {
+    const sharedIds = new Set(sharedCreators.map((c) => c.id));
+    return [
+      ...ownCreators.filter((c) => !sharedIds.has(c.id)),
+      ...sharedCreators,
+    ];
+  }, [ownCreators, sharedCreators]);
 
   // Without an active campaign "assigned only" has nothing to scope to, so
   // fall back to the full directory rather than showing an empty list.
@@ -117,7 +137,17 @@ function CreatorsPage() {
     ? (creators.find((c) => c.id === selectedId) ?? null)
     : null;
 
+  // Creators shared in via an HQ-assigned campaign live in HQ's account, not
+  // this one — edits have to go back through pushCreatorEdit (server-side
+  // campaign-edit-access check), not the local update("creators", ...).
   function patchCreator(id: string, patch: Partial<Creator>) {
+    if (isSharedCreator(id)) {
+      if (!canEditSharedCreator(id)) return; // view-only, mirrors updateActiveLinks
+      const current = creators.find((c) => c.id === id);
+      if (!current) return;
+      pushCreatorEdit({ ...current, ...patch });
+      return;
+    }
     update("creators", (cur) =>
       cur.map((c) => (c.id === id ? { ...c, ...patch } : c)),
     );
@@ -131,6 +161,7 @@ function CreatorsPage() {
   }
 
   function removeCreator(id: string) {
+    if (isSharedCreator(id)) return; // HQ-owned record — remove from HQ's own account instead
     update("creators", (cur) => cur.filter((c) => c.id !== id));
     setSelectedId(null);
   }
@@ -262,9 +293,17 @@ function CreatorsPage() {
         {selected && (
           <CreatorModal
             creator={selected}
+            shared={isSharedCreator(selected.id)}
+            readOnly={
+              isSharedCreator(selected.id) && !canEditSharedCreator(selected.id)
+            }
             onClose={() => setSelectedId(null)}
             onUpdate={(patch) => patchCreator(selected.id, patch)}
-            onRemove={() => removeCreator(selected.id)}
+            onRemove={
+              isSharedCreator(selected.id)
+                ? undefined
+                : () => removeCreator(selected.id)
+            }
           />
         )}
       </AnimatePresence>
@@ -460,14 +499,20 @@ function formatK(n: number) {
 
 function CreatorModal({
   creator,
+  shared,
+  readOnly,
   onClose,
   onUpdate,
   onRemove,
 }: {
   creator: Creator;
+  /** assigned in via an HQ campaign, not owned by this account */
+  shared?: boolean;
+  /** shared, and this account has no edit access to the campaign it's on */
+  readOnly?: boolean;
   onClose: () => void;
   onUpdate: (patch: Partial<Creator>) => void;
-  onRemove: () => void;
+  onRemove?: () => void;
 }) {
   const { active, isAssigned, toggleAssignment } = useCampaigns();
   const assigned = isAssigned(creator.id);
@@ -616,9 +661,21 @@ function CreatorModal({
               <div className="text-sm text-muted-foreground">
                 {creator.handle} · {creator.city}
               </div>
-              <div className="mt-1 flex items-center gap-2">
+              <div className="mt-1 flex flex-wrap items-center gap-2">
                 <TierBadge tier={creator.tier} />
                 <StatusPill status={creator.status} />
+                {shared && (
+                  <span
+                    title={
+                      readOnly
+                        ? "Assigned by HQ — you have view-only access"
+                        : "Assigned by HQ — you can edit this"
+                    }
+                    className="rounded-full border border-white/15 px-2 py-0.5 text-[9px] uppercase tracking-widest text-muted-foreground"
+                  >
+                    {readOnly ? "View only" : "Shared · editable"}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -698,14 +755,15 @@ function CreatorModal({
                 value={linkDraft}
                 onChange={(e) => setLinkDraft(e.target.value)}
                 placeholder="Paste the TikTok/Instagram video link"
-                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs outline-none focus:border-white/40"
+                disabled={readOnly}
+                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs outline-none focus:border-white/40 disabled:opacity-50"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") saveLink();
                 }}
               />
               <button
                 onClick={saveLink}
-                disabled={!linkDirty}
+                disabled={!linkDirty || readOnly}
                 className="shrink-0 rounded-lg bg-white px-3 py-2 text-xs font-medium text-black disabled:opacity-30"
               >
                 Save
@@ -736,7 +794,7 @@ function CreatorModal({
               />
               <button
                 onClick={() => fileRef.current?.click()}
-                disabled={uploading}
+                disabled={uploading || readOnly}
                 className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] hover:bg-white/5 disabled:opacity-50"
               >
                 {uploading ? (
@@ -800,12 +858,14 @@ function CreatorModal({
             <MagneticButton
               variant="primary"
               onClick={() => onUpdate({ status: "Confirmed" })}
+              className={readOnly ? "pointer-events-none opacity-40" : ""}
             >
               Approve
             </MagneticButton>
             <MagneticButton
               variant="danger"
               onClick={() => onUpdate({ status: "Rejected" })}
+              className={readOnly ? "pointer-events-none opacity-40" : ""}
             >
               Reject
             </MagneticButton>
@@ -844,14 +904,15 @@ function CreatorModal({
                   value={msgDraft}
                   onChange={(e) => setMsgDraft(e.target.value)}
                   placeholder={`Message ${creator.name}…`}
-                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs outline-none focus:border-white/40"
+                  disabled={readOnly}
+                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs outline-none focus:border-white/40 disabled:opacity-50"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") sendMessage();
                   }}
                 />
                 <button
                   onClick={sendMessage}
-                  disabled={!msgDraft.trim()}
+                  disabled={!msgDraft.trim() || readOnly}
                   className="shrink-0 rounded-lg bg-white px-3 py-2 text-xs font-medium text-black disabled:opacity-30"
                 >
                   <Send className="h-3.5 w-3.5" />
@@ -863,12 +924,19 @@ function CreatorModal({
             </div>
           )}
 
-          <button
-            onClick={onRemove}
-            className="flex items-center justify-center gap-1.5 rounded-full border border-destructive/30 px-4 py-2 text-xs text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Remove creator
-          </button>
+          {onRemove ? (
+            <button
+              onClick={onRemove}
+              className="flex items-center justify-center gap-1.5 rounded-full border border-destructive/30 px-4 py-2 text-xs text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Remove creator
+            </button>
+          ) : (
+            <div className="text-center text-[11px] text-muted-foreground">
+              This creator record belongs to HQ's account — remove it from
+              there.
+            </div>
+          )}
         </motion.div>
       </motion.div>
     </Portal>

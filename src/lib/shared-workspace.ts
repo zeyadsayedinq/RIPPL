@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { HQ_EMAIL } from "./use-auth";
 import type { Release, Track, Contract, Member } from "./os-store";
+import type { Creator } from "./mock-data";
 import type { Campaign } from "./campaign-data";
 import type { CampaignTemplate } from "./campaign-templates";
 import type {
@@ -50,6 +51,11 @@ export interface SharedPayload {
   events: Record<string, CalendarPost[]>;
   /** creator ids assigned to each campaign (Creators directory) */
   assignments: Record<string, string[]>;
+  /** Full creator records for anyone assigned to one of the member's shared
+      campaigns — the deliverable link/file, approval status, and message
+      log, not just the id. Editable back to HQ only via campaign edit
+      access (see pushSharedEdit kind "creator"), same rule as campaignData. */
+  creators: Creator[];
   /** HQ custom templates referenced by assigned campaigns (read-only) */
   templates: CampaignTemplate[];
   /** ids (item or campaign) this member may edit; everything else is view-only */
@@ -66,6 +72,7 @@ interface HqCtx {
     tracks?: Track[];
     contracts?: Contract[];
     members?: Member[];
+    creators?: Creator[];
   } & Record<string, unknown>;
   member: Member | null;
   callerEmail: string;
@@ -206,6 +213,7 @@ export const fetchShared = createServerFn({ method: "POST" })
             budget: {},
             events: {},
             assignments: {},
+            creators: [],
             templates: [],
             editable: [],
             hqIds,
@@ -225,6 +233,13 @@ export const fetchShared = createServerFn({ method: "POST" })
           readKey<CampaignTemplate[]>(admin, hqUid, K_TEMPLATES, []),
         ]);
       const templateIds = campaigns.map((c) => c.templateId).filter(Boolean);
+      const scopedAssignments = pickMap(assignments, campaignIds);
+      // Only the creators actually assigned to one of THIS member's
+      // campaigns — not HQ's whole roster.
+      const assignedCreatorIds = new Set(
+        Object.values(scopedAssignments).flat(),
+      );
+      const hqCreators = Array.isArray(os.creators) ? os.creators : [];
       return {
         ok: true,
         payload: {
@@ -237,7 +252,8 @@ export const fetchShared = createServerFn({ method: "POST" })
           assets: pickMap(assets, campaignIds),
           budget: pickMap(budget, campaignIds),
           events: pickMap(events, campaignIds),
-          assignments: pickMap(assignments, campaignIds),
+          assignments: scopedAssignments,
+          creators: hqCreators.filter((c) => assignedCreatorIds.has(c.id)),
           templates: (allTemplates ?? []).filter((t) =>
             templateIds.includes(t.id),
           ),
@@ -265,6 +281,13 @@ type EditInput =
       budget?: BudgetLineItem[];
       events?: CalendarPost[];
       assignments?: string[];
+    }
+  | {
+      accessToken: string;
+      kind: "creator";
+      /** which shared campaign grants edit access to this creator (must have this creator assigned) */
+      campaignId: string;
+      creator: Creator;
     };
 
 export const pushSharedEdit = createServerFn({ method: "POST" })
@@ -307,6 +330,35 @@ export const pushSharedEdit = createServerFn({ method: "POST" })
         patch(K_ASSIGN, data.assignments),
       );
       await Promise.all(jobs);
+      return { ok: true };
+    }
+
+    if (data.kind === "creator") {
+      if (!editable.includes(data.campaignId))
+        return {
+          ok: false,
+          error: "View-only: HQ hasn't given you edit access to this campaign.",
+        };
+      if (!(member.campaigns ?? []).includes(data.campaignId))
+        return { ok: false, error: "This campaign isn't assigned to you." };
+      const assignments = await readKey<Record<string, string[]>>(
+        admin,
+        hqUid,
+        K_ASSIGN,
+        {},
+      );
+      if (!(assignments[data.campaignId] ?? []).includes(data.creator.id))
+        return {
+          ok: false,
+          error: "That creator isn't assigned to this campaign.",
+        };
+      const curCreators = Array.isArray(os.creators) ? os.creators : [];
+      const nextCreators = curCreators.some((c) => c.id === data.creator.id)
+        ? curCreators.map((c) =>
+            c.id === data.creator.id ? { ...c, ...data.creator, id: c.id } : c,
+          )
+        : [...curCreators, data.creator];
+      await upsert(OS_KEY, { ...os, creators: nextCreators });
       return { ok: true };
     }
 

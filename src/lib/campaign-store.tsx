@@ -17,6 +17,7 @@ import { loadState, saveState } from "./cloud";
 import { useOS } from "./os-store";
 import { supabase } from "./supabase";
 import { pushSharedEdit } from "./shared-workspace";
+import type { Creator } from "./mock-data";
 
 /* Frontend-only persistent store (localStorage). Everything is scoped
    per-campaign: task checklist state, influencer assignments and uploaded
@@ -105,6 +106,16 @@ interface StoreCtx {
   isAssigned: (creatorId: string) => boolean;
   toggleAssignment: (creatorId: string) => void;
 
+  /** Full creator records HQ shared via campaigns assigned to this account
+      (empty for HQ's own account — HQ just reads its own `creators`). */
+  sharedCreators: Creator[];
+  isSharedCreator: (creatorId: string) => boolean;
+  /** true if this account can edit that creator's record (assigned to a
+      shared campaign this account has edit access to). */
+  canEditSharedCreator: (creatorId: string) => boolean;
+  /** Push a creator edit back to HQ; no-ops if not editable. */
+  pushCreatorEdit: (creator: Creator) => void;
+
   activeAssets: UploadedAsset[];
   addAsset: (
     a: Omit<UploadedAsset, "id" | "addedAt" | "status"> & {
@@ -191,6 +202,52 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
         assignments: asObject(shared.assignments),
       });
   }, [shared]);
+
+  /* Full creator records (deliverable link/file, status, messages) for
+     creators assigned to one of this account's shared campaigns. Optimistic
+     local overrides give instant UI feedback on edit before the debounced
+     push to HQ lands; the base list refreshes from `shared` on refetch. */
+  const [sharedCreatorOverrides, setSharedCreatorOverrides] = useState<
+    Record<string, Creator>
+  >({});
+  const sharedCreators = useMemo(() => {
+    const base = shared?.creators ?? [];
+    return base.map((c) => sharedCreatorOverrides[c.id] ?? c);
+  }, [shared, sharedCreatorOverrides]);
+  const sharedCreatorIds = useMemo(
+    () => new Set((shared?.creators ?? []).map((c) => c.id)),
+    [shared],
+  );
+  const isSharedCreator = (creatorId: string) =>
+    sharedCreatorIds.has(creatorId);
+  /** First shared campaign this account can edit that has `creatorId`
+      assigned — the campaign id the server needs to authorize the push. */
+  function editableSharedCampaignFor(creatorId: string): string | undefined {
+    return Object.keys(sharedData.assignments).find(
+      (cid) =>
+        (sharedData.assignments[cid] ?? []).includes(creatorId) &&
+        canEditShared(cid),
+    );
+  }
+  const canEditSharedCreator = (creatorId: string) =>
+    !!editableSharedCampaignFor(creatorId);
+  const creatorPushTimer = useRef<
+    Record<string, ReturnType<typeof setTimeout>>
+  >({});
+  function pushCreatorEdit(creator: Creator) {
+    const campaignId = editableSharedCampaignFor(creator.id);
+    if (!campaignId || !supabase) return;
+    setSharedCreatorOverrides((p) => ({ ...p, [creator.id]: creator }));
+    clearTimeout(creatorPushTimer.current[creator.id]);
+    creatorPushTimer.current[creator.id] = setTimeout(async () => {
+      const { data: s } = await supabase!.auth.getSession();
+      const token = s.session?.access_token;
+      if (token)
+        void pushSharedEdit({
+          data: { accessToken: token, kind: "creator", campaignId, creator },
+        });
+    }, 600);
+  }
 
   // Heal the historical leak: HQ campaigns (and their per-campaign data)
   // that were copied into this account via the shared localStorage cache.
@@ -594,6 +651,10 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
         assignedIds,
         isAssigned,
         toggleAssignment,
+        sharedCreators,
+        isSharedCreator,
+        canEditSharedCreator,
+        pushCreatorEdit,
         activeAssets,
         addAsset,
         setAssetStatus,
