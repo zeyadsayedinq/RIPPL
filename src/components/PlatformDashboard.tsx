@@ -7,7 +7,7 @@ import { SharedBadge } from "@/components/SharedBadge";
 import { useCampaigns, type UploadedAsset } from "@/lib/campaign-store";
 import { useRole } from "@/lib/role-context";
 import { campaignBriefPdf } from "@/lib/pdf";
-import { creators as allCreators } from "@/lib/mock-data";
+import { useOS } from "@/lib/os-store";
 import {
   Flame,
   Clapperboard,
@@ -97,6 +97,7 @@ export function PlatformDashboard({
     assignedIds,
   } = useCampaigns();
   const { role, canSeePrice } = useRole();
+  const { creators: allCreators } = useOS();
   const [linkInput, setLinkInput] = useState(linkEditor?.value ?? "");
   useEffect(
     () => setLinkInput(linkEditor?.value ?? ""),
