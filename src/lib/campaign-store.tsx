@@ -86,6 +86,14 @@ interface StoreCtx {
   updateActiveLinks: (
     patch: Partial<import("./campaign-data").CampaignLinks>,
   ) => void;
+  /** Edit/delete an owned campaign (no-op for HQ-assigned shared campaigns). */
+  updateCampaign: (
+    id: string,
+    patch: Partial<Omit<Campaign, "id" | "seeded">>,
+  ) => void;
+  deleteCampaign: (id: string) => void;
+  /** true when a campaign id was assigned by HQ (view-only here — edit/delete from HQ's own account). */
+  isCampaignShared: (id: string) => boolean;
 
   activeTemplate: CampaignTemplate | undefined;
   activeChecklist: ChecklistPhase[];
@@ -365,6 +373,40 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  /* Edit/delete a campaign this account owns. HQ-assigned campaigns aren't
+     in `campaigns` at all (they live in `sharedCampaigns`, sourced from
+     HQ's own workspace) — editing/deleting those from here would silently
+     no-op against the wrong data, so both bail out for shared ids. */
+  function updateCampaign(
+    id: string,
+    patch: Partial<Omit<Campaign, "id" | "seeded">>,
+  ) {
+    if (sharedCampaignIds.has(id)) return;
+    dirty.current = true;
+    setCampaigns((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    );
+  }
+
+  function deleteCampaign(id: string) {
+    if (sharedCampaignIds.has(id)) return;
+    dirty.current = true;
+    const remainingOwn = campaigns.filter((c) => c.id !== id);
+    setCampaigns(remainingOwn);
+    if (activeId === id)
+      setActiveId(remainingOwn[0]?.id ?? sharedCampaigns[0]?.id ?? "");
+    const drop = <T,>(m: Record<string, T>) => {
+      const next = { ...m };
+      delete next[id];
+      return next;
+    };
+    setTasks((p) => drop(p));
+    setAssignments((p) => drop(p));
+    setAssets((p) => drop(p));
+    setBudgetLines((p) => drop(p));
+    setEvents((p) => drop(p));
+  }
+
   /* Every per-campaign read/write goes through these: shared campaigns
      read from sharedData and (with edit access) write back to HQ;
      view-only mutations are silently ignored. */
@@ -541,6 +583,9 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
         },
         addCampaign,
         updateActiveLinks,
+        updateCampaign,
+        deleteCampaign,
+        isCampaignShared: (id: string) => sharedCampaignIds.has(id),
         activeTemplate,
         activeChecklist,
         isTaskDone,

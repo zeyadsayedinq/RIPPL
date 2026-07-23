@@ -9,7 +9,6 @@ import {
   type Tier,
   type Status,
 } from "@/lib/mock-data";
-import { useRole } from "@/lib/role-context";
 import { useCampaigns } from "@/lib/campaign-store";
 import { useOS, uid } from "@/lib/os-store";
 import { cloudEnabled, uploadToBucket, signedUrl } from "@/lib/cloud";
@@ -23,7 +22,6 @@ import {
   Heart,
   Eye,
   Users,
-  TrendingUp,
   Check,
   Plus,
   Link2,
@@ -82,11 +80,18 @@ function CreatorsPage() {
   const [platform, setPlatform] = useState<Platform | "All">("All");
   const [tier, setTier] = useState<Tier | "All">("All");
   const [status, setStatus] = useState<Status | "All">("All");
-  const [assignedOnly, setAssignedOnly] = useState(false);
+  // Default to campaign-scoped: whenever a campaign is active, the page
+  // opens showing only the creators already assigned to IT, not the whole
+  // roster. Toggle off to browse/add from the full directory.
+  const [assignedOnly, setAssignedOnly] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const { active, assignedIds, isAssigned } = useCampaigns();
   const { creators, update } = useOS();
+
+  // Without an active campaign "assigned only" has nothing to scope to, so
+  // fall back to the full directory rather than showing an empty list.
+  const scoping = assignedOnly && !!active;
 
   const filtered = useMemo(
     () =>
@@ -101,14 +106,13 @@ function CreatorsPage() {
         if (platform !== "All" && c.platform !== platform) return false;
         if (tier !== "All" && c.tier !== tier) return false;
         if (status !== "All" && c.status !== status) return false;
-        if (assignedOnly && !isAssigned(c.id)) return false;
+        if (scoping && !isAssigned(c.id)) return false;
         return true;
       }),
-    [creators, q, platform, tier, status, assignedOnly, assignedIds],
+    [creators, q, platform, tier, status, scoping, assignedIds],
   );
 
   const assignedList = creators.filter((c) => assignedIds.includes(c.id));
-  const totalFee = assignedList.reduce((s, c) => s + c.price, 0);
   const selected = selectedId
     ? (creators.find((c) => c.id === selectedId) ?? null)
     : null;
@@ -142,8 +146,9 @@ function CreatorsPage() {
             Build your <span className="text-gradient-neon">campaign list</span>
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {filtered.length} shown · pick creators for{" "}
-            {active ? active.artist : "your campaign"} using the checkboxes.
+            {scoping
+              ? `Showing ${filtered.length} creator${filtered.length !== 1 ? "s" : ""} assigned to ${active ? active.artist + " — " + active.title : "this campaign"}.`
+              : `${filtered.length} shown · pick creators for ${active ? active.artist : "your campaign"} using the checkboxes.`}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -181,9 +186,17 @@ function CreatorsPage() {
           />
           <button
             onClick={() => setAssignedOnly((o) => !o)}
-            className={`shrink-0 rounded-full border px-4 py-2 text-xs transition-colors ${assignedOnly ? "border-white bg-white text-black" : "border-white/15 text-muted-foreground hover:text-white"}`}
+            disabled={!active}
+            title={
+              !active
+                ? "Create/select a campaign to scope this list"
+                : undefined
+            }
+            className={`shrink-0 rounded-full border px-4 py-2 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${scoping ? "border-white bg-white text-black" : "border-white/15 text-muted-foreground hover:text-white"}`}
           >
-            {assignedOnly ? "Showing campaign list" : "Show campaign list only"}
+            {scoping
+              ? "Showing assigned only · Browse full directory"
+              : "Browsing full directory"}
           </button>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -205,9 +218,19 @@ function CreatorsPage() {
       {filtered.length === 0 ? (
         <SpotlightCard className="mt-6 p-10 text-center" spotlight={false}>
           <div className="text-sm text-muted-foreground">
-            No creators match these filters.
+            {scoping
+              ? "No creators assigned to this campaign yet."
+              : "No creators match these filters."}
           </div>
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            {scoping && (
+              <MagneticButton
+                variant="ghost"
+                onClick={() => setAssignedOnly(false)}
+              >
+                Browse full directory
+              </MagneticButton>
+            )}
             <MagneticButton variant="ghost" onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4" /> Add a creator
             </MagneticButton>
@@ -217,18 +240,10 @@ function CreatorsPage() {
         <CreatorsList filtered={filtered} onSelect={setSelectedId} />
       )}
 
-      {assignedList.length > 0 && (
+      {!scoping && assignedList.length > 0 && (
         <SpotlightCard className="mt-4 p-5" spotlight={false}>
-          <div className="flex items-center justify-between">
-            <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
-              Campaign List · {active?.artist}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Total fees:{" "}
-              <span className="font-mono text-foreground">
-                EGP {totalFee.toLocaleString()}
-              </span>
-            </div>
+          <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+            Campaign List · {active?.artist}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {assignedList.map((c) => (
@@ -273,18 +288,16 @@ function CreatorsList({
   filtered: Creator[];
   onSelect: (id: string) => void;
 }) {
-  const { canSeePrice } = useRole();
   const { isAssigned, toggleAssignment, active } = useCampaigns();
   return (
     <div className="mt-6 grid grid-cols-1 gap-3">
-      <div className="hidden lg:grid grid-cols-[auto_2fr_1fr_1fr_1fr_1fr_1fr_auto] items-center gap-4 px-5 py-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+      <div className="hidden lg:grid grid-cols-[auto_2fr_1fr_1fr_1fr_1fr_auto] items-center gap-4 px-5 py-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
         <div>Add</div>
         <div>Creator</div>
         <div>Platform</div>
         <div>Tier</div>
         <div>Followers</div>
         <div>Engagement</div>
-        <div>{canSeePrice ? "Price" : "Tier Rate"}</div>
         <div>Status</div>
       </div>
       {filtered.map((c, i) => {
@@ -295,7 +308,7 @@ function CreatorsList({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.03 }}
-            className={`glass grid grid-cols-[auto_1fr] lg:grid-cols-[auto_2fr_1fr_1fr_1fr_1fr_1fr_auto] items-center gap-4 rounded-2xl p-4 text-left transition-colors ${on ? "border-[oklch(0.82_0.18_150)]/40" : "hover:border-white/25"}`}
+            className={`glass grid grid-cols-[auto_1fr] lg:grid-cols-[auto_2fr_1fr_1fr_1fr_1fr_auto] items-center gap-4 rounded-2xl p-4 text-left transition-colors ${on ? "border-[oklch(0.82_0.18_150)]/40" : "hover:border-white/25"}`}
           >
             <button
               onClick={() => toggleAssignment(c.id)}
@@ -340,9 +353,6 @@ function CreatorsList({
             <div className="font-mono text-sm">{formatK(c.followers)}</div>
             <div className="font-mono text-sm text-[oklch(0.85_0.18_200)]">
               {c.engagement}%
-            </div>
-            <div className="font-mono text-sm">
-              {canSeePrice ? `EGP ${c.price.toLocaleString()}` : "•••••"}
             </div>
             <StatusPill status={c.status} />
           </motion.div>
@@ -459,7 +469,6 @@ function CreatorModal({
   onUpdate: (patch: Partial<Creator>) => void;
   onRemove: () => void;
 }) {
-  const { canSeePrice } = useRole();
   const { active, isAssigned, toggleAssignment } = useCampaigns();
   const assigned = isAssigned(creator.id);
 
@@ -467,6 +476,8 @@ function CreatorModal({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
   const [msgDraft, setMsgDraft] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -476,6 +487,32 @@ function CreatorModal({
     setLinkDraft(creator.deliverableUrl ?? "");
     setUploadError(null);
   }, [creator.id]);
+
+  // Resolve an actual playable preview URL for an uploaded deliverable
+  // (Storage paths aren't directly viewable — they need a signed URL).
+  // Re-runs whenever a new file finishes uploading, since onUpdate() swaps
+  // in a fresh deliverablePath and re-renders this modal with it.
+  useEffect(() => {
+    let cancelled = false;
+    if (!creator.deliverablePath) {
+      setPreviewUrl(null);
+      return;
+    }
+    setPreviewLoading(true);
+    signedUrl("art", creator.deliverablePath)
+      .then((url) => {
+        if (!cancelled) setPreviewUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewUrl(null);
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [creator.deliverablePath]);
 
   const linkDirty = linkDraft.trim() !== (creator.deliverableUrl ?? "");
 
@@ -617,18 +654,42 @@ function CreatorModal({
             </div>
 
             <div className="mt-3 aspect-[9/16] w-40 mx-auto rounded-lg bg-gradient-to-br from-[oklch(0.15_0.05_320)] to-black relative overflow-hidden border border-white/10">
-              <div className="absolute inset-0 grid place-items-center">
-                <div className="text-center">
-                  <Music2 className="h-8 w-8 mx-auto text-[oklch(0.7_0.28_328)]" />
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    {creator.platform} spec ·<br />
-                    15s vertical
+              {previewUrl ? (
+                <video
+                  key={previewUrl}
+                  src={previewUrl}
+                  controls
+                  playsInline
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <>
+                  <div className="absolute inset-0 grid place-items-center">
+                    <div className="text-center">
+                      {uploading || previewLoading ? (
+                        <Loader2 className="h-8 w-8 mx-auto animate-spin text-[oklch(0.7_0.28_328)]" />
+                      ) : (
+                        <Music2 className="h-8 w-8 mx-auto text-[oklch(0.7_0.28_328)]" />
+                      )}
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        {uploading ? (
+                          "Uploading…"
+                        ) : previewLoading ? (
+                          "Loading preview…"
+                        ) : (
+                          <>
+                            {creator.platform} spec ·<br />
+                            15s vertical
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div className="absolute bottom-2 left-2 right-2 text-[10px] text-white/60">
-                {creator.handle}
-              </div>
+                  <div className="absolute bottom-2 left-2 right-2 text-[10px] text-white/60">
+                    {creator.handle}
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="mt-3 flex items-center gap-2">
@@ -691,7 +752,7 @@ function CreatorModal({
                   disabled={previewing}
                   className="text-[11px] text-[oklch(0.85_0.18_200)] hover:underline disabled:opacity-50"
                 >
-                  {previewing ? "Opening…" : "Open uploaded file ↗"}
+                  {previewing ? "Opening…" : "Open full-screen ↗"}
                 </button>
               )}
             </div>
@@ -707,20 +768,6 @@ function CreatorModal({
               </div>
             )}
           </div>
-
-          {canSeePrice && (
-            <div className="glass rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                  Negotiated Rate
-                </div>
-                <div className="mt-1 font-display text-2xl font-bold text-gradient-neon">
-                  EGP {creator.price.toLocaleString()}
-                </div>
-              </div>
-              <TrendingUp className="h-6 w-6 text-[oklch(0.85_0.18_200)]" />
-            </div>
-          )}
 
           <div className="glass rounded-xl p-4">
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -863,7 +910,6 @@ function AddCreatorModal({
   const [followers, setFollowers] = useState("");
   const [avgViews, setAvgViews] = useState("");
   const [engagement, setEngagement] = useState("");
-  const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   function submit() {
@@ -882,7 +928,7 @@ function AddCreatorModal({
       followers: Number(followers) || 0,
       avgViews: Number(avgViews) || 0,
       engagement: Number(engagement) || 0,
-      price: Number(price) || 0,
+      price: 0,
     });
   }
 
@@ -981,13 +1027,6 @@ function AddCreatorModal({
               label="Engagement %"
               value={engagement}
               onChange={setEngagement}
-              placeholder="0"
-              numeric
-            />
-            <Field
-              label="Negotiated rate (EGP)"
-              value={price}
-              onChange={setPrice}
               placeholder="0"
               numeric
             />

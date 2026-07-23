@@ -219,8 +219,8 @@ export function PlatformDashboard({
             {canSeePrice && (
               <div className="text-right">
                 <div className="font-display text-xl font-bold">
-                  ${fmt(spent)}
-                  {budget ? ` / $${fmt(budget)}` : ""}
+                  EGP {fmt(spent)}
+                  {budget ? ` / EGP ${fmt(budget)}` : ""}
                 </div>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   spent (from Budget)
