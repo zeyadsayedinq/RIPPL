@@ -1,8 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { PlatformDashboard, fmt, type PlatformConfig, type PlatformPanelState } from "@/components/PlatformDashboard";
+import { SpotlightCard } from "@/components/SpotlightCard";
+import { SoundVelocityChart } from "@/components/SoundVelocityChart";
 import { useCampaigns } from "@/lib/campaign-store";
-import { getTikTokSoundStats } from "@/lib/platform-live";
+import { getTikTokSoundStats, getSoundVelocity, type SoundVelocityPoint } from "@/lib/platform-live";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { Music4, Radio, Video } from "lucide-react";
 
 /* TikTok sound scanner — real "creations using this sound" count for the
@@ -22,15 +25,30 @@ const cfg: PlatformConfig = {
   subtitle: "Real sound-usage count for the linked TikTok sound.",
 };
 
+async function accessToken(): Promise<string | undefined> {
+  if (!isSupabaseConfigured || !supabase) return undefined;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token;
+}
+
 function TikTokDashboard() {
   const { active, updateActiveLinks } = useCampaigns();
   const [panel, setPanel] = useState<PlatformPanelState>({ loading: false, connected: false });
+  const [velocity, setVelocity] = useState<SoundVelocityPoint[] | undefined>(undefined);
+  const [velocityReason, setVelocityReason] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const url = active?.links?.tiktokSound;
-    if (!url) { setPanel({ loading: false, connected: false, reason: "No TikTok sound linked yet. Paste the sound's TikTok URL below to scan it." }); return; }
+    if (!url) { setPanel({ loading: false, connected: false, reason: "No TikTok sound linked yet. Paste the sound's TikTok URL below to scan it." }); setVelocity(undefined); return; }
     setPanel({ loading: true, connected: false });
-    getTikTokSoundStats({ data: { tiktokSoundUrl: url } }).then((res) => {
+    setVelocity(undefined);
+    setVelocityReason(undefined);
+    (async () => {
+      const token = await accessToken();
+      const res = await getTikTokSoundStats({ data: { tiktokSoundUrl: url, accessToken: token, campaignId: active?.id } }).catch((e) => ({
+        ok: false as const,
+        reason: e?.message || String(e),
+      }));
       if (!res.ok || !res.data) { setPanel({ loading: false, connected: false, reason: res.reason, helpHref: "/settings" }); return; }
       const d = res.data;
       setPanel({
@@ -39,7 +57,16 @@ function TikTokDashboard() {
           { icon: Video, label: "Creations with sound", value: fmt(d.videoCount), hint: d.asOf ? `as of ${d.asOf} · Soundcharts` : "Soundcharts video count" },
         ],
       });
-    }).catch((e) => setPanel({ loading: false, connected: false, reason: e?.message || String(e) }));
+
+      // Fetched right after the panel data — same account access token, no
+      // extra round trip for the user. See getSoundVelocity in platform-live.ts.
+      const vel = await getSoundVelocity({ data: { tiktokSoundUrl: url, accessToken: token } }).catch((e) => ({
+        ok: false as const,
+        reason: e?.message || String(e),
+      }));
+      if (vel.ok && vel.data) setVelocity(vel.data);
+      else setVelocityReason(vel.reason);
+    })();
   }, [active?.id, active?.links?.tiktokSound]);
 
   return (
@@ -50,6 +77,13 @@ function TikTokDashboard() {
         placeholder: "Paste the TikTok sound URL (e.g. tiktok.com/music/...)",
         onSave: (v) => updateActiveLinks({ tiktokSound: v || undefined }),
       }}
+      extra={
+        active?.links?.tiktokSound ? (
+          <SpotlightCard className="mt-4 p-5" spotlight={false}>
+            <SoundVelocityChart velocity={velocity} reason={velocityReason} />
+          </SpotlightCard>
+        ) : undefined
+      }
     />
   );
 }

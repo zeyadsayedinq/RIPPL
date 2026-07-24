@@ -13,6 +13,9 @@ import { useCampaigns } from "@/lib/campaign-store";
 import { useOS, uid } from "@/lib/os-store";
 import { cloudEnabled, uploadToBucket, signedUrl } from "@/lib/cloud";
 import { Portal } from "@/components/Portal";
+import { DeviceFramePreview, supportsDeviceFrame } from "@/components/DeviceFramePreview";
+import { LiveEmbedCard } from "@/components/LiveEmbedCard";
+import { exportCreatorsCsv } from "@/lib/csv-export";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
@@ -30,6 +33,7 @@ import {
   ExternalLink,
   Loader2,
   Trash2,
+  Download,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -192,6 +196,12 @@ function CreatorsPage() {
             </div>
             <div className="text-[11px] text-muted-foreground">creators</div>
           </div>
+          <MagneticButton
+            variant="ghost"
+            onClick={() => exportCreatorsCsv(filtered, assignedIds, active?.title)}
+          >
+            <Download className="h-4 w-4" /> Export CSV
+          </MagneticButton>
           <MagneticButton onClick={() => setAddOpen(true)}>
             <Plus className="h-4 w-4" /> Add creator
           </MagneticButton>
@@ -518,6 +528,7 @@ function CreatorModal({
   const assigned = isAssigned(creator.id);
 
   const [linkDraft, setLinkDraft] = useState(creator.deliverableUrl ?? "");
+  const [livePostDraft, setLivePostDraft] = useState(creator.livePostUrl ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
@@ -527,9 +538,10 @@ function CreatorModal({
   const [msgDraft, setMsgDraft] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Keep the draft field in sync if the selected creator changes.
+  // Keep the draft fields in sync if the selected creator changes.
   useEffect(() => {
     setLinkDraft(creator.deliverableUrl ?? "");
+    setLivePostDraft(creator.livePostUrl ?? "");
     setUploadError(null);
   }, [creator.id]);
 
@@ -560,9 +572,13 @@ function CreatorModal({
   }, [creator.deliverablePath]);
 
   const linkDirty = linkDraft.trim() !== (creator.deliverableUrl ?? "");
+  const livePostDirty = livePostDraft.trim() !== (creator.livePostUrl ?? "");
 
   async function saveLink() {
     onUpdate({ deliverableUrl: linkDraft.trim() || undefined });
+  }
+  async function saveLivePost() {
+    onUpdate({ livePostUrl: livePostDraft.trim() || undefined });
   }
 
   async function onPickFile(files: FileList | null) {
@@ -710,42 +726,54 @@ function CreatorModal({
               )}
             </div>
 
-            <div className="mt-3 aspect-[9/16] w-40 mx-auto rounded-lg bg-gradient-to-br from-[oklch(0.15_0.05_320)] to-black relative overflow-hidden border border-white/10">
-              {previewUrl ? (
-                <video
-                  key={previewUrl}
-                  src={previewUrl}
-                  controls
-                  playsInline
-                  className="h-full w-full object-cover"
+            <div className="mt-3">
+              {supportsDeviceFrame(creator.platform) ? (
+                <DeviceFramePreview
+                  platform={creator.platform}
+                  previewUrl={previewUrl}
+                  name={creator.name}
+                  handle={creator.handle}
+                  loading={uploading || previewLoading}
                 />
               ) : (
-                <>
-                  <div className="absolute inset-0 grid place-items-center">
-                    <div className="text-center">
-                      {uploading || previewLoading ? (
-                        <Loader2 className="h-8 w-8 mx-auto animate-spin text-[oklch(0.7_0.28_328)]" />
-                      ) : (
-                        <Music2 className="h-8 w-8 mx-auto text-[oklch(0.7_0.28_328)]" />
-                      )}
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        {uploading ? (
-                          "Uploading…"
-                        ) : previewLoading ? (
-                          "Loading preview…"
-                        ) : (
-                          <>
-                            {creator.platform} spec ·<br />
-                            15s vertical
-                          </>
-                        )}
+                <div className="aspect-[9/16] w-40 mx-auto rounded-lg bg-gradient-to-br from-[oklch(0.15_0.05_320)] to-black relative overflow-hidden border border-white/10">
+                  {previewUrl ? (
+                    <video
+                      key={previewUrl}
+                      src={previewUrl}
+                      controls
+                      playsInline
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <>
+                      <div className="absolute inset-0 grid place-items-center">
+                        <div className="text-center">
+                          {uploading || previewLoading ? (
+                            <Loader2 className="h-8 w-8 mx-auto animate-spin text-[oklch(0.7_0.28_328)]" />
+                          ) : (
+                            <Music2 className="h-8 w-8 mx-auto text-[oklch(0.7_0.28_328)]" />
+                          )}
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {uploading ? (
+                              "Uploading…"
+                            ) : previewLoading ? (
+                              "Loading preview…"
+                            ) : (
+                              <>
+                                {creator.platform} spec ·<br />
+                                15s vertical
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  <div className="absolute bottom-2 left-2 right-2 text-[10px] text-white/60">
-                    {creator.handle}
-                  </div>
-                </>
+                      <div className="absolute bottom-2 left-2 right-2 text-[10px] text-white/60">
+                        {creator.handle}
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
 
@@ -823,6 +851,42 @@ function CreatorModal({
               <div className="mt-2 text-[11px] text-muted-foreground">
                 File uploads need Supabase configured — the link field above
                 always works.
+              </div>
+            )}
+          </div>
+
+          <div className="glass rounded-xl p-4">
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              Live post — approved vs. actually posted
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              Once this is live and public, paste the real TikTok/Instagram
+              post URL to pull a real embedded preview here — compare it
+              against what was approved above.
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <input
+                value={livePostDraft}
+                onChange={(e) => setLivePostDraft(e.target.value)}
+                placeholder="Paste the LIVE TikTok/Instagram post URL"
+                disabled={readOnly}
+                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs outline-none focus:border-white/40 disabled:opacity-50"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveLivePost();
+                }}
+              />
+              <button
+                onClick={saveLivePost}
+                disabled={!livePostDirty || readOnly}
+                className="shrink-0 rounded-lg bg-white px-3 py-2 text-xs font-medium text-black disabled:opacity-30"
+              >
+                Save
+              </button>
+            </div>
+            {creator.livePostUrl && (
+              <div className="mt-3">
+                <LiveEmbedCard url={creator.livePostUrl} />
               </div>
             )}
           </div>

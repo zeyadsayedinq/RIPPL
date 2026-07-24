@@ -14,12 +14,20 @@ devices, real file storage, server-side auth).
    - Creates all tables (artists, tracks, releases, contracts, deals, notes,
      campaigns, saas_projects, sprint_tasks, prompts), enums, Row-Level
      Security (owner-only), and a signup trigger that creates a profile row.
+3. Run `supabase/migrations/0002_youtube_deep_analytics.sql` — `tracked_videos`
+   / `video_snapshots`, behind the YouTube Video Intel panel + daily cron.
+4. Run `supabase/migrations/0003_soundcharts_digest_shares.sql` —
+   `tracked_sounds` / `sound_snapshots` (same idea, for the TikTok sound
+   scanner's growth chart), `weekly_digests` (the Monday brief-PDF digest —
+   see api/cron/weekly-digest.ts), and `campaign_shares` (read-only
+   client-facing links, `/c/$token`).
 
 ## 3. Create storage buckets
 Dashboard → **Storage** → New bucket (set to **Private**):
 - `audio` — WAV/MP3 masters & demos
 - `art` — cover art / canvas
 - `contracts` — signed PDFs
+- `reports` — auto-generated campaign brief PDFs (Monday digest cron)
 
 ## 4. Add your keys
 1. Dashboard → **Project Settings → API**. Copy the **Project URL** and the

@@ -1,4 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  serviceClient as soundServiceClient,
+  upsertTrackedSound,
+  upsertTodaySoundSnapshot,
+} from "./soundcharts-snapshot-sweep";
 
 /* ═══════════════════════════════════════════════════════════
    Live platform data — TikTok (via Soundcharts) & Meta (FB/IG).
@@ -133,12 +139,30 @@ async function getTikTokVideoCount(uuid: string): Promise<TikTokSoundStats> {
   return { videoCount, asOf: latest?.date };
 }
 
+async function resolveUserId(
+  admin: SupabaseClient,
+  accessToken: string | undefined,
+): Promise<string | null> {
+  if (!accessToken) return null;
+  const { data, error } = await admin.auth.getUser(accessToken);
+  if (error || !data?.user) return null;
+  return data.user.id;
+}
+
 /** `tiktokSoundUrl` is whatever you pasted into the campaign's TikTok sound
  *  link (Campaign.links.tiktokSound). Resolves it to a Soundcharts song and
  *  returns the current TikTok video count for it — the only per-sound
- *  metric Soundcharts actually tracks for TikTok. */
+ *  metric Soundcharts actually tracks for TikTok.
+ *
+ *  Same "best-effort persistence" pattern as analyzeYoutubeVideo (see
+ *  youtube-deep-analytics.ts): when signed in with Supabase configured,
+ *  every successful fetch also upserts a tracked_sounds row and snapshots
+ *  today's video count into sound_snapshots — that's what feeds the growth
+ *  chart on the TikTok dashboard (getSoundVelocity below) and the daily
+ *  cron (api/cron/soundcharts-snapshot.ts). A Supabase hiccup here never
+ *  fails the panel itself, it just means no velocity history yet. */
 export const getTikTokSoundStats = createServerFn({ method: "POST" })
-  .validator((d: { tiktokSoundUrl: string }) => d)
+  .validator((d: { tiktokSoundUrl: string; accessToken?: string; campaignId?: string }) => d)
   .handler(async ({ data }): Promise<LiveResult<TikTokSoundStats>> => {
     if (!process.env.SOUNDCHARTS_CLIENT_ID || !process.env.SOUNDCHARTS_CLIENT_SECRET) {
       return { ok: false, reason: "Soundcharts isn't connected. Add SOUNDCHARTS_CLIENT_ID + SOUNDCHARTS_CLIENT_SECRET (from your Soundcharts dashboard → Credentials) in Vercel env vars, then redeploy." };
@@ -146,6 +170,20 @@ export const getTikTokSoundStats = createServerFn({ method: "POST" })
     try {
       const uuid = await resolveSoundchartsSongUuid(data.tiktokSoundUrl);
       const stats = await getTikTokVideoCount(uuid);
+
+      try {
+        const admin = soundServiceClient();
+        if (admin) {
+          const userId = await resolveUserId(admin, data.accessToken);
+          if (userId) {
+            const tracked = await upsertTrackedSound(admin, userId, data.tiktokSoundUrl, data.campaignId);
+            if (tracked) await upsertTodaySoundSnapshot(admin, tracked.id, stats.videoCount);
+          }
+        }
+      } catch {
+        /* velocity history is a bonus, not a blocker — same as YouTube's analyzer */
+      }
+
       return { ok: true, data: stats };
     } catch (e: any) {
       return { ok: false, reason: e?.message || String(e) };
@@ -155,6 +193,50 @@ export const getTikTokSoundStats = createServerFn({ method: "POST" })
 export const soundchartsConfigured = createServerFn({ method: "GET" }).handler(async () => {
   return Boolean(process.env.SOUNDCHARTS_CLIENT_ID && process.env.SOUNDCHARTS_CLIENT_SECRET);
 });
+
+/* ── TikTok sound velocity curve — same idea as getVideoVelocity for
+   YouTube (youtube-deep-analytics.ts): reads back the snapshot history for
+   one tracked sound. Requires sign-in + Supabase. ───────────────────── */
+export interface SoundVelocityPoint {
+  date: string;
+  videoCount: number;
+  dailyGain: number | null;
+}
+
+export const getSoundVelocity = createServerFn({ method: "POST" })
+  .validator((d: { tiktokSoundUrl: string; accessToken?: string }) => d)
+  .handler(async ({ data }): Promise<LiveResult<SoundVelocityPoint[]>> => {
+    const admin = soundServiceClient();
+    if (!admin)
+      return { ok: false, reason: "Supabase isn't configured on this deployment — no velocity history without it." };
+    const userId = await resolveUserId(admin, data.accessToken);
+    if (!userId) return { ok: false, reason: "Sign in to see this sound's tracked history." };
+
+    const { data: tracked, error: trackedErr } = await admin
+      .from("tracked_sounds")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("tiktok_sound_url", data.tiktokSoundUrl)
+      .maybeSingle();
+    if (trackedErr || !tracked)
+      return { ok: false, reason: "This sound hasn't been scanned yet — the sound panel above tracks it automatically once it loads." };
+
+    const { data: rows, error } = await admin
+      .from("sound_snapshots")
+      .select("video_count,recorded_at")
+      .eq("sound_id", tracked.id)
+      .order("recorded_at", { ascending: true });
+    if (error) return { ok: false, reason: error.message };
+    if (!rows || rows.length === 0)
+      return { ok: false, reason: "No snapshots yet — check back after the next daily refresh." };
+
+    const points: SoundVelocityPoint[] = rows.map((r, i) => ({
+      date: r.recorded_at,
+      videoCount: Number(r.video_count),
+      dailyGain: i === 0 ? null : Number(r.video_count) - Number(rows[i - 1].video_count),
+    }));
+    return { ok: true, data: points };
+  });
 
 /* ── Meta Graph API (Facebook Page / Instagram Business) ─────── */
 

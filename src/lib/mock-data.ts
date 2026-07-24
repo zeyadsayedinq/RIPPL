@@ -35,6 +35,12 @@ export interface Creator {
   /** Supabase Storage path for a directly-uploaded deliverable file (video). */
   deliverablePath?: string;
   deliverableFileName?: string;
+  /** Once the creator's video is actually live/public, the real post URL —
+   *  distinct from deliverableUrl (which may be set before it's live).
+   *  Powers the real oEmbed preview (see lib/oembed.ts) so HQ can compare
+   *  "what we approved" (the uploaded file above) vs "what actually got
+   *  posted". */
+  livePostUrl?: string;
   /** Lightweight in-app message log with this creator (Approve/Reject/Message panel). */
   messages?: CreatorMessage[];
 }

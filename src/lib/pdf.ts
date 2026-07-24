@@ -112,8 +112,16 @@ export function splitSheetPdf(s: SplitSheetInput) {
 }
 
 /* RIPPL workplan §7: "Brief generator — once a campaign has creators +
-   deliverables, generate a brief PDF that can be sent to each creator." */
-export function campaignBriefPdf(c: Campaign, checklist: ChecklistPhase[], creatorNames: string[]) {
+   deliverables, generate a brief PDF that can be sent to each creator."
+
+   Split into build (returns the jsPDF doc, no I/O) + save (browser download)
+   so the exact same brief can be generated server-side too — the Monday
+   digest cron (api/cron/weekly-digest.ts → src/lib/weekly-digest-sweep.ts)
+   calls buildCampaignBriefDoc() directly and uploads doc.output("arraybuffer")
+   to Storage instead of triggering a browser download. jsPDF has no DOM
+   dependency for text-only docs like this one, so it runs fine in a Node
+   serverless function. */
+export function buildCampaignBriefDoc(c: Campaign, checklist: ChecklistPhase[], creatorNames: string[]): jsPDF {
   const doc = new jsPDF();
   header(doc, "Campaign Brief", `${c.artist} — ${c.title}`);
   let y = 62;
@@ -145,5 +153,13 @@ export function campaignBriefPdf(c: Campaign, checklist: ChecklistPhase[], creat
     }
   }
   footer(doc);
+  return doc;
+}
+
+/** Browser-only: build the brief and trigger a download. Everything HQ's UI
+ *  already calls (PlatformDashboard's "Download Brief" button) keeps using
+ *  this unchanged. */
+export function campaignBriefPdf(c: Campaign, checklist: ChecklistPhase[], creatorNames: string[]) {
+  const doc = buildCampaignBriefDoc(c, checklist, creatorNames);
   doc.save(`${(c.title || "Campaign").replace(/\s+/g, "_")}_Brief.pdf`);
 }

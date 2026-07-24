@@ -41,11 +41,24 @@ create table if not exists public.video_snapshots (
   recorded_at timestamptz not null default now()
 );
 
--- One snapshot per video per calendar day — the daily cron and an
+-- `timestamptz::date` depends on the session's TimeZone setting, so Postgres
+-- only considers it STABLE, not IMMUTABLE — and a unique index on an
+-- expression requires IMMUTABLE (42P17: "functions in index expression must
+-- be marked IMMUTABLE"). This tiny wrapper pins the conversion to UTC
+-- explicitly, which makes the result independent of the calling session's
+-- TimeZone and safe to mark IMMUTABLE. Shared by both snapshot tables (see
+-- 0003_soundcharts_digest_shares.sql's sound_snapshots).
+create or replace function public.utc_day(ts timestamptz)
+returns date
+language sql
+immutable
+as $$ select (ts at time zone 'UTC')::date $$;
+
+-- One snapshot per video per calendar day (UTC) — the daily cron and an
 -- on-demand (re)analyze both upsert against this, so re-running either
 -- twice in the same day updates the row instead of duplicating it.
 create unique index if not exists uq_video_snapshot_per_day
-  on public.video_snapshots (video_id, (recorded_at::date));
+  on public.video_snapshots (video_id, public.utc_day(recorded_at));
 
 create index if not exists idx_snapshots_video_date
   on public.video_snapshots (video_id, recorded_at);

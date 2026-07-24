@@ -34,6 +34,7 @@ import { Route as DashboardXRouteImport } from './routes/dashboard_.x'
 import { Route as DashboardTiktokRouteImport } from './routes/dashboard_.tiktok'
 import { Route as DashboardInstagramRouteImport } from './routes/dashboard_.instagram'
 import { Route as DashboardFacebookRouteImport } from './routes/dashboard_.facebook'
+import { Route as CTokenRouteImport } from './routes/c.$token'
 
 const VaultRoute = VaultRouteImport.update({
   id: '/vault',
@@ -160,6 +161,11 @@ const DashboardFacebookRoute = DashboardFacebookRouteImport.update({
   path: '/dashboard/facebook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CTokenRoute = CTokenRouteImport.update({
+  id: '/c/$token',
+  path: '/c/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/techlab': typeof TechlabRoute
   '/templates': typeof TemplatesRoute
   '/vault': typeof VaultRoute
+  '/c/$token': typeof CTokenRoute
   '/dashboard/facebook': typeof DashboardFacebookRoute
   '/dashboard/instagram': typeof DashboardInstagramRoute
   '/dashboard/tiktok': typeof DashboardTiktokRoute
@@ -209,6 +216,7 @@ export interface FileRoutesByTo {
   '/techlab': typeof TechlabRoute
   '/templates': typeof TemplatesRoute
   '/vault': typeof VaultRoute
+  '/c/$token': typeof CTokenRoute
   '/dashboard/facebook': typeof DashboardFacebookRoute
   '/dashboard/instagram': typeof DashboardInstagramRoute
   '/dashboard/tiktok': typeof DashboardTiktokRoute
@@ -237,6 +245,7 @@ export interface FileRoutesById {
   '/techlab': typeof TechlabRoute
   '/templates': typeof TemplatesRoute
   '/vault': typeof VaultRoute
+  '/c/$token': typeof CTokenRoute
   '/dashboard_/facebook': typeof DashboardFacebookRoute
   '/dashboard_/instagram': typeof DashboardInstagramRoute
   '/dashboard_/tiktok': typeof DashboardTiktokRoute
@@ -266,6 +275,7 @@ export interface FileRouteTypes {
     | '/techlab'
     | '/templates'
     | '/vault'
+    | '/c/$token'
     | '/dashboard/facebook'
     | '/dashboard/instagram'
     | '/dashboard/tiktok'
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
     | '/techlab'
     | '/templates'
     | '/vault'
+    | '/c/$token'
     | '/dashboard/facebook'
     | '/dashboard/instagram'
     | '/dashboard/tiktok'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/techlab'
     | '/templates'
     | '/vault'
+    | '/c/$token'
     | '/dashboard_/facebook'
     | '/dashboard_/instagram'
     | '/dashboard_/tiktok'
@@ -348,6 +360,7 @@ export interface RootRouteChildren {
   TechlabRoute: typeof TechlabRoute
   TemplatesRoute: typeof TemplatesRoute
   VaultRoute: typeof VaultRoute
+  CTokenRoute: typeof CTokenRoute
   DashboardFacebookRoute: typeof DashboardFacebookRoute
   DashboardInstagramRoute: typeof DashboardInstagramRoute
   DashboardTiktokRoute: typeof DashboardTiktokRoute
@@ -532,6 +545,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardFacebookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/c/$token': {
+      id: '/c/$token'
+      path: '/c/$token'
+      fullPath: '/c/$token'
+      preLoaderRoute: typeof CTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -556,6 +576,7 @@ const rootRouteChildren: RootRouteChildren = {
   TechlabRoute: TechlabRoute,
   TemplatesRoute: TemplatesRoute,
   VaultRoute: VaultRoute,
+  CTokenRoute: CTokenRoute,
   DashboardFacebookRoute: DashboardFacebookRoute,
   DashboardInstagramRoute: DashboardInstagramRoute,
   DashboardTiktokRoute: DashboardTiktokRoute,

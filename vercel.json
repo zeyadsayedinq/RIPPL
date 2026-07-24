@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/youtube-snapshot",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/soundcharts-snapshot",
+      "schedule": "15 0 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-digest",
+      "schedule": "0 6 * * 1"
     }
   ]
 }

@@ -8,6 +8,8 @@ import { useCampaigns, type UploadedAsset } from "@/lib/campaign-store";
 import { useRole } from "@/lib/role-context";
 import { campaignBriefPdf } from "@/lib/pdf";
 import { useOS } from "@/lib/os-store";
+import { createCampaignShare } from "@/lib/campaign-share";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import {
   Flame,
   Clapperboard,
@@ -15,6 +17,8 @@ import {
   Video,
   Link2,
   PlugZap,
+  Share2,
+  Check,
 } from "lucide-react";
 
 /* Platform-specific dashboards — one shared shell, each route supplies a
@@ -119,6 +123,41 @@ export function PlatformDashboard({
       .map((c) => c.name);
     campaignBriefPdf(active, activeChecklist, names);
   }
+
+  const [shareState, setShareState] = useState<"idle" | "sharing" | "copied" | "error">("idle");
+  const [shareError, setShareError] = useState<string | null>(null);
+  async function shareClientLink() {
+    if (!active || activeIsShared) return; // owner-only — same rule as updateActiveLinks
+    setShareState("sharing");
+    setShareError(null);
+    try {
+      if (!isSupabaseConfigured || !supabase) {
+        setShareError("Connect Supabase (Settings) to create client share links.");
+        setShareState("error");
+        return;
+      }
+      const { data: s } = await supabase.auth.getSession();
+      const token = s.session?.access_token;
+      if (!token) {
+        setShareError("Sign in to create a share link.");
+        setShareState("error");
+        return;
+      }
+      const res = await createCampaignShare({ data: { accessToken: token, campaignId: active.id } });
+      if (!res.ok || !res.url) {
+        setShareError(res.error || "Couldn't create a share link.");
+        setShareState("error");
+        return;
+      }
+      await navigator.clipboard?.writeText(res.url).catch(() => {});
+      setShareState("copied");
+      setTimeout(() => setShareState("idle"), 2500);
+    } catch (e: any) {
+      setShareError(e?.message || String(e));
+      setShareState("error");
+    }
+  }
+
   const actions: {
     label: string;
     icon: IconT;
@@ -132,6 +171,11 @@ export function PlatformDashboard({
             icon: FileDown,
             primary: true,
             onClick: downloadBrief,
+          },
+          {
+            label: shareState === "copied" ? "Link copied!" : shareState === "sharing" ? "Creating…" : "Share client link",
+            icon: shareState === "copied" ? Check : Share2,
+            onClick: shareClientLink,
           },
         ]
       : role === "Team Member"
@@ -181,16 +225,21 @@ export function PlatformDashboard({
             {active ? cfg.subtitle : "Create a campaign to activate tracking."}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {actions.map((a) => (
-            <MagneticButton
-              key={a.label}
-              variant={a.primary ? undefined : "ghost"}
-              onClick={a.onClick}
-            >
-              <a.icon className="h-4 w-4" /> {a.label}
-            </MagneticButton>
-          ))}
+        <div className="flex flex-col items-end gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            {actions.map((a) => (
+              <MagneticButton
+                key={a.label}
+                variant={a.primary ? undefined : "ghost"}
+                onClick={a.onClick}
+              >
+                <a.icon className="h-4 w-4" /> {a.label}
+              </MagneticButton>
+            ))}
+          </div>
+          {shareState === "error" && shareError && (
+            <div className="max-w-xs text-right text-[11px] text-destructive">{shareError}</div>
+          )}
         </div>
       </header>
 
