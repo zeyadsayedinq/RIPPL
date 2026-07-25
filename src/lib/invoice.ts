@@ -174,7 +174,9 @@ export function invoicePdf(inv: InvoiceDoc) {
     doc.setFont("courier", "normal");
     doc.text(wrapped, 16, y);
     doc.text(String(l.quantity ?? 0), 128, y, { align: "right" });
-    doc.text(money(Number(l.unitPrice) || 0, inv.currency), 158, y, { align: "right" });
+    doc.text(money(Number(l.unitPrice) || 0, inv.currency), 158, y, {
+      align: "right",
+    });
     doc.setFont("courier", "bold");
     doc.text(money(round2(amount), inv.currency), 194, y, { align: "right" });
     y += Math.max(wrapped.length * 5, 9);
@@ -195,7 +197,8 @@ export function invoicePdf(inv: InvoiceDoc) {
   };
 
   row("Subtotal", money(t.subtotal, inv.currency));
-  if (inv.taxRate > 0) row(`Tax ${(inv.taxRate * 100).toFixed(0)}%`, money(t.tax, inv.currency));
+  if (inv.taxRate > 0)
+    row(`Tax ${(inv.taxRate * 100).toFixed(0)}%`, money(t.tax, inv.currency));
   row("Total", money(t.total, inv.currency), true);
   if (inv.paid) {
     row("Paid", `− ${money(round2(inv.paid), inv.currency)}`);
@@ -266,7 +269,13 @@ export function quotePdf(q: QuoteDoc) {
   section("What is not included", q.excluded);
 
   label(doc, "Revisions", y);
-  value(doc, `${q.revisionsIncluded} rounds included; further rounds quoted separately`, y + 7, 16, 10);
+  value(
+    doc,
+    `${q.revisionsIncluded} rounds included; further rounds quoted separately`,
+    y + 7,
+    16,
+    10,
+  );
   y += 22;
 
   if (q.rights) {
@@ -295,14 +304,20 @@ export function quotePdf(q: QuoteDoc) {
   doc.setFont("courier", "normal");
   doc.setFontSize(10);
   doc.setTextColor(90);
-  doc.text(`Deposit (${Math.round(q.depositPct * 100)}%) — due before work starts`, 16, y);
+  doc.text(
+    `Deposit (${Math.round(q.depositPct * 100)}%) — due before work starts`,
+    16,
+    y,
+  );
   doc.setTextColor(20);
   doc.text(money(deposit, q.currency), 194, y, { align: "right" });
   y += 9;
   doc.setTextColor(90);
   doc.text("Balance — due on delivery", 16, y);
   doc.setTextColor(20);
-  doc.text(money(round2(q.amount - deposit), q.currency), 194, y, { align: "right" });
+  doc.text(money(round2(q.amount - deposit), q.currency), 194, y, {
+    align: "right",
+  });
   y += 18;
 
   doc.setFont("courier", "normal");

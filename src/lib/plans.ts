@@ -34,7 +34,12 @@ export const PLANS: Plan[] = [
     currency: "USD",
     monthlyCredits: 25,
     seats: 1,
-    features: ["Personal OS", "1 campaign", "Vault & Audio", "25 AI credits / month"],
+    features: [
+      "Personal OS",
+      "1 campaign",
+      "Vault & Audio",
+      "25 AI credits / month",
+    ],
   },
   {
     id: "studio",
@@ -68,7 +73,8 @@ export const PLANS: Plan[] = [
   },
 ];
 
-export const planById = (id: PlanId): Plan => PLANS.find((p) => p.id === id) ?? PLANS[0];
+export const planById = (id: PlanId): Plan =>
+  PLANS.find((p) => p.id === id) ?? PLANS[0];
 
 /** Credit cost per metered action. Keep in step with usage_events.feature. */
 export const CREDIT_COST: Record<string, number> = {

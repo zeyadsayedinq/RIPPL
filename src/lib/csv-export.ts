@@ -43,15 +43,34 @@ export function exportCreatorsCsv(
   campaignLabel?: string,
 ) {
   const headers = [
-    "Name", "Handle", "Platform", "Tier", "City",
-    "Followers", "Avg Views", "Engagement %", "Price (EGP)", "Status",
-    "Assigned to campaign", "Deliverable URL", "Live post URL",
+    "Name",
+    "Handle",
+    "Platform",
+    "Tier",
+    "City",
+    "Followers",
+    "Avg Views",
+    "Engagement %",
+    "Price (EGP)",
+    "Status",
+    "Assigned to campaign",
+    "Deliverable URL",
+    "Live post URL",
   ];
   const rows = creators.map((c) => [
-    c.name, c.handle, c.platform, c.tier, c.city,
-    c.followers, c.avgViews, c.engagement, c.price, c.status,
+    c.name,
+    c.handle,
+    c.platform,
+    c.tier,
+    c.city,
+    c.followers,
+    c.avgViews,
+    c.engagement,
+    c.price,
+    c.status,
     assignedIds.includes(c.id) ? "Yes" : "No",
-    c.deliverableUrl ?? "", c.livePostUrl ?? "",
+    c.deliverableUrl ?? "",
+    c.livePostUrl ?? "",
   ]);
   const csv = [headers, ...rows]
     .map((row) => row.map(csvCell).join(","))

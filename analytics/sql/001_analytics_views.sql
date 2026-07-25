@@ -6,7 +6,12 @@
 --   dphelan61/sql_business_analysis_project      (Chinook + SQLite music sales)
 --   Divleen-0619/DigitalMusic-BusinessMetrics    (CLV, revenue by country, etc.)
 --
--- Run AFTER supabase/migrations/0006_growth_modules.sql.
+-- ⚠  RUN ORDER — this is not optional:
+--      1. supabase/migrations/0001_init.sql … 0006_growth_modules.sql
+--      2. THIS FILE (creates the views)
+--      3. analytics/sql/002_business_metrics.sql (queries the views)
+--    Running 002 first gives you: relation "public.revenue_by_month" does not exist.
+--
 -- Method notes: knowledge/research/CATALOG_ANALYTICS_METHOD.md
 -- ═══════════════════════════════════════════════════════════
 
@@ -153,7 +158,7 @@ select
   count(*) filter (where status in ('Sent','Partial'))                        as open_invoices,
   count(*) filter (where status <> 'Paid' and due_date < current_date)        as overdue_invoices,
   sum(total) filter (where status <> 'Paid')                                  as outstanding,
-  percentile_cont(0.5) within group (order by days_to_pay)
+  percentile_cont(0.5) within group (order by days_to_pay::double precision)
     filter (where days_to_pay is not null)                                    as median_days_to_pay
 from public.invoice_totals
 group by user_id;

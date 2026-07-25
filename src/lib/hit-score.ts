@@ -87,7 +87,7 @@ export const GENRE_WEIGHTS: Record<string, number> = {
   comedy: -0.9,
   "children's music": -0.95,
   opera: -0.9,
-  "world": -0.1,
+  world: -0.1,
   arabic: 0.15,
   mahraganat: 0.3,
   shaabi: 0.2,
@@ -191,7 +191,10 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
   c.push({
     label: "Valence",
     points: valencePts,
-    note: f.valence >= 0.6 ? "Bright / positive" : "Darker mood — small effect either way",
+    note:
+      f.valence >= 0.6
+        ? "Bright / positive"
+        : "Darker mood — small effect either way",
   });
 
   // Tempo — broad plateau, penalty at the extremes.
@@ -249,9 +252,11 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
   c.push({
     label: "Liveness",
     points: livePts,
-    note: f.liveness > 0.8 ? "Detected as a live recording" : "Studio recording",
+    note:
+      f.liveness > 0.8 ? "Detected as a live recording" : "Studio recording",
   });
-  if (f.liveness > 0.8) warnings.push("Live recordings historically under-perform on DSPs.");
+  if (f.liveness > 0.8)
+    warnings.push("Live recordings historically under-perform on DSPs.");
 
   // Genre prior.
   const genrePts = genreWeight(f.genre) * 12;
@@ -271,9 +276,11 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
 
   // Logistic squash so the number reads as a probability, calibrated so ~58
   // (the study's popularity cutoff) lands near 0.5.
-  const probability = Math.round((1 / (1 + Math.exp(-(score - 58) / 11))) * 1000) / 1000;
+  const probability =
+    Math.round((1 / (1 + Math.exp(-(score - 58) / 11))) * 1000) / 1000;
 
-  const band: HitScoreResult["band"] = score >= 68 ? "Strong" : score >= 50 ? "Moderate" : "Low";
+  const band: HitScoreResult["band"] =
+    score >= 68 ? "Strong" : score >= 50 ? "Moderate" : "Low";
 
   warnings.push(
     "Heuristic, not a trained model. Reference models plateaued near 66% recall — treat this as a tie-breaker, never a gate.",
@@ -312,7 +319,11 @@ export function playlistFit(
         key: String(k),
         delta,
         verdict:
-          Math.abs(delta) <= scale ? "in range" : delta > 0 ? "above playlist" : "below playlist",
+          Math.abs(delta) <= scale
+            ? "in range"
+            : delta > 0
+              ? "above playlist"
+              : "below playlist",
       };
     });
 }

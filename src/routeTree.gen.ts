@@ -19,6 +19,7 @@ import { Route as SRouteImport } from './routes/s'
 import { Route as RosterRouteImport } from './routes/roster'
 import { Route as ReleasesRouteImport } from './routes/releases'
 import { Route as LiveRouteImport } from './routes/live'
+import { Route as KnowledgeRouteImport } from './routes/knowledge'
 import { Route as InvoicesRouteImport } from './routes/invoices'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as HitlabRouteImport } from './routes/hitlab'
@@ -89,6 +90,11 @@ const ReleasesRoute = ReleasesRouteImport.update({
 const LiveRoute = LiveRouteImport.update({
   id: '/live',
   path: '/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KnowledgeRoute = KnowledgeRouteImport.update({
+  id: '/knowledge',
+  path: '/knowledge',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InvoicesRoute = InvoicesRouteImport.update({
@@ -213,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/hitlab': typeof HitlabRoute
   '/home': typeof HomeRoute
   '/invoices': typeof InvoicesRoute
+  '/knowledge': typeof KnowledgeRoute
   '/live': typeof LiveRoute
   '/releases': typeof ReleasesRoute
   '/roster': typeof RosterRoute
@@ -246,6 +253,7 @@ export interface FileRoutesByTo {
   '/hitlab': typeof HitlabRoute
   '/home': typeof HomeRoute
   '/invoices': typeof InvoicesRoute
+  '/knowledge': typeof KnowledgeRoute
   '/live': typeof LiveRoute
   '/releases': typeof ReleasesRoute
   '/roster': typeof RosterRoute
@@ -280,6 +288,7 @@ export interface FileRoutesById {
   '/hitlab': typeof HitlabRoute
   '/home': typeof HomeRoute
   '/invoices': typeof InvoicesRoute
+  '/knowledge': typeof KnowledgeRoute
   '/live': typeof LiveRoute
   '/releases': typeof ReleasesRoute
   '/roster': typeof RosterRoute
@@ -315,6 +324,7 @@ export interface FileRouteTypes {
     | '/hitlab'
     | '/home'
     | '/invoices'
+    | '/knowledge'
     | '/live'
     | '/releases'
     | '/roster'
@@ -348,6 +358,7 @@ export interface FileRouteTypes {
     | '/hitlab'
     | '/home'
     | '/invoices'
+    | '/knowledge'
     | '/live'
     | '/releases'
     | '/roster'
@@ -381,6 +392,7 @@ export interface FileRouteTypes {
     | '/hitlab'
     | '/home'
     | '/invoices'
+    | '/knowledge'
     | '/live'
     | '/releases'
     | '/roster'
@@ -415,6 +427,7 @@ export interface RootRouteChildren {
   HitlabRoute: typeof HitlabRoute
   HomeRoute: typeof HomeRoute
   InvoicesRoute: typeof InvoicesRoute
+  KnowledgeRoute: typeof KnowledgeRoute
   LiveRoute: typeof LiveRoute
   ReleasesRoute: typeof ReleasesRoute
   RosterRoute: typeof RosterRoute
@@ -503,6 +516,13 @@ declare module '@tanstack/react-router' {
       path: '/live'
       fullPath: '/live'
       preLoaderRoute: typeof LiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/knowledge': {
+      id: '/knowledge'
+      path: '/knowledge'
+      fullPath: '/knowledge'
+      preLoaderRoute: typeof KnowledgeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/invoices': {
@@ -671,6 +691,7 @@ const rootRouteChildren: RootRouteChildren = {
   HitlabRoute: HitlabRoute,
   HomeRoute: HomeRoute,
   InvoicesRoute: InvoicesRoute,
+  KnowledgeRoute: KnowledgeRoute,
   LiveRoute: LiveRoute,
   ReleasesRoute: ReleasesRoute,
   RosterRoute: RosterRoute,

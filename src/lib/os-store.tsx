@@ -151,7 +151,14 @@ export interface MoodboardScene {
 
 /** Live & ticketing — from lucpod/ticketless (gigs, tickets, box office). */
 export type GigStatus =
-  | "Enquiry" | "Held" | "Confirmed" | "Announced" | "On Sale" | "Played" | "Settled" | "Cancelled";
+  | "Enquiry"
+  | "Held"
+  | "Confirmed"
+  | "Announced"
+  | "On Sale"
+  | "Played"
+  | "Settled"
+  | "Cancelled";
 export interface Gig {
   id: string;
   artist: string;
@@ -164,8 +171,8 @@ export interface Gig {
   currency: string;
   ticketPrice: number;
   guarantee: number;
-  doorSplit: number;   // 0.70 = 70% of net door
-  costs: number;       // travel + crew + backline
+  doorSplit: number; // 0.70 = 70% of net door
+  costs: number; // travel + crew + backline
   ticketsSold: number;
   advanceComplete: boolean;
   notes?: string;
@@ -173,8 +180,16 @@ export interface Gig {
 
 /** Commission CRM phases — from wpwwhimself/muzyka-szyta-na-miare. */
 export type CommissionPhase =
-  | "Inquiry" | "Quoted" | "Deposit Paid" | "In Progress" | "Review"
-  | "Revisions" | "Delivered" | "Invoiced" | "Paid" | "Cancelled";
+  | "Inquiry"
+  | "Quoted"
+  | "Deposit Paid"
+  | "In Progress"
+  | "Review"
+  | "Revisions"
+  | "Delivered"
+  | "Invoiced"
+  | "Paid"
+  | "Cancelled";
 export interface Commission {
   id: string;
   clientName: string;
@@ -193,7 +208,8 @@ export interface Commission {
   notes?: string;
 }
 
-export type InvoiceStatus = "Draft" | "Sent" | "Partial" | "Paid" | "Overdue" | "Void";
+export type InvoiceStatus =
+  "Draft" | "Sent" | "Partial" | "Paid" | "Overdue" | "Void";
 export interface InvoiceRecord {
   id: string;
   number: string;

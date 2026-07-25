@@ -224,8 +224,13 @@ create table if not exists public.usage_events (
   meta jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
-create index if not exists usage_events_user_month_idx
-  on public.usage_events(user_id, date_trunc('month', created_at));
+-- NOTE: indexed on the raw timestamp, not date_trunc('month', …).
+-- date_trunc(text, timestamptz) is STABLE (it depends on the session TimeZone),
+-- and Postgres rejects non-IMMUTABLE functions in index expressions (42P17).
+-- A plain descending timestamp index serves the "credits used this month"
+-- range scan in usage_this_month just as well.
+create index if not exists usage_events_user_created_idx
+  on public.usage_events(user_id, created_at desc);
 
 create or replace view public.usage_this_month as
 select

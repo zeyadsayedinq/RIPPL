@@ -5,8 +5,12 @@
 -- (dphelan61/sql_business_analysis_project, Divleen-0619/DigitalMusic-BusinessMetrics)
 -- rewritten against RIPPL's own schema and views.
 --
--- Run 001_analytics_views.sql first. Each block is standalone — paste the one
--- you want into the Supabase SQL editor. Rationale for the question set:
+-- ⚠  PREREQUISITE: run supabase/migrations/0006_growth_modules.sql, THEN
+--    analytics/sql/001_analytics_views.sql, before anything in this file.
+--    Skipping 001 gives you: relation "public.revenue_by_month" does not exist.
+--
+-- Each block below is standalone — paste the one you want into the Supabase
+-- SQL editor. Rationale for the question set:
 -- knowledge/research/CATALOG_ANALYTICS_METHOD.md
 -- ═══════════════════════════════════════════════════════════
 
@@ -128,7 +132,7 @@ select
   count(*)                             as releases,
   round(avg(score), 1)                 as avg_score,
   round(avg(actual_d28_streams))       as avg_d28,
-  percentile_cont(0.5) within group (order by actual_d28_streams) as median_d28
+  percentile_cont(0.5) within group (order by actual_d28_streams::double precision) as median_d28
 from public.hit_scores
 where actual_d28_streams is not null
 group by band
