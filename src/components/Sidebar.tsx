@@ -3,6 +3,7 @@ import {
   Home, Users, Disc3, FolderLock, Palette, Cpu, Settings, Music2, ShieldCheck,
   LayoutDashboard, Megaphone, CalendarDays, Radio, ListChecks, Wallet, FileText, UsersRound, FolderOpen,
   ChevronDown, ChevronLeft, Check, Clapperboard, Instagram, Youtube, Facebook, Twitter,
+  Sparkles, Ticket, Receipt, Share2, CreditCard,
 } from "lucide-react";
 import { useRole, type Role } from "@/lib/role-context";
 import { useCampaigns } from "@/lib/campaign-store";
@@ -19,6 +20,13 @@ const groups: { label: string; items: { to: string; label: string; icon: any }[]
     { to: "/vault", label: "The Vault", icon: FolderLock },
     { to: "/studio", label: "Studio", icon: Palette },
     { to: "/techlab", label: "Tech Lab", icon: Cpu },
+    { to: "/hitlab", label: "Hit Lab", icon: Sparkles },
+  ]},
+  { label: "Revenue", items: [
+    { to: "/invoices", label: "Invoices", icon: Receipt },
+    { to: "/live", label: "Live & Tickets", icon: Ticket },
+    { to: "/affiliates", label: "Affiliates", icon: Share2 },
+    { to: "/billing", label: "Billing", icon: CreditCard },
   ]},
   { label: "Marketing", items: [
     { to: "/dashboard", label: "Overview", icon: LayoutDashboard },

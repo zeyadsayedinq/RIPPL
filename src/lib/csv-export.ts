@@ -10,6 +10,33 @@ function csvCell(v: string | number | boolean): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+function download(filename: string, csv: string) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* Generic row exporter — headers are taken from the first row's keys.
+   Used by /affiliates, /live and anywhere else that needs a quick ledger
+   dump into a spreadsheet. */
+export function downloadCsv(
+  filename: string,
+  rows: Record<string, string | number | boolean>[],
+) {
+  if (rows.length === 0) return;
+  const headers = Object.keys(rows[0]);
+  const csv = [headers, ...rows.map((r) => headers.map((h) => r[h]))]
+    .map((row) => row.map(csvCell).join(","))
+    .join("\r\n");
+  download(filename, csv);
+}
+
 export function exportCreatorsCsv(
   creators: Creator[],
   assignedIds: string[],

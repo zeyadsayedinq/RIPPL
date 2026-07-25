@@ -18,15 +18,20 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SRouteImport } from './routes/s'
 import { Route as RosterRouteImport } from './routes/roster'
 import { Route as ReleasesRouteImport } from './routes/releases'
+import { Route as LiveRouteImport } from './routes/live'
+import { Route as InvoicesRouteImport } from './routes/invoices'
 import { Route as HomeRouteImport } from './routes/home'
+import { Route as HitlabRouteImport } from './routes/hitlab'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CreatorsRouteImport } from './routes/creators'
 import { Route as ChannelsRouteImport } from './routes/channels'
 import { Route as CampaignsRouteImport } from './routes/campaigns'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as BudgetRouteImport } from './routes/budget'
+import { Route as BillingRouteImport } from './routes/billing'
 import { Route as AudioRouteImport } from './routes/audio'
 import { Route as AssetsRouteImport } from './routes/assets'
+import { Route as AffiliatesRouteImport } from './routes/affiliates'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardYoutubeRouteImport } from './routes/dashboard_.youtube'
@@ -81,9 +86,24 @@ const ReleasesRoute = ReleasesRouteImport.update({
   path: '/releases',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LiveRoute = LiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvoicesRoute = InvoicesRouteImport.update({
+  id: '/invoices',
+  path: '/invoices',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HomeRoute = HomeRouteImport.update({
   id: '/home',
   path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HitlabRoute = HitlabRouteImport.update({
+  id: '/hitlab',
+  path: '/hitlab',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -116,6 +136,11 @@ const BudgetRoute = BudgetRouteImport.update({
   path: '/budget',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BillingRoute = BillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AudioRoute = AudioRouteImport.update({
   id: '/audio',
   path: '/audio',
@@ -124,6 +149,11 @@ const AudioRoute = AudioRouteImport.update({
 const AssetsRoute = AssetsRouteImport.update({
   id: '/assets',
   path: '/assets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AffiliatesRoute = AffiliatesRouteImport.update({
+  id: '/affiliates',
+  path: '/affiliates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -170,15 +200,20 @@ const CTokenRoute = CTokenRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/affiliates': typeof AffiliatesRoute
   '/assets': typeof AssetsRoute
   '/audio': typeof AudioRoute
+  '/billing': typeof BillingRoute
   '/budget': typeof BudgetRoute
   '/calendar': typeof CalendarRoute
   '/campaigns': typeof CampaignsRoute
   '/channels': typeof ChannelsRoute
   '/creators': typeof CreatorsRoute
   '/dashboard': typeof DashboardRoute
+  '/hitlab': typeof HitlabRoute
   '/home': typeof HomeRoute
+  '/invoices': typeof InvoicesRoute
+  '/live': typeof LiveRoute
   '/releases': typeof ReleasesRoute
   '/roster': typeof RosterRoute
   '/s': typeof SRoute
@@ -198,15 +233,20 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/affiliates': typeof AffiliatesRoute
   '/assets': typeof AssetsRoute
   '/audio': typeof AudioRoute
+  '/billing': typeof BillingRoute
   '/budget': typeof BudgetRoute
   '/calendar': typeof CalendarRoute
   '/campaigns': typeof CampaignsRoute
   '/channels': typeof ChannelsRoute
   '/creators': typeof CreatorsRoute
   '/dashboard': typeof DashboardRoute
+  '/hitlab': typeof HitlabRoute
   '/home': typeof HomeRoute
+  '/invoices': typeof InvoicesRoute
+  '/live': typeof LiveRoute
   '/releases': typeof ReleasesRoute
   '/roster': typeof RosterRoute
   '/s': typeof SRoute
@@ -227,15 +267,20 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/affiliates': typeof AffiliatesRoute
   '/assets': typeof AssetsRoute
   '/audio': typeof AudioRoute
+  '/billing': typeof BillingRoute
   '/budget': typeof BudgetRoute
   '/calendar': typeof CalendarRoute
   '/campaigns': typeof CampaignsRoute
   '/channels': typeof ChannelsRoute
   '/creators': typeof CreatorsRoute
   '/dashboard': typeof DashboardRoute
+  '/hitlab': typeof HitlabRoute
   '/home': typeof HomeRoute
+  '/invoices': typeof InvoicesRoute
+  '/live': typeof LiveRoute
   '/releases': typeof ReleasesRoute
   '/roster': typeof RosterRoute
   '/s': typeof SRoute
@@ -257,15 +302,20 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/affiliates'
     | '/assets'
     | '/audio'
+    | '/billing'
     | '/budget'
     | '/calendar'
     | '/campaigns'
     | '/channels'
     | '/creators'
     | '/dashboard'
+    | '/hitlab'
     | '/home'
+    | '/invoices'
+    | '/live'
     | '/releases'
     | '/roster'
     | '/s'
@@ -285,15 +335,20 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/affiliates'
     | '/assets'
     | '/audio'
+    | '/billing'
     | '/budget'
     | '/calendar'
     | '/campaigns'
     | '/channels'
     | '/creators'
     | '/dashboard'
+    | '/hitlab'
     | '/home'
+    | '/invoices'
+    | '/live'
     | '/releases'
     | '/roster'
     | '/s'
@@ -313,15 +368,20 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/affiliates'
     | '/assets'
     | '/audio'
+    | '/billing'
     | '/budget'
     | '/calendar'
     | '/campaigns'
     | '/channels'
     | '/creators'
     | '/dashboard'
+    | '/hitlab'
     | '/home'
+    | '/invoices'
+    | '/live'
     | '/releases'
     | '/roster'
     | '/s'
@@ -342,15 +402,20 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AffiliatesRoute: typeof AffiliatesRoute
   AssetsRoute: typeof AssetsRoute
   AudioRoute: typeof AudioRoute
+  BillingRoute: typeof BillingRoute
   BudgetRoute: typeof BudgetRoute
   CalendarRoute: typeof CalendarRoute
   CampaignsRoute: typeof CampaignsRoute
   ChannelsRoute: typeof ChannelsRoute
   CreatorsRoute: typeof CreatorsRoute
   DashboardRoute: typeof DashboardRoute
+  HitlabRoute: typeof HitlabRoute
   HomeRoute: typeof HomeRoute
+  InvoicesRoute: typeof InvoicesRoute
+  LiveRoute: typeof LiveRoute
   ReleasesRoute: typeof ReleasesRoute
   RosterRoute: typeof RosterRoute
   SRoute: typeof SRoute
@@ -433,11 +498,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReleasesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/live': {
+      id: '/live'
+      path: '/live'
+      fullPath: '/live'
+      preLoaderRoute: typeof LiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoices': {
+      id: '/invoices'
+      path: '/invoices'
+      fullPath: '/invoices'
+      preLoaderRoute: typeof InvoicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/home': {
       id: '/home'
       path: '/home'
       fullPath: '/home'
       preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hitlab': {
+      id: '/hitlab'
+      path: '/hitlab'
+      fullPath: '/hitlab'
+      preLoaderRoute: typeof HitlabRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -482,6 +568,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BudgetRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/billing': {
+      id: '/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof BillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/audio': {
       id: '/audio'
       path: '/audio'
@@ -494,6 +587,13 @@ declare module '@tanstack/react-router' {
       path: '/assets'
       fullPath: '/assets'
       preLoaderRoute: typeof AssetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/affiliates': {
+      id: '/affiliates'
+      path: '/affiliates'
+      fullPath: '/affiliates'
+      preLoaderRoute: typeof AffiliatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -558,15 +658,20 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AffiliatesRoute: AffiliatesRoute,
   AssetsRoute: AssetsRoute,
   AudioRoute: AudioRoute,
+  BillingRoute: BillingRoute,
   BudgetRoute: BudgetRoute,
   CalendarRoute: CalendarRoute,
   CampaignsRoute: CampaignsRoute,
   ChannelsRoute: ChannelsRoute,
   CreatorsRoute: CreatorsRoute,
   DashboardRoute: DashboardRoute,
+  HitlabRoute: HitlabRoute,
   HomeRoute: HomeRoute,
+  InvoicesRoute: InvoicesRoute,
+  LiveRoute: LiveRoute,
   ReleasesRoute: ReleasesRoute,
   RosterRoute: RosterRoute,
   SRoute: SRoute,

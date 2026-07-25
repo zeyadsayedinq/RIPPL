@@ -145,6 +145,116 @@ export interface MoodboardScene {
   appState: Record<string, unknown>;
 }
 
+/* ═══ GROWTH MODULES ═══════════════════════════════════════
+   Added alongside supabase/migrations/0006_growth_modules.sql. Each block is
+   derived from a reference repo — see docs/RIPPL_UPGRADE_PLAN.md. */
+
+/** Live & ticketing — from lucpod/ticketless (gigs, tickets, box office). */
+export type GigStatus =
+  | "Enquiry" | "Held" | "Confirmed" | "Announced" | "On Sale" | "Played" | "Settled" | "Cancelled";
+export interface Gig {
+  id: string;
+  artist: string;
+  venue: string;
+  city: string;
+  country?: string;
+  date: string;
+  status: GigStatus;
+  capacity: number;
+  currency: string;
+  ticketPrice: number;
+  guarantee: number;
+  doorSplit: number;   // 0.70 = 70% of net door
+  costs: number;       // travel + crew + backline
+  ticketsSold: number;
+  advanceComplete: boolean;
+  notes?: string;
+}
+
+/** Commission CRM phases — from wpwwhimself/muzyka-szyta-na-miare. */
+export type CommissionPhase =
+  | "Inquiry" | "Quoted" | "Deposit Paid" | "In Progress" | "Review"
+  | "Revisions" | "Delivered" | "Invoiced" | "Paid" | "Cancelled";
+export interface Commission {
+  id: string;
+  clientName: string;
+  clientEmail?: string;
+  title: string;
+  kind: "Custom" | "Mix" | "Master" | "Sheet" | "Sync";
+  phase: CommissionPhase;
+  currency: string;
+  quoteAmount: number;
+  depositPct: number;
+  depositPaid: boolean;
+  revisionsIncluded: number;
+  revisionsUsed: number;
+  quoteExpiresOn?: string;
+  dueDate?: string;
+  notes?: string;
+}
+
+export type InvoiceStatus = "Draft" | "Sent" | "Partial" | "Paid" | "Overdue" | "Void";
+export interface InvoiceRecord {
+  id: string;
+  number: string;
+  commissionId?: string;
+  gigId?: string;
+  clientName: string;
+  clientEmail?: string;
+  issueDate: string;
+  dueDate?: string;
+  currency: string;
+  taxRate: number;
+  status: InvoiceStatus;
+  paid: number;
+  paidOn?: string;
+  lines: { description: string; quantity: number; unitPrice: number }[];
+  notes?: string;
+}
+
+/** Affiliate / referral programme — from precisep/Business. */
+export interface Affiliate {
+  id: string;
+  partnerName: string;
+  partnerEmail?: string;
+  code: string;
+  channel: string;
+  commissionRate: number;
+  currency: string;
+  active: boolean;
+  clicks: number;
+  signups: number;
+  conversions: number;
+  revenue: number;
+  payoutStatus: "pending" | "approved" | "paid";
+  notes?: string;
+}
+
+/** Plans, credits & usage metering — from ha346/AI-Saas-Platform. */
+export type PlanId = "free" | "studio" | "label";
+export interface UsageEvent {
+  id: string;
+  feature: string;
+  credits: number;
+  at: string;
+}
+
+/** Hit Score audit trail — from ebtezcan/Spotify-Song-Popularity-Prediction. */
+export interface HitScoreRecord {
+  id: string;
+  title: string;
+  artist: string;
+  genre?: string;
+  score: number;
+  band: "Low" | "Moderate" | "Strong";
+  probability: number;
+  features: Record<string, number>;
+  modelVersion: string;
+  createdAt: string;
+  /** filled in after the release actually happens — enables calibration */
+  actualD28?: number;
+}
+
 interface OS {
   artists: Artist[];
   deals: Deal[];
@@ -167,6 +277,14 @@ interface OS {
   /** Influencer/creator roster (Creators directory + campaign assignment).
       Unlike the rest of OS this is NOT empty by default — see `seed` below. */
   creators: Creator[];
+  /* ── growth modules (see 0006_growth_modules.sql) ── */
+  gigs: Gig[];
+  commissions: Commission[];
+  invoices: InvoiceRecord[];
+  affiliates: Affiliate[];
+  usage: UsageEvent[];
+  hitScores: HitScoreRecord[];
+  plan: PlanId;
 }
 
 /* Empty by default — the app starts as a clean slate and everything you add
@@ -190,6 +308,13 @@ const seed: OS = {
   members: [],
   moodboardScene: null,
   creators: seedCreators,
+  gigs: [],
+  commissions: [],
+  invoices: [],
+  affiliates: [],
+  usage: [],
+  hitScores: [],
+  plan: "free",
 };
 
 const LS = "rippl.os.v2";

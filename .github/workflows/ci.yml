@@ -1,0 +1,65 @@
+name: CI
+
+# Adapted from chronick/global-business-solutions' Actions setup.
+# Runs lint + typecheck + build on every push and PR so a broken route never
+# reaches Vercel. See knowledge/checklists/SECURITY_AND_LAUNCH_CHECKLIST.md
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: lint · typecheck · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint --if-present
+        continue-on-error: true
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+        env:
+          # Vite vars are build-time. Real values live in repo secrets; the
+          # placeholders keep the build honest without leaking anything.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+
+  secrets-scan:
+    name: no secrets committed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Grep for obvious key material
+        run: |
+          set -e
+          # service_role JWTs, Stripe live keys, OpenAI keys
+          if grep -rEn "(service_role|sk_live_|sk-[A-Za-z0-9]{32,})" \
+              --include="*.ts" --include="*.tsx" --include="*.js" \
+              --include="*.json" --include="*.env*" \
+              --exclude-dir=node_modules --exclude-dir=.git . ; then
+            echo "::error::Possible secret committed — see matches above."
+            exit 1
+          fi
+          echo "No obvious secrets found."
