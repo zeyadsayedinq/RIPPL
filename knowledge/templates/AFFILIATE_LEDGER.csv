@@ -1,0 +1,2 @@
+date,partner,partner_email,referral_code,channel,clicks,signups,conversions,referred_revenue,currency,commission_rate,commission_owed,payout_status,payout_date,notes
+2026-03-01,EXAMPLE Partner One,one@example.com,RIPPL-ONE,Newsletter,340,22,4,1200,USD,0.20,240,Pending,,First month

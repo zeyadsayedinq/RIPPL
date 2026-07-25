@@ -24,6 +24,18 @@ export function soundchartsConfiguredEnv(): boolean {
   );
 }
 
+/** TikTok "original sound" links (tiktok.com/music/original-sound-...) are
+ *  auto-created the moment someone posts a video — they're not an official
+ *  release Soundcharts has in its catalog (which only tracks distributed
+ *  tracks with label/ISRC metadata). Checking this up front avoids burning
+ *  an API call on a link that can never resolve, and gives a much clearer
+ *  reason than Soundcharts' own generic "not found." Doesn't rule out every
+ *  bad link (an official release can be missing from Soundcharts too), but
+ *  catches the single most common cause of "why is this not connected." */
+export function looksLikeOriginalSound(url: string): boolean {
+  return /\/music\/original-sound-/i.test(url);
+}
+
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
 async function soundchartsToken(): Promise<string> {
@@ -104,11 +116,14 @@ export function serviceClient(): SupabaseClient | null {
 }
 
 /** Upserts today's (UTC) snapshot row for one tracked_sounds.id — same
- *  idempotent-per-day pattern as upsertTodaySnapshot() for YouTube. */
+ *  idempotent-per-day pattern as upsertTodaySnapshot() for YouTube. `source`
+ *  distinguishes a real Soundcharts fetch from a manually-typed count (see
+ *  0005_manual_sound_tracking.sql) so the chart/UI can label it honestly. */
 export async function upsertTodaySoundSnapshot(
   admin: SupabaseClient,
   trackedId: string,
   videoCount: number,
+  source: "api" | "manual" = "api",
 ) {
   const dayStart = new Date();
   dayStart.setUTCHours(0, 0, 0, 0);
@@ -126,17 +141,45 @@ export async function upsertTodaySoundSnapshot(
   if (existing) {
     await admin
       .from("sound_snapshots")
-      .update({ video_count: videoCount, recorded_at: new Date().toISOString() })
+      .update({ video_count: videoCount, recorded_at: new Date().toISOString(), source })
       .eq("id", existing.id);
   } else {
     await admin
       .from("sound_snapshots")
-      .insert({ sound_id: trackedId, video_count: videoCount });
+      .insert({ sound_id: trackedId, video_count: videoCount, source });
   }
   await admin
     .from("tracked_sounds")
     .update({ last_video_count: videoCount, last_fetched_at: new Date().toISOString() })
     .eq("id", trackedId);
+}
+
+/** Upserts (and returns the id of) a MANUALLY tracked sound — no Soundcharts
+ *  resolution attempted at all, for links Soundcharts can never match
+ *  (original sounds) or accounts without a plan that includes the audience
+ *  endpoint. Marked tracking_mode='manual' so the daily cron sweep skips it
+ *  (there's nothing to auto-refresh — the user provides the number). */
+export async function upsertManualTrackedSound(
+  admin: SupabaseClient,
+  userId: string,
+  tiktokSoundUrl: string,
+  campaignId: string | undefined,
+): Promise<{ id: string } | null> {
+  const { data, error } = await admin
+    .from("tracked_sounds")
+    .upsert(
+      {
+        user_id: userId,
+        campaign_id: campaignId || null,
+        tiktok_sound_url: tiktokSoundUrl,
+        tracking_mode: "manual",
+      },
+      { onConflict: "user_id,tiktok_sound_url" },
+    )
+    .select("id")
+    .single();
+  if (error || !data) return null;
+  return { id: data.id };
 }
 
 /** Upserts (and returns the id of) the tracked_sounds row for one TikTok
@@ -192,7 +235,8 @@ export async function runSoundSnapshotSweep(): Promise<{
 
   const { data: sounds, error } = await admin
     .from("tracked_sounds")
-    .select("id,soundcharts_uuid,tiktok_sound_url");
+    .select("id,soundcharts_uuid,tiktok_sound_url")
+    .neq("tracking_mode", "manual"); // manual-only sounds have nothing for the API to refresh
   if (error) throw new Error(error.message);
   if (!sounds || sounds.length === 0) return { updated: 0, failed: 0, total: 0 };
 

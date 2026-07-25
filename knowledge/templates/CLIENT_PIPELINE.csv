@@ -1,0 +1,3 @@
+date_added,name,contact,source,type,stage,stage_probability,est_value,currency,next_action,next_action_date,last_touch,objection,owner,notes
+2026-01-10,EXAMPLE Marwan H.,marwan@example.com,Referral,Artist signing,Evaluating,0.30,0,EGP,Run Hit Score on 2 tracks,2026-01-18,2026-01-12,,Zeyad,90d slope strong
+2026-01-22,EXAMPLE Brand X,ops@example.com,Inbound,Brand deal,Pitched,0.15,4000,USD,Send one-sheet + 30s edit,2026-01-26,2026-01-22,Budget next quarter,Zeyad,Budget resets April

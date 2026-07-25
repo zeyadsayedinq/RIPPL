@@ -47,17 +47,22 @@ export function SoundVelocityChart({
         <TrendingUp className="h-3.5 w-3.5" /> Sound Video-Count Growth
       </div>
       {velocity && velocity.length > 1 ? (
-        <div className="mt-3 h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={velocity.map((p) => ({ date: fmtDate(p.date), videoCount: p.videoCount }))}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-              <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={fmtNum} />
-              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#fff" }} formatter={(v: number) => fmtNum(v)} />
-              <Line type="monotone" dataKey="videoCount" stroke={ACCENT} strokeWidth={2.5} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        <>
+          <div className="mt-3 h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={velocity.map((p) => ({ date: fmtDate(p.date), videoCount: p.videoCount }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={fmtNum} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#fff" }} formatter={(v: number) => fmtNum(v)} />
+                <Line type="monotone" dataKey="videoCount" stroke={ACCENT} strokeWidth={2.5} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          {velocity.some((p) => p.source === "manual") && (
+            <div className="mt-1 text-[10px] text-muted-foreground/70">Includes manually-logged counts, not all from Soundcharts.</div>
+          )}
+        </>
       ) : (
         <div className="mt-3 flex items-start gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-4">
           <PlugZap className="mt-0.5 h-4 w-4 shrink-0 text-white/40" />

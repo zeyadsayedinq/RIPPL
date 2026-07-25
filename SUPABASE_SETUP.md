@@ -21,6 +21,11 @@ devices, real file storage, server-side auth).
    scanner's growth chart), `weekly_digests` (the Monday brief-PDF digest —
    see api/cron/weekly-digest.ts), and `campaign_shares` (read-only
    client-facing links, `/c/$token`).
+5. Run `supabase/migrations/0004_esignatures.sql` — `signature_requests`,
+   behind real e-signatures in Vault (Dropbox Sign).
+6. Run `supabase/migrations/0005_manual_sound_tracking.sql` — adds manual
+   video-count logging as a fallback for TikTok sound links Soundcharts
+   can't match (original sounds) or accounts on Soundcharts' free tier.
 
 ## 3. Create storage buckets
 Dashboard → **Storage** → New bucket (set to **Private**):

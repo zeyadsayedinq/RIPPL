@@ -67,6 +67,7 @@ export type ContractTag =
   | "Sync License"
   | "Management"
   | "Other";
+export type SignatureStatus = "sent" | "signed" | "declined";
 export interface Contract {
   id: string;
   name: string;
@@ -74,6 +75,13 @@ export interface Contract {
   expiresOn: string;
   fileName: string;
   filePath?: string;
+  /** Real e-signature tracking via Dropbox Sign — see lib/esignature.ts.
+   *  Undefined means never sent for signature. */
+  signatureStatus?: SignatureStatus;
+  signatureRequestId?: string;
+  signerName?: string;
+  signerEmail?: string;
+  signedAt?: string;
 }
 
 export interface Note {

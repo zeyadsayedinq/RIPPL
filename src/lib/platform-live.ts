@@ -4,6 +4,8 @@ import {
   serviceClient as soundServiceClient,
   upsertTrackedSound,
   upsertTodaySoundSnapshot,
+  upsertManualTrackedSound,
+  looksLikeOriginalSound,
 } from "./soundcharts-snapshot-sweep";
 
 /* ═══════════════════════════════════════════════════════════
@@ -167,6 +169,17 @@ export const getTikTokSoundStats = createServerFn({ method: "POST" })
     if (!process.env.SOUNDCHARTS_CLIENT_ID || !process.env.SOUNDCHARTS_CLIENT_SECRET) {
       return { ok: false, reason: "Soundcharts isn't connected. Add SOUNDCHARTS_CLIENT_ID + SOUNDCHARTS_CLIENT_SECRET (from your Soundcharts dashboard → Credentials) in Vercel env vars, then redeploy." };
     }
+    // Original-sound links (auto-created by posting a video, not an
+    // official release) can never match anything in Soundcharts' catalog —
+    // check this before spending an API call, and say so specifically
+    // rather than a generic "not found." Manual entry (logManualTikTokCount
+    // below) is the real fallback for these.
+    if (looksLikeOriginalSound(data.tiktokSoundUrl)) {
+      return {
+        ok: false,
+        reason: "That's a TikTok \"original sound\" link (auto-created from a video upload) — Soundcharts only tracks officially distributed releases, so it can never match this. If this track is properly distributed, find its real TikTok sound page and paste that instead. Otherwise, use \"Log a count manually\" below.",
+      };
+    }
     try {
       const uuid = await resolveSoundchartsSongUuid(data.tiktokSoundUrl);
       const stats = await getTikTokVideoCount(uuid);
@@ -194,6 +207,29 @@ export const soundchartsConfigured = createServerFn({ method: "GET" }).handler(a
   return Boolean(process.env.SOUNDCHARTS_CLIENT_ID && process.env.SOUNDCHARTS_CLIENT_SECRET);
 });
 
+/* ── Manual video-count entry — the real fallback for original-sound links
+   and free-tier Soundcharts accounts (see looksLikeOriginalSound above).
+   Doesn't need Soundcharts configured at all: works purely off what you can
+   see yourself on the TikTok sound page. Marked source: "manual" in
+   sound_snapshots so the chart/UI never implies it's a live API number. ── */
+export const logManualTikTokCount = createServerFn({ method: "POST" })
+  .validator((d: { tiktokSoundUrl: string; accessToken?: string; campaignId?: string; videoCount: number }) => d)
+  .handler(async ({ data }): Promise<LiveResult<TikTokSoundStats>> => {
+    if (!Number.isFinite(data.videoCount) || data.videoCount < 0) {
+      return { ok: false, reason: "Enter a valid video count." };
+    }
+    const admin = soundServiceClient();
+    if (!admin) return { ok: false, reason: "Supabase isn't configured on this deployment — manual entries need somewhere to persist." };
+    const userId = await resolveUserId(admin, data.accessToken);
+    if (!userId) return { ok: false, reason: "Sign in to log a manual count." };
+
+    const tracked = await upsertManualTrackedSound(admin, userId, data.tiktokSoundUrl, data.campaignId);
+    if (!tracked) return { ok: false, reason: "Couldn't save that — try again." };
+    await upsertTodaySoundSnapshot(admin, tracked.id, data.videoCount, "manual");
+
+    return { ok: true, data: { videoCount: data.videoCount, asOf: new Date().toISOString().slice(0, 10) } };
+  });
+
 /* ── TikTok sound velocity curve — same idea as getVideoVelocity for
    YouTube (youtube-deep-analytics.ts): reads back the snapshot history for
    one tracked sound. Requires sign-in + Supabase. ───────────────────── */
@@ -201,6 +237,7 @@ export interface SoundVelocityPoint {
   date: string;
   videoCount: number;
   dailyGain: number | null;
+  source: "api" | "manual";
 }
 
 export const getSoundVelocity = createServerFn({ method: "POST" })
@@ -223,17 +260,18 @@ export const getSoundVelocity = createServerFn({ method: "POST" })
 
     const { data: rows, error } = await admin
       .from("sound_snapshots")
-      .select("video_count,recorded_at")
+      .select("video_count,recorded_at,source")
       .eq("sound_id", tracked.id)
       .order("recorded_at", { ascending: true });
     if (error) return { ok: false, reason: error.message };
     if (!rows || rows.length === 0)
-      return { ok: false, reason: "No snapshots yet — check back after the next daily refresh." };
+      return { ok: false, reason: "No snapshots yet — check back after the next daily refresh, or log a count manually." };
 
     const points: SoundVelocityPoint[] = rows.map((r, i) => ({
       date: r.recorded_at,
       videoCount: Number(r.video_count),
       dailyGain: i === 0 ? null : Number(r.video_count) - Number(rows[i - 1].video_count),
+      source: (r.source as "api" | "manual") ?? "api",
     }));
     return { ok: true, data: points };
   });

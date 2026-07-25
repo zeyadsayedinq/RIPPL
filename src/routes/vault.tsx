@@ -2,14 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
-import { useOS, uid, type ContractTag } from "@/lib/os-store";
+import { useOS, uid, type ContractTag, type Contract } from "@/lib/os-store";
 import { cloudEnabled, uploadToBucket, signedUrl } from "@/lib/cloud";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { sendForSignature, getSignatureStatus } from "@/lib/esignature";
 import { FileViewer } from "@/components/FileViewer";
 import { ModalShell } from "@/components/NewCampaignModal";
 import { MagneticButton } from "@/components/MagneticButton";
 import { splitSheetPdf, type SplitEntry } from "@/lib/pdf";
 import { AnimatePresence } from "framer-motion";
-import { Upload, FileSignature, AlertTriangle, Trash2, Eye, Download, Search, FilePlus2, Plus } from "lucide-react";
+import { Upload, FileSignature, AlertTriangle, Trash2, Eye, Download, Search, FilePlus2, Plus, Send, RefreshCw, Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { SharedBadge } from "@/components/SharedBadge";
 
 export const Route = createFileRoute("/vault")({
@@ -35,7 +37,31 @@ function VaultPage() {
   const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
   const [q, setQ] = useState("");
   const [splitOpen, setSplitOpen] = useState(false);
+  const [signModal, setSignModal] = useState<Contract | null>(null);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const shown = useMemo(() => contracts.filter((c) => !q || `${c.name} ${c.tag} ${c.fileName}`.toLowerCase().includes(q.toLowerCase())), [contracts, q]);
+
+  async function accessToken(): Promise<string | undefined> {
+    if (!isSupabaseConfigured || !supabase) return undefined;
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token;
+  }
+
+  async function refreshSignature(c: Contract) {
+    if (!c.signatureRequestId) return;
+    setRefreshingId(c.id);
+    try {
+      const token = await accessToken();
+      const res = await getSignatureStatus({ data: { accessToken: token ?? "", requestId: c.signatureRequestId } });
+      if (res.ok && res.status && res.status !== c.signatureStatus) {
+        update("contracts", (all) =>
+          all.map((x) => (x.id === c.id ? { ...x, signatureStatus: res.status as Contract["signatureStatus"], signedAt: res.signedAt ?? x.signedAt } : x)),
+        );
+      }
+    } finally {
+      setRefreshingId(null);
+    }
+  }
 
   function add(files: FileList | null) {
     if (!files) return;
@@ -142,6 +168,29 @@ function VaultPage() {
               ) : (
                 <span title="Metadata only — no file bytes stored" className="text-[10px] text-muted-foreground/60">no file</span>
               )}
+              {!c.signatureStatus && c.filePath && !isShared(c.id) && (
+                <button onClick={() => setSignModal(c)} title="Send for e-signature (Dropbox Sign)" className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] hover:bg-white/5">
+                  <Send className="h-3.5 w-3.5" /> Send for signature
+                </button>
+              )}
+              {c.signatureStatus === "sent" && (
+                <div className="flex items-center gap-1.5 rounded-full border border-[oklch(0.82_0.16_90)]/40 bg-[oklch(0.82_0.16_90)]/10 px-3 py-1.5 text-[11px] text-[oklch(0.85_0.16_90)]">
+                  <Clock className="h-3.5 w-3.5" /> Awaiting {c.signerName || c.signerEmail}
+                  <button onClick={() => refreshSignature(c)} disabled={refreshingId === c.id} title="Check status" className="ml-0.5 disabled:opacity-50">
+                    {refreshingId === c.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                  </button>
+                </div>
+              )}
+              {c.signatureStatus === "signed" && (
+                <div className="flex items-center gap-1.5 rounded-full border border-[oklch(0.82_0.18_150)]/40 bg-[oklch(0.82_0.18_150)]/10 px-3 py-1.5 text-[11px] text-[oklch(0.82_0.18_150)]">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Signed{c.signedAt ? ` ${new Date(c.signedAt).toLocaleDateString()}` : ""}
+                </div>
+              )}
+              {c.signatureStatus === "declined" && (
+                <button onClick={() => setSignModal(c)} className="flex items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-[11px] text-destructive hover:bg-destructive/20">
+                  <XCircle className="h-3.5 w-3.5" /> Declined — resend
+                </button>
+              )}
               {!isShared(c.id) && <button onClick={() => update("contracts", (all) => all.filter((x) => x.id !== c.id))} className="text-muted-foreground hover:text-[oklch(0.7_0.2_20)]"><Trash2 className="h-4 w-4" /></button>}
             </div>
           );
@@ -151,6 +200,19 @@ function VaultPage() {
       </section>
 
       <AnimatePresence>{viewer && <FileViewer url={viewer.url} fileName={viewer.name} onClose={() => setViewer(null)} />}</AnimatePresence>
+      <AnimatePresence>
+        {signModal && (
+          <SendSignatureModal
+            contract={signModal}
+            onClose={() => setSignModal(null)}
+            accessToken={accessToken}
+            onSent={(patch) => {
+              update("contracts", (all) => all.map((x) => (x.id === signModal.id ? { ...x, ...patch } : x)));
+              setSignModal(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {splitOpen && (
           <SplitSheetModal
@@ -164,6 +226,85 @@ function VaultPage() {
 }
 
 const field = "w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm outline-none focus:border-white/40";
+
+/* Send a contract for e-signature via Dropbox Sign — see lib/esignature.ts.
+   Needs the contract's Storage file (filePath), since Dropbox Sign
+   downloads the document server-side from a signed URL rather than taking
+   an upload directly from this modal. */
+function SendSignatureModal({
+  contract,
+  onClose,
+  accessToken,
+  onSent,
+}: {
+  contract: Contract;
+  onClose: () => void;
+  accessToken: () => Promise<string | undefined>;
+  onSent: (patch: Partial<Contract>) => void;
+}) {
+  const [signerName, setSignerName] = useState(contract.signerName ?? "");
+  const [signerEmail, setSignerEmail] = useState(contract.signerEmail ?? "");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function send() {
+    if (!signerEmail.trim() || !contract.filePath) return;
+    setSending(true);
+    setError(null);
+    try {
+      const fileUrl = await signedUrl("contracts", contract.filePath, 60 * 60 * 24 * 7); // valid a week — plenty for Dropbox Sign to fetch it
+      if (!fileUrl) {
+        setError("Couldn't generate a link to the contract file.");
+        setSending(false);
+        return;
+      }
+      const token = await accessToken();
+      const res = await sendForSignature({
+        data: {
+          accessToken: token ?? "",
+          contractId: contract.id,
+          contractName: contract.name,
+          fileUrl,
+          signerName: signerName.trim(),
+          signerEmail: signerEmail.trim(),
+        },
+      });
+      if (!res.ok) {
+        setError(res.error || "Couldn't send for signature.");
+        setSending(false);
+        return;
+      }
+      onSent({ signatureStatus: "sent", signatureRequestId: res.requestId, signerName: signerName.trim(), signerEmail: signerEmail.trim() });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+      setSending(false);
+    }
+  }
+
+  return (
+    <ModalShell eyebrow="The Vault · Dropbox Sign" title={`Send "${contract.name}" for signature`} onClose={onClose}>
+      <div className="space-y-3">
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Signer name</label>
+          <input className={field} value={signerName} onChange={(e) => setSignerName(e.target.value)} placeholder="Full name" />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Signer email</label>
+          <input type="email" className={field} value={signerEmail} onChange={(e) => setSignerEmail(e.target.value)} placeholder="name@email.com" />
+        </div>
+      </div>
+
+      {error && <div className="mt-3 text-xs text-destructive">{error}</div>}
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button onClick={onClose} className="glass rounded-full px-4 py-2.5 text-sm hover:bg-white/5">Cancel</button>
+        <MagneticButton onClick={send} className={!signerEmail.trim() || sending ? "pointer-events-none opacity-50" : ""}>
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {sending ? "Sending…" : "Send for signature"}
+        </MagneticButton>
+      </div>
+    </ModalShell>
+  );
+}
 
 function SplitSheetModal({ onClose, onGenerated }: { onClose: () => void; onGenerated: (trackTitle: string) => void }) {
   const [trackTitle, setTrackTitle] = useState("");

@@ -17,13 +17,18 @@ function Home() {
   const email = useAuthEmail();
   const firstName = isHQ ? "Zeyad" : (email?.split("@")[0] ?? "there");
 
-  const pendingSignatures = deals.filter((d) => d.status === "Contracting").length + contracts.length;
+  // Real signature-request status (Dropbox Sign, see lib/esignature.ts) once a
+  // contract's actually been sent — contracts never sent for signature don't
+  // count as "pending" (they used to just count every contract, regardless).
+  const pendingSignatures =
+    deals.filter((d) => d.status === "Contracting").length +
+    contracts.filter((c) => c.signatureStatus === "sent").length;
   const upcoming = releases.filter((r) => r.status === "Scheduled").length;
   const pipelines = projects.filter((p) => p.deploy !== "Error").length;
 
   const metrics = [
     { label: "Blended ROAS", value: "—", hint: "Connect a live campaign", icon: TrendingUp },
-    { label: "Pending Signatures", value: `${pendingSignatures}`, hint: "Deals + contracts", icon: FileSignature },
+    { label: "Pending Signatures", value: `${pendingSignatures}`, hint: "Deals contracting + contracts awaiting signature", icon: FileSignature },
     { label: "Upcoming Releases", value: `${upcoming}`, hint: "Next 7 days", icon: Disc3 },
     { label: "Active AI Pipelines", value: `${pipelines}`, hint: "SaaS + AI projects", icon: Cpu },
   ];

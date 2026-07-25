@@ -4,9 +4,9 @@ import { PlatformDashboard, fmt, type PlatformConfig, type PlatformPanelState } 
 import { SpotlightCard } from "@/components/SpotlightCard";
 import { SoundVelocityChart } from "@/components/SoundVelocityChart";
 import { useCampaigns } from "@/lib/campaign-store";
-import { getTikTokSoundStats, getSoundVelocity, type SoundVelocityPoint } from "@/lib/platform-live";
+import { getTikTokSoundStats, getSoundVelocity, logManualTikTokCount, type SoundVelocityPoint } from "@/lib/platform-live";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { Music4, Radio, Video } from "lucide-react";
+import { Music4, Radio, Video, PenLine, Loader2, Check } from "lucide-react";
 
 /* TikTok sound scanner — real "creations using this sound" count for the
    campaign's linked sound, via Soundcharts (see platform-live.ts for why
@@ -36,6 +36,7 @@ function TikTokDashboard() {
   const [panel, setPanel] = useState<PlatformPanelState>({ loading: false, connected: false });
   const [velocity, setVelocity] = useState<SoundVelocityPoint[] | undefined>(undefined);
   const [velocityReason, setVelocityReason] = useState<string | undefined>(undefined);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const url = active?.links?.tiktokSound;
@@ -49,17 +50,21 @@ function TikTokDashboard() {
         ok: false as const,
         reason: e?.message || String(e),
       }));
-      if (!res.ok || !res.data) { setPanel({ loading: false, connected: false, reason: res.reason, helpHref: "/settings" }); return; }
-      const d = res.data;
-      setPanel({
-        loading: false, connected: true, views: d.videoCount,
-        stats: [
-          { icon: Video, label: "Creations with sound", value: fmt(d.videoCount), hint: d.asOf ? `as of ${d.asOf} · Soundcharts` : "Soundcharts video count" },
-        ],
-      });
+      if (!res.ok || !res.data) { setPanel({ loading: false, connected: false, reason: res.reason, helpHref: "/settings" }); }
+      else {
+        const d = res.data;
+        setPanel({
+          loading: false, connected: true, views: d.videoCount,
+          stats: [
+            { icon: Video, label: "Creations with sound", value: fmt(d.videoCount), hint: d.asOf ? `as of ${d.asOf} · Soundcharts` : "Soundcharts video count" },
+          ],
+        });
+      }
 
       // Fetched right after the panel data — same account access token, no
       // extra round trip for the user. See getSoundVelocity in platform-live.ts.
+      // Runs regardless of whether the live panel connected, since manually
+      // logged snapshots can still exist even when Soundcharts can't help.
       const vel = await getSoundVelocity({ data: { tiktokSoundUrl: url, accessToken: token } }).catch((e) => ({
         ok: false as const,
         reason: e?.message || String(e),
@@ -67,24 +72,89 @@ function TikTokDashboard() {
       if (vel.ok && vel.data) setVelocity(vel.data);
       else setVelocityReason(vel.reason);
     })();
-  }, [active?.id, active?.links?.tiktokSound]);
+  }, [active?.id, active?.links?.tiktokSound, refreshKey]);
+
+  const soundUrl = active?.links?.tiktokSound;
 
   return (
     <PlatformDashboard
       cfg={cfg} panel={panel}
       linkEditor={{
-        value: active?.links?.tiktokSound ?? "",
+        value: soundUrl ?? "",
         placeholder: "Paste the TikTok sound URL (e.g. tiktok.com/music/...)",
         onSave: (v) => updateActiveLinks({ tiktokSound: v || undefined }),
       }}
       extra={
-        active?.links?.tiktokSound ? (
+        soundUrl ? (
           <SpotlightCard className="mt-4 p-5" spotlight={false}>
             <SoundVelocityChart velocity={velocity} reason={velocityReason} />
+            <ManualCountEntry tiktokSoundUrl={soundUrl} campaignId={active?.id} onLogged={() => setRefreshKey((k) => k + 1)} />
           </SpotlightCard>
         ) : undefined
       }
     />
+  );
+}
+
+/** Fallback for links Soundcharts can't match (original sounds) or free-tier
+ *  accounts without the audience endpoint — see looksLikeOriginalSound in
+ *  soundcharts-snapshot-sweep.ts. Always available, not just when the API
+ *  panel fails, since even a connected sound might need a manual correction. */
+function ManualCountEntry({
+  tiktokSoundUrl,
+  campaignId,
+  onLogged,
+}: {
+  tiktokSoundUrl: string;
+  campaignId?: string;
+  onLogged: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [count, setCount] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  async function submit() {
+    const n = Number(count);
+    if (!Number.isFinite(n) || n < 0) { setError("Enter a valid number."); return; }
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await accessToken();
+      const res = await logManualTikTokCount({ data: { tiktokSoundUrl, accessToken: token, campaignId, videoCount: n } });
+      if (!res.ok) { setError(res.reason || "Couldn't log that."); setBusy(false); return; }
+      setDone(true);
+      setCount("");
+      onLogged();
+      setTimeout(() => { setDone(false); setOpen(false); }, 1500);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-white">
+        <PenLine className="h-3 w-3" /> Log today's count manually
+      </button>
+    );
+  }
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+      <input
+        type="number" min={0} inputMode="numeric"
+        value={count} onChange={(e) => setCount(e.target.value)}
+        placeholder="Video count seen on TikTok"
+        className="min-w-[180px] flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm outline-none focus:border-white/40"
+        onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+      />
+      <button onClick={submit} disabled={busy || !count} className="shrink-0 rounded-lg bg-white px-3 py-2 text-xs font-medium text-black disabled:opacity-30">
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : done ? <Check className="h-3.5 w-3.5" /> : "Log"}
+      </button>
+      <button onClick={() => setOpen(false)} className="text-[11px] text-muted-foreground hover:text-white">Cancel</button>
+      {error && <div className="w-full text-[11px] text-destructive">{error}</div>}
+    </div>
   );
 }
 
