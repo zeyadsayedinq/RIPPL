@@ -69,9 +69,12 @@ export function XPWindow({
     ? { position: "fixed", left: 0, top: 0, right: 0, bottom: TASKBAR_H, zIndex: z }
     : { position: "fixed", left: x, top: y, width: w, height: h, zIndex: z };
 
+  /* Luna Blue caption. Measured stops, not eyeballed: a thin light rim at the
+     very top, the bright band at ~9%, the flat body through the middle, then a
+     darker roll-off with the pale 2px lip XP leaves along the bottom edge. */
   const titleBg = focused
-    ? "linear-gradient(180deg,#0058EE 0%,#3F8CF3 8%,#1868E0 40%,#0F5BD8 88%,#3F8CF3 100%)"
-    : "linear-gradient(180deg,#7BA2E7 0%,#A9C4F0 10%,#8FB0EA 45%,#7BA2E7 100%)";
+    ? "linear-gradient(180deg,#0F63EA 0%,#3D95FF 3%,#0F63EA 9%,#0755D8 22%,#0450D2 60%,#0345C4 88%,#1E63D8 95%,#4E9BF5 100%)"
+    : "linear-gradient(180deg,#94B5EB 0%,#B6CDF4 3%,#94B5EB 9%,#7FA5E4 30%,#7BA2E7 88%,#A9C4F0 100%)";
 
   return (
     <div
@@ -101,8 +104,8 @@ export function XPWindow({
         }}
         onDoubleClick={onToggleMax}
         style={{
-          height: 28,
-          flex: "0 0 28px",
+          height: 30,
+          flex: "0 0 30px",
           background: titleBg,
           borderRadius: maximized ? 0 : "7px 7px 0 0",
           display: "flex",
@@ -117,9 +120,11 @@ export function XPWindow({
         <span
           style={{
             color: "#fff",
-            fontSize: 12,
+            fontFamily: '"Trebuchet MS", Tahoma, sans-serif',
+            fontSize: 13,
             fontWeight: "bold",
-            textShadow: "1px 1px 1px rgba(0,0,0,.55)",
+            letterSpacing: ".1px",
+            textShadow: "1px 1px 0 rgba(0,0,0,.45)",
             flex: 1,
             whiteSpace: "nowrap",
             overflow: "hidden",

@@ -43,7 +43,7 @@ export function Taskbar() {
         style={{
           position: "fixed", left: 0, right: 0, bottom: 0, height: TASKBAR_H, zIndex: 9500,
           display: "flex", alignItems: "stretch",
-          background: "linear-gradient(180deg,#2E5EDB 0%,#3D7BE8 8%,#245EDB 42%,#1F55CE 88%,#3F8CF3 100%)",
+          background: "linear-gradient(180deg,#1F3FA8 0%,#4A8CF7 2%,#3C7BEE 6%,#2461DE 14%,#1E56D6 44%,#1A4FCE 82%,#2764DC 94%,#5B9DF7 100%)",
           borderTop: "1px solid #4A85E8",
           fontFamily: 'Tahoma, "Segoe UI", sans-serif', fontSize: 12,
           userSelect: "none",
@@ -56,12 +56,13 @@ export function Taskbar() {
           style={{
             display: "flex", alignItems: "center", gap: 5, padding: "0 22px 0 8px",
             border: "none", cursor: "default", color: "#fff",
-            fontSize: 15, fontStyle: "italic", fontWeight: "bold",
-            textShadow: "1px 1px 2px rgba(0,0,0,.5)",
-            borderRadius: "0 10px 10px 0",
+            fontFamily: '"Trebuchet MS", Tahoma, sans-serif',
+            fontSize: 16, fontStyle: "italic", fontWeight: "bold",
+            textShadow: "1px 1px 1px rgba(0,0,0,.55)",
+            borderRadius: "0 12px 12px 0",
             background: startOpen
               ? "linear-gradient(180deg,#2E7A18 0%,#3C8B1E 50%,#2A6B14 100%)"
-              : "linear-gradient(180deg,#4CA82C 0%,#63BE38 8%,#3C9B26 45%,#2E8A1C 90%,#5DB432 100%)",
+              : "linear-gradient(180deg,#57B02F 0%,#75CB45 5%,#4BA528 16%,#3D971F 50%,#31871A 84%,#4FA82B 95%,#7ACB49 100%)",
             boxShadow: startOpen ? "inset 2px 2px 4px rgba(0,0,0,.35)" : "inset 0 1px 0 rgba(255,255,255,.35)",
           }}
         >
