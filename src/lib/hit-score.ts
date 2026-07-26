@@ -115,26 +115,44 @@ export interface HitScoreResult {
 const clamp = (n: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, n));
 
 /**
- * Penalty-only band. Returns 0 while `value` sits inside [lo, hi], then a
- * NEGATIVE number that grows with distance outside it, capped at `-max`.
+ * Scores a value against a "sweet spot" band:
  *
- * This replaces the earlier bell() helper, which was the cause of a real
- * calibration bug: bell() returned its *maximum positive* value at the ideal
- * point, so loudness, tempo and duration each handed out full marks to a
- * perfectly ordinary track. Stacked with the genre prior, a default pop track
- * scored 100.0 and the scale was useless. Being in the normal range for tempo
- * or length isn't evidence a record will do well — it's just the absence of a
- * problem, so it's worth zero points, not eight.
+ *   • CENTRE of [lo, hi]  → +bonus  (a small credit, deliberately never a large one)
+ *   • EDGES  of [lo, hi]  →  0
+ *   • OUTSIDE the band    →  negative, growing with distance, capped at -maxPenalty
+ *
+ * Two opposite bugs are being avoided here at once.
+ *
+ * v1 used a bell curve paying its MAXIMUM at the ideal point, so loudness,
+ * tempo and duration each handed full marks to a perfectly ordinary track.
+ * Stacked with the genre prior, a default pop track scored 100.0 and the scale
+ * carried no information at all.
+ *
+ * v2 overcorrected to penalty-only — exactly zero anywhere inside the band.
+ * That fixed the ceiling but made three sliders inert: dragging tempo across
+ * 80–168 BPM, the entire musically useful range, moved the score not at all.
+ * A control that does nothing across its whole useful span is indistinguishable
+ * from a broken one, which is precisely how it was reported.
+ *
+ * v3 restores a small bonus so every control is always live, capped low enough
+ * that being unremarkable still can't carry a track: dead-centre on all three
+ * is worth ~8 points combined, against ~30 available from energy alone.
  */
-function penaltyOutside(
+function bandScore(
   value: number,
   lo: number,
   hi: number,
   slope: number,
-  max: number,
+  maxPenalty: number,
+  bonus: number,
 ): number {
-  const distance = value < lo ? lo - value : value > hi ? value - hi : 0;
-  return -Math.min(distance * slope, max);
+  if (value >= lo && value <= hi) {
+    const centre = (lo + hi) / 2;
+    const halfWidth = (hi - lo) / 2;
+    return bonus * (1 - Math.abs(value - centre) / halfWidth);
+  }
+  const distance = value < lo ? lo - value : value - hi;
+  return -Math.min(distance * slope, maxPenalty);
 }
 
 export function genreWeight(genre?: string): number {
@@ -197,7 +215,7 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
 
   // Loudness — penalty only. A competitive master earns nothing; a quiet or
   // over-limited one loses. Modern streaming masters sit roughly -11…-4 dB.
-  const loudPts = penaltyOutside(f.loudness, -11, -4, 0.9, 10);
+  const loudPts = bandScore(f.loudness, -11, -4, 0.9, 10, 2.5);
   c.push({
     label: "Loudness",
     points: loudPts,
@@ -206,7 +224,7 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
         ? "Quiet master — will feel small next to playlist neighbours"
         : f.loudness > -4
           ? "Hotter than streaming targets — likely over-limited"
-          : "Competitive loudness — no penalty, no bonus",
+          : "Competitive loudness for streaming",
   });
   if (f.loudness > -4) warnings.push("Master may be over-limited (> -4 dB).");
 
@@ -223,7 +241,7 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
 
   // Tempo — penalty only, wide neutral plateau. Being at 120 BPM is not
   // evidence of anything; being at 45 or 200 is a placement problem.
-  const tempoPts = penaltyOutside(f.tempo, 80, 168, 0.18, 8);
+  const tempoPts = bandScore(f.tempo, 80, 168, 0.18, 8, 2);
   c.push({
     label: "Tempo",
     points: tempoPts,
@@ -235,7 +253,7 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
 
   // Duration — penalty only. Short-form era favours roughly 2:12–4:18.
   const minutes = f.durationMs / 60_000;
-  const durationPts = penaltyOutside(minutes, 2.2, 4.3, 5, 9);
+  const durationPts = bandScore(minutes, 2.2, 4.3, 5, 9, 2.5);
   c.push({
     label: "Duration",
     points: durationPts,
@@ -285,7 +303,7 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
 
   // Genre prior — centred on 0.25 so the merely-common genres sit near zero
   // and only the genuinely over- or under-represented ones move the number.
-  const genrePts = (genreWeight(f.genre) - 0.25) * 10;
+  const genrePts = (genreWeight(f.genre) - 0.25) * 9;
   c.push({
     label: `Genre${f.genre ? ` · ${f.genre}` : ""}`,
     points: genrePts,
@@ -300,12 +318,13 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
   const raw = 50 + c.reduce((s, x) => s + x.points, 0);
   const score = Math.round(clamp(raw, 0, 100) * 10) / 10;
 
-  /* Calibration reference points for this weighting (model heuristic-v2):
-       default pop track (E .70, D .65, A .15, -7dB, 120bpm, 3:00)  ≈ 66
-       everything maxed in the favourable direction                 ≈ 91
+  /* Calibration reference points for this weighting (model heuristic-v3):
+       default pop track (E .70, D .65, A .15, -7dB, 120bpm, 3:00)  ≈ 70
+       everything pushed in the favourable direction                ≈ 90
        acoustic 6-minute instrumental jazz at -20dB                 ≈ 0
-     If you change a weight, re-check those three — a scale where an ordinary
-     track scores 100 tells you nothing, which is exactly what v1 did. */
+     Change a weight and re-check those three. Also re-check that no slider
+     goes inert: sweeping tempo 80→168 BPM must move the number. It didn't in
+     v2, which is what made the panel look broken. */
 
   // Logistic squash so the number reads as a probability. Centred on 62 (the
   // middle of the realistic band above) rather than on the raw scale midpoint.
@@ -325,7 +344,7 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
     probability,
     contributions: c.sort((a, b) => Math.abs(b.points) - Math.abs(a.points)),
     warnings,
-    modelVersion: "heuristic-v2",
+    modelVersion: "heuristic-v3",
   };
 }
 

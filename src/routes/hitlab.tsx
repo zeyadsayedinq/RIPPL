@@ -387,24 +387,45 @@ function HitLabPage() {
                 <div key={c.label} className="flex items-start gap-3">
                   <div className="w-24 shrink-0 text-xs">{c.label}</div>
                   <div className="relative mt-1.5 h-1.5 flex-1 rounded-full bg-white/[0.06]">
+                    {/* zero marker — without it a neutral feature renders as an
+                        empty track, which reads as "not computed" rather than
+                        "no effect". */}
+                    <div className="absolute left-1/2 top-[-2px] h-[10px] w-px -translate-x-1/2 bg-white/20" />
                     <div
-                      className="absolute top-0 h-full rounded-full"
+                      className="absolute top-0 rounded-full"
                       style={{
+                        height: "100%",
                         left:
                           c.points >= 0
                             ? "50%"
                             : `${50 - Math.min(Math.abs(c.points) * 2, 50)}%`,
-                        width: `${Math.min(Math.abs(c.points) * 2, 50)}%`,
+                        width: `${Math.max(Math.min(Math.abs(c.points) * 2, 50), 0.6)}%`,
                         background:
-                          c.points >= 0
-                            ? "oklch(0.82 0.18 150)"
-                            : "oklch(0.7 0.2 20)",
+                          Math.abs(c.points) < 0.05
+                            ? "rgba(255,255,255,.28)"
+                            : c.points >= 0
+                              ? "oklch(0.82 0.18 150)"
+                              : "oklch(0.7 0.2 20)",
                       }}
                     />
                   </div>
-                  <div className="w-12 shrink-0 text-right font-mono text-[11px] text-muted-foreground">
-                    {c.points >= 0 ? "+" : ""}
-                    {c.points.toFixed(1)}
+                  <div
+                    className="w-12 shrink-0 text-right font-mono text-[11px]"
+                    style={{
+                      color:
+                        Math.abs(c.points) < 0.05
+                          ? "rgba(255,255,255,.35)"
+                          : undefined,
+                    }}
+                    title={
+                      Math.abs(c.points) < 0.05
+                        ? "In the normal range — neither helps nor hurts"
+                        : undefined
+                    }
+                  >
+                    {Math.abs(c.points) < 0.05
+                      ? "—"
+                      : `${c.points >= 0 ? "+" : ""}${c.points.toFixed(1)}`}
                   </div>
                 </div>
               ))}
