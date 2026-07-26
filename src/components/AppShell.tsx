@@ -6,10 +6,27 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { QuickActionFAB } from "@/components/QuickActionFAB";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { SyncBadge } from "@/components/SyncBadge";
+import { XPRouteWindow } from "@/components/xp/XPShell";
+import { useWindowsOptional } from "@/lib/window-store";
 import { motion } from "framer-motion";
 
-// Providers (Campaign, Role, OS) live in __root.tsx, wrapping every route.
+// Providers (Campaign, Role, OS, Window) live in __root.tsx, wrapping every route.
 export function AppShell({ children }: { children: ReactNode }) {
+  const win = useWindowsOptional();
+
+  /* XP skin: the page becomes the CONTENTS of the route window. Wallpaper,
+     taskbar and every other window are rendered once at the root by
+     <XPChrome />, so nothing here needs to know about them.
+     Sidebar → Start menu · FAB → desktop right-click · bell → system tray. */
+  if (win?.skin === "xp") {
+    return (
+      <>
+        <XPRouteWindow>{children}</XPRouteWindow>
+        <CommandPalette />
+      </>
+    );
+  }
+
   return (
     <>
       <MeshGradient />

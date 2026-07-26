@@ -114,10 +114,27 @@ export interface HitScoreResult {
 
 const clamp = (n: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, n));
 
-/** Peak at `ideal`, falling off over `spread`. Returns -1…1. */
-function bell(value: number, ideal: number, spread: number): number {
-  const d = Math.abs(value - ideal) / spread;
-  return clamp(1 - d, -1, 1);
+/**
+ * Penalty-only band. Returns 0 while `value` sits inside [lo, hi], then a
+ * NEGATIVE number that grows with distance outside it, capped at `-max`.
+ *
+ * This replaces the earlier bell() helper, which was the cause of a real
+ * calibration bug: bell() returned its *maximum positive* value at the ideal
+ * point, so loudness, tempo and duration each handed out full marks to a
+ * perfectly ordinary track. Stacked with the genre prior, a default pop track
+ * scored 100.0 and the scale was useless. Being in the normal range for tempo
+ * or length isn't evidence a record will do well — it's just the absence of a
+ * problem, so it's worth zero points, not eight.
+ */
+function penaltyOutside(
+  value: number,
+  lo: number,
+  hi: number,
+  slope: number,
+  max: number,
+): number {
+  const distance = value < lo ? lo - value : value > hi ? value - hi : 0;
+  return -Math.min(distance * slope, max);
 }
 
 export function genreWeight(genre?: string): number {
@@ -138,7 +155,11 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
   const warnings: string[] = [];
 
   // Energy — the strongest single separator in the source study.
-  const energyPts = (f.energy - 0.5) * 34;
+  // Midpoints below (0.55 energy, 0.58 danceability, 0.28 acousticness) are the
+  // rough centre of the popular class, NOT the centre of the 0–1 range — that's
+  // what makes a genuinely average track land near the middle of the scale
+  // instead of pinning at 100.
+  const energyPts = (f.energy - 0.55) * 30;
   c.push({
     label: "Energy",
     points: energyPts,
@@ -151,7 +172,7 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
   });
 
   // Danceability — second strongest.
-  const dancePts = (f.danceability - 0.5) * 30;
+  const dancePts = (f.danceability - 0.58) * 26;
   c.push({
     label: "Danceability",
     points: dancePts,
@@ -164,7 +185,7 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
   });
 
   // Acousticness — inverse relationship.
-  const acousticPts = -(f.acousticness - 0.3) * 22;
+  const acousticPts = -(f.acousticness - 0.28) * 16;
   c.push({
     label: "Acousticness",
     points: acousticPts,
@@ -174,20 +195,23 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
         : "Production-forward, in line with popular tracks",
   });
 
-  // Loudness — modern masters sit around -7 to -5 LUFS-ish territory.
-  const loudPts = bell(f.loudness, -6, 10) * 10;
+  // Loudness — penalty only. A competitive master earns nothing; a quiet or
+  // over-limited one loses. Modern streaming masters sit roughly -11…-4 dB.
+  const loudPts = penaltyOutside(f.loudness, -11, -4, 0.9, 10);
   c.push({
     label: "Loudness",
     points: loudPts,
     note:
       f.loudness < -14
         ? "Quiet master — will feel small next to playlist neighbours"
-        : "Competitive loudness",
+        : f.loudness > -4
+          ? "Hotter than streaming targets — likely over-limited"
+          : "Competitive loudness — no penalty, no bonus",
   });
   if (f.loudness > -4) warnings.push("Master may be over-limited (> -4 dB).");
 
   // Valence — mild positive, much weaker than energy/danceability.
-  const valencePts = (f.valence - 0.45) * 9;
+  const valencePts = (f.valence - 0.5) * 7;
   c.push({
     label: "Valence",
     points: valencePts,
@@ -197,28 +221,29 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
         : "Darker mood — small effect either way",
   });
 
-  // Tempo — broad plateau, penalty at the extremes.
-  const tempoPts = bell(f.tempo, 122, 55) * 8;
+  // Tempo — penalty only, wide neutral plateau. Being at 120 BPM is not
+  // evidence of anything; being at 45 or 200 is a placement problem.
+  const tempoPts = penaltyOutside(f.tempo, 80, 168, 0.18, 8);
   c.push({
     label: "Tempo",
     points: tempoPts,
     note:
-      f.tempo < 70 || f.tempo > 175
+      tempoPts < 0
         ? "Unusual tempo for mainstream placement"
         : `${Math.round(f.tempo)} BPM sits in the common range`,
   });
 
-  // Duration — short-form era favours ~2:30–3:30.
+  // Duration — penalty only. Short-form era favours roughly 2:12–4:18.
   const minutes = f.durationMs / 60_000;
-  const durationPts = bell(minutes, 3.0, 2.0) * 8;
+  const durationPts = penaltyOutside(minutes, 2.2, 4.3, 5, 9);
   c.push({
     label: "Duration",
     points: durationPts,
     note:
-      minutes > 5
+      minutes > 4.3
         ? "Long — skip risk in playlist contexts"
-        : minutes < 1.6
-          ? "Very short — may under-monetise"
+        : minutes < 2.2
+          ? "Short — may under-monetise per play"
           : `${minutes.toFixed(1)} min is a comfortable length`,
   });
   if (minutes > 6) warnings.push("Over 6 minutes — expect elevated skip rate.");
@@ -235,7 +260,7 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
   });
 
   // Speechiness — fine for rap, penalised above the spoken-word threshold.
-  const speechPts = f.speechiness > 0.66 ? -12 : f.speechiness > 0.33 ? 3 : 0;
+  const speechPts = f.speechiness > 0.66 ? -10 : f.speechiness > 0.33 ? 2 : 0;
   c.push({
     label: "Speechiness",
     points: speechPts,
@@ -258,15 +283,16 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
   if (f.liveness > 0.8)
     warnings.push("Live recordings historically under-perform on DSPs.");
 
-  // Genre prior.
-  const genrePts = genreWeight(f.genre) * 12;
+  // Genre prior — centred on 0.25 so the merely-common genres sit near zero
+  // and only the genuinely over- or under-represented ones move the number.
+  const genrePts = (genreWeight(f.genre) - 0.25) * 10;
   c.push({
     label: `Genre${f.genre ? ` · ${f.genre}` : ""}`,
     points: genrePts,
     note:
-      genrePts > 4
+      genrePts > 3
         ? "Genre is over-represented among popular tracks"
-        : genrePts < -4
+        : genrePts < -3
           ? "Niche genre — smaller mainstream ceiling, not a quality judgement"
           : "Genre is roughly neutral",
   });
@@ -274,13 +300,20 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
   const raw = 50 + c.reduce((s, x) => s + x.points, 0);
   const score = Math.round(clamp(raw, 0, 100) * 10) / 10;
 
-  // Logistic squash so the number reads as a probability, calibrated so ~58
-  // (the study's popularity cutoff) lands near 0.5.
+  /* Calibration reference points for this weighting (model heuristic-v2):
+       default pop track (E .70, D .65, A .15, -7dB, 120bpm, 3:00)  ≈ 66
+       everything maxed in the favourable direction                 ≈ 91
+       acoustic 6-minute instrumental jazz at -20dB                 ≈ 0
+     If you change a weight, re-check those three — a scale where an ordinary
+     track scores 100 tells you nothing, which is exactly what v1 did. */
+
+  // Logistic squash so the number reads as a probability. Centred on 62 (the
+  // middle of the realistic band above) rather than on the raw scale midpoint.
   const probability =
-    Math.round((1 / (1 + Math.exp(-(score - 58) / 11))) * 1000) / 1000;
+    Math.round((1 / (1 + Math.exp(-(score - 62) / 12))) * 1000) / 1000;
 
   const band: HitScoreResult["band"] =
-    score >= 68 ? "Strong" : score >= 50 ? "Moderate" : "Low";
+    score >= 72 ? "Strong" : score >= 48 ? "Moderate" : "Low";
 
   warnings.push(
     "Heuristic, not a trained model. Reference models plateaued near 66% recall — treat this as a tie-breaker, never a gate.",
@@ -292,7 +325,7 @@ export function hitScore(f: AudioFeatures): HitScoreResult {
     probability,
     contributions: c.sort((a, b) => Math.abs(b.points) - Math.abs(a.points)),
     warnings,
-    modelVersion: "heuristic-v1",
+    modelVersion: "heuristic-v2",
   };
 }
 

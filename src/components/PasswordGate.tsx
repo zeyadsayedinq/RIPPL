@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
+import { useWindowsOptional } from "@/lib/window-store";
+import { XPIcon } from "@/components/xp/XPIcon";
 
 /* Simple client-side master-password gate.
    NOTE: this is a UI lock for a private tool, not real security — the
@@ -15,6 +17,7 @@ export function PasswordGate({ children }: { children: ReactNode }) {
   const [unlocked, setUnlocked] = useState(false);
   const [value, setValue] = useState("");
   const [error, setError] = useState(false);
+  const xp = useWindowsOptional()?.skin === "xp";
 
   useEffect(() => {
     try { setUnlocked(window.localStorage.getItem(LS_KEY) === "1"); } catch { /* ignore */ }
@@ -37,6 +40,78 @@ export function PasswordGate({ children }: { children: ReactNode }) {
   // so the app never flashes before the gate.
   if (!checked) return <div className="min-h-screen bg-black" />;
   if (unlocked) return <>{children}</>;
+
+  if (xp) {
+    /* The XP Welcome screen: split panel, user tile, password box with the
+       green go arrow. Same MASTER check, same localStorage key. */
+    return (
+      <div
+        className="xp-chrome"
+        style={{
+          minHeight: "100vh", display: "flex", flexDirection: "column",
+          background: "linear-gradient(180deg,#0A246A 0%,#3A6EA5 30%,#5A8FD0 50%,#3A6EA5 70%,#0A246A 100%)",
+          fontFamily: 'Tahoma, "Segoe UI", sans-serif', color: "#fff",
+        }}
+      >
+        <div style={{ height: 4, background: "linear-gradient(90deg,#F0A30A,#E85A20)" }} />
+
+        <div style={{
+          flex: 1, display: "grid", gridTemplateColumns: "1fr 1px 1fr",
+          alignItems: "center", gap: 30, padding: "24px 6vw",
+        }}>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 42, fontWeight: "bold", textShadow: "2px 2px 4px rgba(0,0,0,.4)" }}>
+              RIPPL<span style={{ color: "#F0A30A", fontWeight: "normal" }}>XP</span>
+            </div>
+            <p style={{ margin: "8px 0 0", fontSize: 13, opacity: .85 }}>
+              To begin, enter the master key
+            </p>
+          </div>
+
+          <div style={{ background: "rgba(255,255,255,.35)", height: "62%", minHeight: 150 }} />
+
+          <form onSubmit={submit} className={error ? "animate-shake" : ""} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 62, height: 62, border: "2px solid #fff", borderRadius: 4, background: "#8FB0EA", display: "grid", placeItems: "center", flex: "0 0 62px" }}>
+              <XPIcon name="user" size={46} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 17, textShadow: "1px 1px 2px rgba(0,0,0,.4)" }}>Zeyad</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+                <input
+                  type="password" autoFocus value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  aria-label="Master key"
+                  style={{ width: 132, padding: "3px 6px", fontSize: 13 }}
+                />
+                <button
+                  type="submit" aria-label="Log on" className="xp-chrome xp-nobtn"
+                  style={{
+                    width: 24, height: 24, borderRadius: 9999, border: "1px solid #2A6B18",
+                    background: "radial-gradient(circle at 35% 30%,#7BD44A,#3C9B26 70%)",
+                    color: "#fff", cursor: "pointer", padding: 0, fontSize: 13, lineHeight: 1,
+                  }}
+                >
+                  ▸
+                </button>
+              </div>
+              <div style={{ height: 16, marginTop: 4 }}>
+                {error && <span style={{ fontSize: 11, color: "#FFD0C8" }}>Did you forget your password?</span>}
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div style={{ height: 4, background: "linear-gradient(90deg,#E85A20,#F0A30A)" }} />
+        <div style={{
+          background: "#0A246A", padding: "10px 6vw", fontSize: 11, opacity: .8,
+          display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+        }}>
+          <span>After you log on, you can add or change accounts.</span>
+          <span>Just go to Control Panel and click User Accounts.</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative grid min-h-screen place-items-center overflow-hidden bg-black px-4 font-mono">

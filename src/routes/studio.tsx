@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
@@ -11,7 +11,6 @@ import {
   pickHooks,
   batchCommand,
   creatorBrief,
-  type Hook,
   type HookAngle,
 } from "@/lib/ugc-hooks";
 import {
@@ -227,20 +226,48 @@ function Scratchpad() {
    music bed, rendered in batch. Pick a batch here, copy the command, render
    with scripts/ugc_reel_gen.py. Doctrine lives in
    knowledge/marketing/UGC_CONTENT_ENGINE.md — rank on 3s retention, never views. */
+/* The batch builder has one "Artist / track" field, but a creator brief needs
+   both separately ("Track: X — Y", "search for the official sound"). Splitting
+   on an em/en dash or a spaced hyphen covers how people actually type it; if
+   there's no separator the whole string is treated as the track. */
+function splitArtistTrack(input: string): { artist: string; track: string } {
+  const parts = input.split(/\s+[—–-]\s+/);
+  if (parts.length >= 2) {
+    return {
+      artist: parts[0].trim(),
+      track: parts.slice(1).join(" - ").trim(),
+    };
+  }
+  const only = input.trim();
+  return { artist: only || "—", track: only || "the track" };
+}
+
 function UgcEngine() {
   const { update } = useOS();
   const [campaign, setCampaign] = useState("");
   const [artist, setArtist] = useState("");
+  const [trackPath, setTrackPath] = useState("");
   const [count, setCount] = useState(12);
   const [angle, setAngle] = useState<HookAngle | "all">("all");
-  const [batch, setBatch] = useState<Hook[]>(() => pickHooks(12));
+  const [seed, setSeed] = useState(0);
   const [copied, setCopied] = useState<string | null>(null);
 
   const filtered =
     angle === "all" ? HOOKS : HOOKS.filter((h) => h.angle === angle);
 
+  /* Derived, not stored. Held in state before, which meant changing Count or
+     Angle left the list showing the previous batch until you happened to hit
+     Reroll — the command underneath said 4 while 12 hooks were on screen.
+     `seed` exists only so Reroll can force a fresh draw with the same inputs. */
+  const batch = useMemo(
+    () => pickHooks(count, angle === "all" ? undefined : angle),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [count, angle, seed],
+  );
+  const short = batch.length < count;
+
   function reroll() {
-    setBatch(pickHooks(count, angle === "all" ? undefined : angle));
+    setSeed((s) => s + 1);
   }
 
   function copy(key: string, text: string) {
@@ -256,7 +283,7 @@ function UgcEngine() {
       {
         id: uid("n"),
         title: `UGC batch — ${campaign || "untitled campaign"}`,
-        body: `${batchCommand(campaign || "campaign", count, angle === "all" ? undefined : angle)}\n\n${body}`,
+        body: `${cmd}\n\n${body}`,
         updatedAt: "just now",
       },
       ...all,
@@ -272,10 +299,16 @@ function UgcEngine() {
     ]);
   }
 
+  /* `batch.length`, not `count` — if an angle has fewer hooks than you asked
+     for, the command has to match what's actually on screen. And trackPath is
+     passed through so --track finally reaches the renderer; before this the
+     command promoted whatever happened to be in media/music/ instead of the
+     record you were building the batch for. */
   const cmd = batchCommand(
     campaign || "campaign",
-    count,
+    batch.length,
     angle === "all" ? undefined : angle,
+    trackPath.trim() || undefined,
   );
 
   return (
@@ -332,9 +365,16 @@ function UgcEngine() {
             <input
               type="number"
               min={1}
-              max={30}
+              max={HOOKS.length}
               value={count}
-              onChange={(e) => setCount(Number(e.target.value) || 1)}
+              onChange={(e) =>
+                setCount(
+                  Math.min(
+                    Math.max(Number(e.target.value) || 1, 1),
+                    HOOKS.length,
+                  ),
+                )
+              }
               className="glass w-full rounded-xl px-3 py-2 text-sm outline-none"
             />
           </div>
@@ -357,7 +397,28 @@ function UgcEngine() {
               ))}
             </select>
           </div>
+          <div className="col-span-12">
+            <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+              Track file (optional) — becomes{" "}
+              <span className="font-mono">--track</span>
+            </label>
+            <input
+              value={trackPath}
+              onChange={(e) => setTrackPath(e.target.value)}
+              placeholder="media/music/night_drive.wav"
+              className="glass w-full rounded-xl px-3 py-2 font-mono text-xs outline-none"
+            />
+          </div>
         </div>
+
+        {short && (
+          <div className="mt-3 rounded-xl border border-[oklch(0.85_0.15_85/0.3)] bg-[oklch(0.85_0.15_85/0.06)] px-3 py-2 text-[11px] text-[oklch(0.88_0.13_85)]">
+            Only {batch.length} hook{batch.length === 1 ? "" : "s"} exist for
+            this angle, so the batch and the command below both use{" "}
+            {batch.length}. Pick “All”, or add more to{" "}
+            <span className="font-mono">data/hooks.csv</span>.
+          </div>
+        )}
 
         <div className="mt-4 space-y-1.5">
           {batch.map((h) => (
@@ -377,8 +438,7 @@ function UgcEngine() {
                   copy(
                     `brief-${h.id}`,
                     creatorBrief({
-                      track: artist || "the track",
-                      artist: artist || "—",
+                      ...splitArtistTrack(artist),
                       hook: h.text,
                     }),
                   )

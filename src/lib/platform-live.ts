@@ -68,8 +68,8 @@ export interface LiveResult<T> {
 /* ── Soundcharts (TikTok sound scanner) ──────────────────────── */
 
 export interface TikTokSoundStats {
-  videoCount: number;    // "creations using this sound" — the only metric Soundcharts tracks for TikTok
-  asOf?: string;         // date of the latest data point, if Soundcharts returned one
+  videoCount: number; // "creations using this sound" — the only metric Soundcharts tracks for TikTok
+  asOf?: string; // date of the latest data point, if Soundcharts returned one
 }
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
@@ -77,8 +77,12 @@ let cachedToken: { value: string; expiresAt: number } | null = null;
 async function soundchartsToken(): Promise<string> {
   const id = process.env.SOUNDCHARTS_CLIENT_ID;
   const secret = process.env.SOUNDCHARTS_CLIENT_SECRET;
-  if (!id || !secret) throw new Error("SOUNDCHARTS_CLIENT_ID / SOUNDCHARTS_CLIENT_SECRET aren't set.");
-  if (cachedToken && cachedToken.expiresAt > Date.now() + 5_000) return cachedToken.value;
+  if (!id || !secret)
+    throw new Error(
+      "SOUNDCHARTS_CLIENT_ID / SOUNDCHARTS_CLIENT_SECRET aren't set.",
+    );
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 5_000)
+    return cachedToken.value;
 
   const res = await fetch(SOUNDCHARTS_TOKEN_URL, {
     method: "POST",
@@ -88,23 +92,34 @@ async function soundchartsToken(): Promise<string> {
     },
     body: "grant_type=client_credentials",
   });
-  if (!res.ok) throw new Error(`Soundcharts token request failed (${res.status}) — check SOUNDCHARTS_CLIENT_ID/SECRET.`);
+  if (!res.ok)
+    throw new Error(
+      `Soundcharts token request failed (${res.status}) — check SOUNDCHARTS_CLIENT_ID/SECRET.`,
+    );
   const body = await res.json();
-  cachedToken = { value: body.access_token, expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000 };
+  cachedToken = {
+    value: body.access_token,
+    expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000,
+  };
   return cachedToken.value;
 }
 
 async function soundchartsGet(path: string): Promise<any> {
   const token = await soundchartsToken();
-  const res = await fetch(`${SOUNDCHARTS_API_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(`${SOUNDCHARTS_API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(body?.errors?.[0]?.message || `Soundcharts API error (${res.status})`);
+    throw new Error(
+      body?.errors?.[0]?.message || `Soundcharts API error (${res.status})`,
+    );
   }
   return res.json();
 }
 
-const UUID_RE = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
+const UUID_RE =
+  /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
 
 /** Resolves a public platform URL (e.g. the TikTok sound page link you'd
  *  paste from the app) to Soundcharts' own song UUID via the confirmed
@@ -113,15 +128,28 @@ const UUID_RE = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-
  *  Soundcharts URL and the type" for that entity, but doesn't render the
  *  exact JSON key names — so this checks the couple of shapes that phrasing
  *  implies (a bare `uuid`, or a `url` with the uuid as its last segment). */
-async function resolveSoundchartsSongUuid(platformUrl: string): Promise<string> {
-  const body = await soundchartsGet(`/search/external/url?platformUrl=${encodeURIComponent(platformUrl)}`);
+async function resolveSoundchartsSongUuid(
+  platformUrl: string,
+): Promise<string> {
+  const body = await soundchartsGet(
+    `/search/external/url?platformUrl=${encodeURIComponent(platformUrl)}`,
+  );
   const type = body?.type ?? body?.object?.type;
   if (type && type !== "song") {
-    throw new Error(`That link resolved to a Soundcharts "${type}", not a song — paste the TikTok sound/music page link for the track itself.`);
+    throw new Error(
+      `That link resolved to a Soundcharts "${type}", not a song — paste the TikTok sound/music page link for the track itself.`,
+    );
   }
-  const candidate: string | undefined = body?.object?.uuid ?? body?.uuid ?? body?.object?.url ?? body?.url;
-  const uuid = candidate && UUID_RE.test(candidate) ? candidate.match(UUID_RE)![0] : undefined;
-  if (!uuid) throw new Error("Soundcharts didn't recognize that TikTok sound link — try pasting the exact URL from the TikTok sound/music page.");
+  const candidate: string | undefined =
+    body?.object?.uuid ?? body?.uuid ?? body?.object?.url ?? body?.url;
+  const uuid =
+    candidate && UUID_RE.test(candidate)
+      ? candidate.match(UUID_RE)![0]
+      : undefined;
+  if (!uuid)
+    throw new Error(
+      "Soundcharts didn't recognize that TikTok sound link — try pasting the exact URL from the TikTok sound/music page.",
+    );
   return uuid;
 }
 
@@ -134,10 +162,14 @@ async function getTikTokVideoCount(uuid: string): Promise<TikTokSoundStats> {
   const body = await soundchartsGet(`/song/${uuid}/audience/tiktok`);
   const items = body?.items ?? body?.object?.items ?? [];
   if (!Array.isArray(items) || items.length === 0) {
-    throw new Error("Soundcharts has no TikTok video-count data for this song yet — it may need a moment after being added, or your plan may not include this endpoint.");
+    throw new Error(
+      "Soundcharts has no TikTok video-count data for this song yet — it may need a moment after being added, or your plan may not include this endpoint.",
+    );
   }
   const latest = items[items.length - 1];
-  const videoCount = Number(latest?.value ?? latest?.count ?? latest?.plots?.value ?? 0);
+  const videoCount = Number(
+    latest?.value ?? latest?.count ?? latest?.plots?.value ?? 0,
+  );
   return { videoCount, asOf: latest?.date };
 }
 
@@ -164,10 +196,23 @@ async function resolveUserId(
  *  cron (api/cron/soundcharts-snapshot.ts). A Supabase hiccup here never
  *  fails the panel itself, it just means no velocity history yet. */
 export const getTikTokSoundStats = createServerFn({ method: "POST" })
-  .validator((d: { tiktokSoundUrl: string; accessToken?: string; campaignId?: string }) => d)
+  .validator(
+    (d: {
+      tiktokSoundUrl: string;
+      accessToken?: string;
+      campaignId?: string;
+    }) => d,
+  )
   .handler(async ({ data }): Promise<LiveResult<TikTokSoundStats>> => {
-    if (!process.env.SOUNDCHARTS_CLIENT_ID || !process.env.SOUNDCHARTS_CLIENT_SECRET) {
-      return { ok: false, reason: "Soundcharts isn't connected. Add SOUNDCHARTS_CLIENT_ID + SOUNDCHARTS_CLIENT_SECRET (from your Soundcharts dashboard → Credentials) in Vercel env vars, then redeploy." };
+    if (
+      !process.env.SOUNDCHARTS_CLIENT_ID ||
+      !process.env.SOUNDCHARTS_CLIENT_SECRET
+    ) {
+      return {
+        ok: false,
+        reason:
+          "Soundcharts isn't connected. Add SOUNDCHARTS_CLIENT_ID + SOUNDCHARTS_CLIENT_SECRET (from your Soundcharts dashboard → Credentials) in Vercel env vars, then redeploy.",
+      };
     }
     // Original-sound links (auto-created by posting a video, not an
     // official release) can never match anything in Soundcharts' catalog —
@@ -177,7 +222,8 @@ export const getTikTokSoundStats = createServerFn({ method: "POST" })
     if (looksLikeOriginalSound(data.tiktokSoundUrl)) {
       return {
         ok: false,
-        reason: "That's a TikTok \"original sound\" link (auto-created from a video upload) — Soundcharts only tracks officially distributed releases, so it can never match this. If this track is properly distributed, find its real TikTok sound page and paste that instead. Otherwise, use \"Log a count manually\" below.",
+        reason:
+          'That\'s a TikTok "original sound" link (auto-created from a video upload) — Soundcharts only tracks officially distributed releases, so it can never match this. If this track is properly distributed, find its real TikTok sound page and paste that instead. Otherwise, use "Log a count manually" below.',
       };
     }
     try {
@@ -189,8 +235,18 @@ export const getTikTokSoundStats = createServerFn({ method: "POST" })
         if (admin) {
           const userId = await resolveUserId(admin, data.accessToken);
           if (userId) {
-            const tracked = await upsertTrackedSound(admin, userId, data.tiktokSoundUrl, data.campaignId);
-            if (tracked) await upsertTodaySoundSnapshot(admin, tracked.id, stats.videoCount);
+            const tracked = await upsertTrackedSound(
+              admin,
+              userId,
+              data.tiktokSoundUrl,
+              data.campaignId,
+            );
+            if (tracked)
+              await upsertTodaySoundSnapshot(
+                admin,
+                tracked.id,
+                stats.videoCount,
+              );
           }
         }
       } catch {
@@ -203,9 +259,14 @@ export const getTikTokSoundStats = createServerFn({ method: "POST" })
     }
   });
 
-export const soundchartsConfigured = createServerFn({ method: "GET" }).handler(async () => {
-  return Boolean(process.env.SOUNDCHARTS_CLIENT_ID && process.env.SOUNDCHARTS_CLIENT_SECRET);
-});
+export const soundchartsConfigured = createServerFn({ method: "GET" }).handler(
+  async () => {
+    return Boolean(
+      process.env.SOUNDCHARTS_CLIENT_ID &&
+      process.env.SOUNDCHARTS_CLIENT_SECRET,
+    );
+  },
+);
 
 /* ── Manual video-count entry — the real fallback for original-sound links
    and free-tier Soundcharts accounts (see looksLikeOriginalSound above).
@@ -213,21 +274,52 @@ export const soundchartsConfigured = createServerFn({ method: "GET" }).handler(a
    see yourself on the TikTok sound page. Marked source: "manual" in
    sound_snapshots so the chart/UI never implies it's a live API number. ── */
 export const logManualTikTokCount = createServerFn({ method: "POST" })
-  .validator((d: { tiktokSoundUrl: string; accessToken?: string; campaignId?: string; videoCount: number }) => d)
+  .validator(
+    (d: {
+      tiktokSoundUrl: string;
+      accessToken?: string;
+      campaignId?: string;
+      videoCount: number;
+    }) => d,
+  )
   .handler(async ({ data }): Promise<LiveResult<TikTokSoundStats>> => {
     if (!Number.isFinite(data.videoCount) || data.videoCount < 0) {
       return { ok: false, reason: "Enter a valid video count." };
     }
     const admin = soundServiceClient();
-    if (!admin) return { ok: false, reason: "Supabase isn't configured on this deployment — manual entries need somewhere to persist." };
+    if (!admin)
+      return {
+        ok: false,
+        reason:
+          "Supabase isn't configured on this deployment — manual entries need somewhere to persist.",
+      };
     const userId = await resolveUserId(admin, data.accessToken);
     if (!userId) return { ok: false, reason: "Sign in to log a manual count." };
 
-    const tracked = await upsertManualTrackedSound(admin, userId, data.tiktokSoundUrl, data.campaignId);
-    if (!tracked) return { ok: false, reason: "Couldn't save that — try again." };
-    await upsertTodaySoundSnapshot(admin, tracked.id, data.videoCount, "manual");
+    const tracked = await upsertManualTrackedSound(
+      admin,
+      userId,
+      data.tiktokSoundUrl,
+      data.campaignId,
+    );
+    // Surface the real reason. The previous "Couldn't save that — try again."
+    // was unactionable and hid a hard failure that retrying could never fix.
+    if ("error" in tracked) return { ok: false, reason: tracked.error };
+    const snapshotError = await upsertTodaySoundSnapshot(
+      admin,
+      tracked.id,
+      data.videoCount,
+      "manual",
+    );
+    if (snapshotError) return { ok: false, reason: snapshotError };
 
-    return { ok: true, data: { videoCount: data.videoCount, asOf: new Date().toISOString().slice(0, 10) } };
+    return {
+      ok: true,
+      data: {
+        videoCount: data.videoCount,
+        asOf: new Date().toISOString().slice(0, 10),
+      },
+    };
   });
 
 /* ── TikTok sound velocity curve — same idea as getVideoVelocity for
@@ -245,9 +337,17 @@ export const getSoundVelocity = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<LiveResult<SoundVelocityPoint[]>> => {
     const admin = soundServiceClient();
     if (!admin)
-      return { ok: false, reason: "Supabase isn't configured on this deployment — no velocity history without it." };
+      return {
+        ok: false,
+        reason:
+          "Supabase isn't configured on this deployment — no velocity history without it.",
+      };
     const userId = await resolveUserId(admin, data.accessToken);
-    if (!userId) return { ok: false, reason: "Sign in to see this sound's tracked history." };
+    if (!userId)
+      return {
+        ok: false,
+        reason: "Sign in to see this sound's tracked history.",
+      };
 
     const { data: tracked, error: trackedErr } = await admin
       .from("tracked_sounds")
@@ -256,7 +356,11 @@ export const getSoundVelocity = createServerFn({ method: "POST" })
       .eq("tiktok_sound_url", data.tiktokSoundUrl)
       .maybeSingle();
     if (trackedErr || !tracked)
-      return { ok: false, reason: "This sound hasn't been scanned yet — the sound panel above tracks it automatically once it loads." };
+      return {
+        ok: false,
+        reason:
+          "This sound hasn't been scanned yet — the sound panel above tracks it automatically once it loads.",
+      };
 
     const { data: rows, error } = await admin
       .from("sound_snapshots")
@@ -265,12 +369,19 @@ export const getSoundVelocity = createServerFn({ method: "POST" })
       .order("recorded_at", { ascending: true });
     if (error) return { ok: false, reason: error.message };
     if (!rows || rows.length === 0)
-      return { ok: false, reason: "No snapshots yet — check back after the next daily refresh, or log a count manually." };
+      return {
+        ok: false,
+        reason:
+          "No snapshots yet — check back after the next daily refresh, or log a count manually.",
+      };
 
     const points: SoundVelocityPoint[] = rows.map((r, i) => ({
       date: r.recorded_at,
       videoCount: Number(r.video_count),
-      dailyGain: i === 0 ? null : Number(r.video_count) - Number(rows[i - 1].video_count),
+      dailyGain:
+        i === 0
+          ? null
+          : Number(r.video_count) - Number(rows[i - 1].video_count),
       source: (r.source as "api" | "manual") ?? "api",
     }));
     return { ok: true, data: points };
@@ -289,51 +400,107 @@ export interface InstagramStats {
 }
 
 function metaConfigured(): boolean {
-  return Boolean(process.env.META_PAGE_ACCESS_TOKEN && process.env.META_PAGE_ID);
+  return Boolean(
+    process.env.META_PAGE_ACCESS_TOKEN && process.env.META_PAGE_ID,
+  );
 }
 
-export const getFacebookPageStats = createServerFn({ method: "GET" }).handler(async (): Promise<LiveResult<FacebookPageStats>> => {
-  const token = process.env.META_PAGE_ACCESS_TOKEN;
-  const pageId = process.env.META_PAGE_ID;
-  if (!token || !pageId) {
-    return { ok: false, reason: "Facebook isn't connected. Create a Meta App, generate a long-lived Page Access Token (pages_read_engagement + read_insights), and set META_PAGE_ACCESS_TOKEN + META_PAGE_ID in Vercel env vars. Note: Page Insights only populate once the Page has 100+ likes, and the token needs refreshing every 60 days." };
-  }
-  try {
-    const [pageRes, insightsRes] = await Promise.all([
-      fetch(`${META_GRAPH_BASE}/${pageId}?fields=fan_count&access_token=${token}`),
-      fetch(`${META_GRAPH_BASE}/${pageId}/insights?metric=page_impressions,page_engaged_users&period=days_28&access_token=${token}`),
-    ]);
-    if (!pageRes.ok) { const b = await pageRes.json().catch(() => null); throw new Error(b?.error?.message || `Graph API error (${pageRes.status})`); }
-    const page = await pageRes.json();
-    const insights = insightsRes.ok ? await insightsRes.json() : null;
-    const metric = (name: string) => insights?.data?.find((d: any) => d.name === name)?.values?.at(-1)?.value ?? null;
-    return { ok: true, data: { fanCount: Number(page.fan_count ?? 0), reachLifetime: metric("page_impressions"), engagedUsersLifetime: metric("page_engaged_users") } };
-  } catch (e: any) {
-    return { ok: false, reason: e?.message || String(e) };
-  }
-});
+export const getFacebookPageStats = createServerFn({ method: "GET" }).handler(
+  async (): Promise<LiveResult<FacebookPageStats>> => {
+    const token = process.env.META_PAGE_ACCESS_TOKEN;
+    const pageId = process.env.META_PAGE_ID;
+    if (!token || !pageId) {
+      return {
+        ok: false,
+        reason:
+          "Facebook isn't connected. Create a Meta App, generate a long-lived Page Access Token (pages_read_engagement + read_insights), and set META_PAGE_ACCESS_TOKEN + META_PAGE_ID in Vercel env vars. Note: Page Insights only populate once the Page has 100+ likes, and the token needs refreshing every 60 days.",
+      };
+    }
+    try {
+      const [pageRes, insightsRes] = await Promise.all([
+        fetch(
+          `${META_GRAPH_BASE}/${pageId}?fields=fan_count&access_token=${token}`,
+        ),
+        fetch(
+          `${META_GRAPH_BASE}/${pageId}/insights?metric=page_impressions,page_engaged_users&period=days_28&access_token=${token}`,
+        ),
+      ]);
+      if (!pageRes.ok) {
+        const b = await pageRes.json().catch(() => null);
+        throw new Error(
+          b?.error?.message || `Graph API error (${pageRes.status})`,
+        );
+      }
+      const page = await pageRes.json();
+      const insights = insightsRes.ok ? await insightsRes.json() : null;
+      const metric = (name: string) =>
+        insights?.data?.find((d: any) => d.name === name)?.values?.at(-1)
+          ?.value ?? null;
+      return {
+        ok: true,
+        data: {
+          fanCount: Number(page.fan_count ?? 0),
+          reachLifetime: metric("page_impressions"),
+          engagedUsersLifetime: metric("page_engaged_users"),
+        },
+      };
+    } catch (e: any) {
+      return { ok: false, reason: e?.message || String(e) };
+    }
+  },
+);
 
-export const getInstagramStats = createServerFn({ method: "GET" }).handler(async (): Promise<LiveResult<InstagramStats>> => {
-  const token = process.env.META_PAGE_ACCESS_TOKEN;
-  const igId = process.env.META_IG_BUSINESS_ID;
-  if (!token || !igId) {
-    return { ok: false, reason: "Instagram isn't connected. Needs the same Meta App/token as Facebook, plus instagram_manage_insights scope and your IG Business account's ID (META_IG_BUSINESS_ID) — found via Graph API Explorer or your Page's connected Instagram account settings." };
-  }
-  try {
-    const [acctRes, insightsRes] = await Promise.all([
-      fetch(`${META_GRAPH_BASE}/${igId}?fields=followers_count&access_token=${token}`),
-      fetch(`${META_GRAPH_BASE}/${igId}/insights?metric=reach&period=days_28&access_token=${token}`),
-    ]);
-    if (!acctRes.ok) { const b = await acctRes.json().catch(() => null); throw new Error(b?.error?.message || `Graph API error (${acctRes.status})`); }
-    const acct = await acctRes.json();
-    const insights = insightsRes.ok ? await insightsRes.json() : null;
-    const reach = insights?.data?.find((d: any) => d.name === "reach")?.values?.at(-1)?.value ?? null;
-    return { ok: true, data: { followerCount: Number(acct.followers_count ?? 0), reachLifetime: reach } };
-  } catch (e: any) {
-    return { ok: false, reason: e?.message || String(e) };
-  }
-});
+export const getInstagramStats = createServerFn({ method: "GET" }).handler(
+  async (): Promise<LiveResult<InstagramStats>> => {
+    const token = process.env.META_PAGE_ACCESS_TOKEN;
+    const igId = process.env.META_IG_BUSINESS_ID;
+    if (!token || !igId) {
+      return {
+        ok: false,
+        reason:
+          "Instagram isn't connected. Needs the same Meta App/token as Facebook, plus instagram_manage_insights scope and your IG Business account's ID (META_IG_BUSINESS_ID) — found via Graph API Explorer or your Page's connected Instagram account settings.",
+      };
+    }
+    try {
+      const [acctRes, insightsRes] = await Promise.all([
+        fetch(
+          `${META_GRAPH_BASE}/${igId}?fields=followers_count&access_token=${token}`,
+        ),
+        fetch(
+          `${META_GRAPH_BASE}/${igId}/insights?metric=reach&period=days_28&access_token=${token}`,
+        ),
+      ]);
+      if (!acctRes.ok) {
+        const b = await acctRes.json().catch(() => null);
+        throw new Error(
+          b?.error?.message || `Graph API error (${acctRes.status})`,
+        );
+      }
+      const acct = await acctRes.json();
+      const insights = insightsRes.ok ? await insightsRes.json() : null;
+      const reach =
+        insights?.data?.find((d: any) => d.name === "reach")?.values?.at(-1)
+          ?.value ?? null;
+      return {
+        ok: true,
+        data: {
+          followerCount: Number(acct.followers_count ?? 0),
+          reachLifetime: reach,
+        },
+      };
+    } catch (e: any) {
+      return { ok: false, reason: e?.message || String(e) };
+    }
+  },
+);
 
-export const getMetaConfig = createServerFn({ method: "GET" }).handler(async () => {
-  return { facebook: metaConfigured(), instagram: Boolean(process.env.META_PAGE_ACCESS_TOKEN && process.env.META_IG_BUSINESS_ID) };
-});
+export const getMetaConfig = createServerFn({ method: "GET" }).handler(
+  async () => {
+    return {
+      facebook: metaConfigured(),
+      instagram: Boolean(
+        process.env.META_PAGE_ACCESS_TOKEN && process.env.META_IG_BUSINESS_ID,
+      ),
+    };
+  },
+);

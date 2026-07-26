@@ -48,6 +48,32 @@ over ~176,000 deduplicated 2019 Spotify tracks.
    the *directional* relationships in a transparent, auditable form so you can
    see exactly why a track scored what it scored.
 
+## Scorer calibration (heuristic-v2)
+
+v1 shipped with a real bug worth recording, because the failure mode is easy to
+repeat: loudness, tempo and duration were scored with a *bell* function that
+returned its **maximum positive value at the ideal point**. Being at 120 BPM,
+three minutes long and -7 dB — i.e. completely unremarkable — earned full marks
+on three features at once. Stacked with the genre prior, an ordinary pop track
+scored **100.0** and the scale carried no information at all.
+
+The fix: those three are now **penalty-only**. Sitting in the normal range earns
+nothing, because it isn't evidence a record will do well — it's just the absence
+of a problem. Only the features the source study actually found discriminating
+(energy, danceability, acousticness) can add points, and they're centred on the
+popular class's midpoint rather than the middle of the 0–1 range.
+
+Reference points for v2 — if you change a weight, re-check these three:
+
+| Input | Score |
+|---|---|
+| Default pop track (E .70 · D .65 · A .15 · -7 dB · 120 BPM · 3:00) | ≈ 65 |
+| Everything pushed in the favourable direction | ≈ 85 |
+| 6-minute acoustic instrumental jazz at -20 dB | ≈ 0 |
+
+Bands: **Strong ≥ 72 · Moderate ≥ 48 · Low below that.** A scale where a typical
+track scores 100 is worse than no scale, because it looks like a signal.
+
 ## How to actually use it
 
 - As a **tie-breaker** between tracks in `/roster` or `/releases`, never as a gate

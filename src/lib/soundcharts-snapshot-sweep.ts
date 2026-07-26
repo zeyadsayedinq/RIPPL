@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { asUuidOrNull } from "./ids";
 
 /* Deliberately has ZERO dependency on @tanstack/react-start — same reason
    as youtube-snapshot-sweep.ts: this is imported both by platform-live.ts
@@ -16,7 +17,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const SOUNDCHARTS_TOKEN_URL = "https://account.soundcharts.com/oauth/token";
 const SOUNDCHARTS_API_BASE = "https://customer.api.soundcharts.com/api/v2";
-const UUID_RE = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
+const UUID_RE =
+  /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
 
 export function soundchartsConfiguredEnv(): boolean {
   return Boolean(
@@ -42,7 +44,9 @@ async function soundchartsToken(): Promise<string> {
   const id = process.env.SOUNDCHARTS_CLIENT_ID;
   const secret = process.env.SOUNDCHARTS_CLIENT_SECRET;
   if (!id || !secret)
-    throw new Error("SOUNDCHARTS_CLIENT_ID / SOUNDCHARTS_CLIENT_SECRET aren't set.");
+    throw new Error(
+      "SOUNDCHARTS_CLIENT_ID / SOUNDCHARTS_CLIENT_SECRET aren't set.",
+    );
   if (cachedToken && cachedToken.expiresAt > Date.now() + 5_000)
     return cachedToken.value;
 
@@ -55,7 +59,9 @@ async function soundchartsToken(): Promise<string> {
     body: "grant_type=client_credentials",
   });
   if (!res.ok)
-    throw new Error(`Soundcharts token request failed (${res.status}) — check SOUNDCHARTS_CLIENT_ID/SECRET.`);
+    throw new Error(
+      `Soundcharts token request failed (${res.status}) — check SOUNDCHARTS_CLIENT_ID/SECRET.`,
+    );
   const body = await res.json();
   cachedToken = {
     value: body.access_token,
@@ -72,7 +78,9 @@ export async function soundchartsGet(path: string): Promise<any> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(body?.errors?.[0]?.message || `Soundcharts API error (${res.status})`);
+    throw new Error(
+      body?.errors?.[0]?.message || `Soundcharts API error (${res.status})`,
+    );
   }
   return res.json();
 }
@@ -81,15 +89,28 @@ export async function soundchartsGet(path: string): Promise<any> {
  *  imported) so this file stays free of any @tanstack/react-start import,
  *  matching how youtube-snapshot-sweep.ts / youtube-deep-analytics.ts split
  *  their shared pieces. */
-export async function resolveSoundchartsSongUuid(platformUrl: string): Promise<string> {
-  const body = await soundchartsGet(`/search/external/url?platformUrl=${encodeURIComponent(platformUrl)}`);
+export async function resolveSoundchartsSongUuid(
+  platformUrl: string,
+): Promise<string> {
+  const body = await soundchartsGet(
+    `/search/external/url?platformUrl=${encodeURIComponent(platformUrl)}`,
+  );
   const type = body?.type ?? body?.object?.type;
   if (type && type !== "song") {
-    throw new Error(`That link resolved to a Soundcharts "${type}", not a song — paste the TikTok sound/music page link for the track itself.`);
+    throw new Error(
+      `That link resolved to a Soundcharts "${type}", not a song — paste the TikTok sound/music page link for the track itself.`,
+    );
   }
-  const candidate: string | undefined = body?.object?.uuid ?? body?.uuid ?? body?.object?.url ?? body?.url;
-  const uuid = candidate && UUID_RE.test(candidate) ? candidate.match(UUID_RE)![0] : undefined;
-  if (!uuid) throw new Error("Soundcharts didn't recognize that TikTok sound link — try pasting the exact URL from the TikTok sound/music page.");
+  const candidate: string | undefined =
+    body?.object?.uuid ?? body?.uuid ?? body?.object?.url ?? body?.url;
+  const uuid =
+    candidate && UUID_RE.test(candidate)
+      ? candidate.match(UUID_RE)![0]
+      : undefined;
+  if (!uuid)
+    throw new Error(
+      "Soundcharts didn't recognize that TikTok sound link — try pasting the exact URL from the TikTok sound/music page.",
+    );
   return uuid;
 }
 
@@ -99,10 +120,14 @@ export async function getTikTokVideoCountByUuid(
   const body = await soundchartsGet(`/song/${uuid}/audience/tiktok`);
   const items = body?.items ?? body?.object?.items ?? [];
   if (!Array.isArray(items) || items.length === 0) {
-    throw new Error("Soundcharts has no TikTok video-count data for this song yet.");
+    throw new Error(
+      "Soundcharts has no TikTok video-count data for this song yet.",
+    );
   }
   const latest = items[items.length - 1];
-  const videoCount = Number(latest?.value ?? latest?.count ?? latest?.plots?.value ?? 0);
+  const videoCount = Number(
+    latest?.value ?? latest?.count ?? latest?.plots?.value ?? 0,
+  );
   return { videoCount, asOf: latest?.date };
 }
 
@@ -124,7 +149,7 @@ export async function upsertTodaySoundSnapshot(
   trackedId: string,
   videoCount: number,
   source: "api" | "manual" = "api",
-) {
+): Promise<string | null> {
   const dayStart = new Date();
   dayStart.setUTCHours(0, 0, 0, 0);
   const dayEnd = new Date(dayStart);
@@ -138,39 +163,59 @@ export async function upsertTodaySoundSnapshot(
     .lt("recorded_at", dayEnd.toISOString())
     .maybeSingle();
 
-  if (existing) {
-    await admin
-      .from("sound_snapshots")
-      .update({ video_count: videoCount, recorded_at: new Date().toISOString(), source })
-      .eq("id", existing.id);
-  } else {
-    await admin
-      .from("sound_snapshots")
-      .insert({ sound_id: trackedId, video_count: videoCount, source });
+  /* Returns a message on failure instead of failing silently. The snapshot IS
+     the feature for a manual entry — swallowing the error here meant the UI
+     could report success while nothing was written and the growth chart stayed
+     permanently empty. */
+  const { error } = existing
+    ? await admin
+        .from("sound_snapshots")
+        .update({
+          video_count: videoCount,
+          recorded_at: new Date().toISOString(),
+          source,
+        })
+        .eq("id", existing.id)
+    : await admin
+        .from("sound_snapshots")
+        .insert({ sound_id: trackedId, video_count: videoCount, source });
+
+  if (error) {
+    if (error.code === "42703")
+      return "This database is missing migration 0005 (sound_snapshots.source). Run supabase/migrations/0005_manual_sound_tracking.sql, then try again.";
+    return error.message;
   }
+
   await admin
     .from("tracked_sounds")
-    .update({ last_video_count: videoCount, last_fetched_at: new Date().toISOString() })
+    .update({
+      last_video_count: videoCount,
+      last_fetched_at: new Date().toISOString(),
+    })
     .eq("id", trackedId);
+  return null;
 }
 
 /** Upserts (and returns the id of) a MANUALLY tracked sound — no Soundcharts
  *  resolution attempted at all, for links Soundcharts can never match
  *  (original sounds) or accounts without a plan that includes the audience
  *  endpoint. Marked tracking_mode='manual' so the daily cron sweep skips it
- *  (there's nothing to auto-refresh — the user provides the number). */
+ *  (there's nothing to auto-refresh — the user provides the number).
+ *
+ *  Returns the Postgres error message on failure instead of a bare null, so
+ *  the caller can tell the user what actually went wrong. */
 export async function upsertManualTrackedSound(
   admin: SupabaseClient,
   userId: string,
   tiktokSoundUrl: string,
   campaignId: string | undefined,
-): Promise<{ id: string } | null> {
+): Promise<{ id: string } | { error: string }> {
   const { data, error } = await admin
     .from("tracked_sounds")
     .upsert(
       {
         user_id: userId,
-        campaign_id: campaignId || null,
+        campaign_id: asUuidOrNull(campaignId),
         tiktok_sound_url: tiktokSoundUrl,
         tracking_mode: "manual",
       },
@@ -178,7 +223,18 @@ export async function upsertManualTrackedSound(
     )
     .select("id")
     .single();
-  if (error || !data) return null;
+
+  if (error) {
+    // 42703 = undefined_column: tracking_mode ships in migration 0005, so this
+    // is the signature of a database that hasn't had the migrations applied.
+    if (error.code === "42703")
+      return {
+        error:
+          "This database is missing migration 0005 (tracking_mode). Run supabase/migrations/0005_manual_sound_tracking.sql, then try again.",
+      };
+    return { error: error.message };
+  }
+  if (!data) return { error: "The write succeeded but returned no row." };
   return { id: data.id };
 }
 
@@ -197,14 +253,19 @@ export async function upsertTrackedSound(
     .eq("tiktok_sound_url", tiktokSoundUrl)
     .maybeSingle();
 
-  const uuid = existing?.soundcharts_uuid || (await resolveSoundchartsSongUuid(tiktokSoundUrl));
+  const uuid =
+    existing?.soundcharts_uuid ||
+    (await resolveSoundchartsSongUuid(tiktokSoundUrl));
 
   const { data, error } = await admin
     .from("tracked_sounds")
     .upsert(
       {
         user_id: userId,
-        campaign_id: campaignId || null,
+        // Same uuid guard as the manual path — an app-store campaign id here
+        // silently killed every API-path snapshot too, which is why the
+        // velocity curve stayed empty even when the scan itself worked.
+        campaign_id: asUuidOrNull(campaignId),
         tiktok_sound_url: tiktokSoundUrl,
         soundcharts_uuid: uuid,
       },
@@ -231,14 +292,17 @@ export async function runSoundSnapshotSweep(): Promise<{
       "Supabase service credentials aren't configured (VITE_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).",
     );
   if (!soundchartsConfiguredEnv())
-    throw new Error("SOUNDCHARTS_CLIENT_ID / SOUNDCHARTS_CLIENT_SECRET aren't set.");
+    throw new Error(
+      "SOUNDCHARTS_CLIENT_ID / SOUNDCHARTS_CLIENT_SECRET aren't set.",
+    );
 
   const { data: sounds, error } = await admin
     .from("tracked_sounds")
     .select("id,soundcharts_uuid,tiktok_sound_url")
     .neq("tracking_mode", "manual"); // manual-only sounds have nothing for the API to refresh
   if (error) throw new Error(error.message);
-  if (!sounds || sounds.length === 0) return { updated: 0, failed: 0, total: 0 };
+  if (!sounds || sounds.length === 0)
+    return { updated: 0, failed: 0, total: 0 };
 
   let updated = 0;
   let failed = 0;
@@ -247,7 +311,9 @@ export async function runSoundSnapshotSweep(): Promise<{
   // well under rate limits on a free/base plan.
   for (const s of sounds) {
     try {
-      const uuid = s.soundcharts_uuid || (await resolveSoundchartsSongUuid(s.tiktok_sound_url));
+      const uuid =
+        s.soundcharts_uuid ||
+        (await resolveSoundchartsSongUuid(s.tiktok_sound_url));
       const { videoCount } = await getTikTokVideoCountByUuid(uuid);
       await upsertTodaySoundSnapshot(admin, s.id, videoCount);
       updated++;

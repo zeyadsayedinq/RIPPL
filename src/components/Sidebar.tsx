@@ -1,95 +1,20 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  Home,
-  Users,
-  Disc3,
-  FolderLock,
-  Palette,
-  Cpu,
   Settings,
-  Music2,
   ShieldCheck,
-  LayoutDashboard,
-  Megaphone,
-  CalendarDays,
-  Radio,
-  ListChecks,
-  Wallet,
-  FileText,
-  UsersRound,
-  FolderOpen,
   ChevronDown,
   ChevronLeft,
   Check,
-  Clapperboard,
-  Instagram,
-  Youtube,
-  Facebook,
-  Twitter,
-  Sparkles,
-  Ticket,
-  Receipt,
-  Share2,
-  CreditCard,
   BookOpen,
 } from "lucide-react";
+/* Nav lives in lib/nav.ts so this Sidebar and the XP Start menu render the
+   same list. Add a route there once and both chromes pick it up. */
+import { groups } from "@/lib/nav";
 import { useRole, type Role } from "@/lib/role-context";
 import { useCampaigns } from "@/lib/campaign-store";
 import { useIsHQ } from "@/lib/use-auth";
 import { motion } from "framer-motion";
 import { useState } from "react";
-
-const groups: {
-  label: string;
-  items: { to: string; label: string; icon: any }[];
-}[] = [
-  {
-    label: "Personal OS",
-    items: [
-      { to: "/home", label: "Home", icon: Home },
-      { to: "/roster", label: "Roster", icon: Users },
-      { to: "/releases", label: "Releases", icon: Disc3 },
-      { to: "/audio", label: "Audio", icon: Music2 },
-      { to: "/vault", label: "The Vault", icon: FolderLock },
-      { to: "/studio", label: "Studio", icon: Palette },
-      { to: "/techlab", label: "Tech Lab", icon: Cpu },
-      { to: "/hitlab", label: "Hit Lab", icon: Sparkles },
-    ],
-  },
-  {
-    label: "Revenue",
-    items: [
-      { to: "/invoices", label: "Invoices", icon: Receipt },
-      { to: "/live", label: "Live & Tickets", icon: Ticket },
-      { to: "/affiliates", label: "Affiliates", icon: Share2 },
-      { to: "/billing", label: "Billing", icon: CreditCard },
-    ],
-  },
-  {
-    label: "Marketing",
-    items: [
-      { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
-      { to: "/campaigns", label: "Campaigns", icon: Megaphone },
-      { to: "/calendar", label: "Calendar", icon: CalendarDays },
-      { to: "/channels", label: "Channels", icon: Radio },
-      { to: "/tasks", label: "Tasks", icon: ListChecks },
-      { to: "/budget", label: "Budget", icon: Wallet },
-      { to: "/templates", label: "Templates", icon: FileText },
-      { to: "/creators", label: "Creators", icon: UsersRound },
-      { to: "/assets", label: "Assets", icon: FolderOpen },
-    ],
-  },
-  {
-    label: "Platforms",
-    items: [
-      { to: "/dashboard/tiktok", label: "TikTok", icon: Clapperboard },
-      { to: "/dashboard/instagram", label: "Instagram", icon: Instagram },
-      { to: "/dashboard/youtube", label: "YouTube", icon: Youtube },
-      { to: "/dashboard/facebook", label: "Facebook", icon: Facebook },
-      { to: "/dashboard/x", label: "X", icon: Twitter },
-    ],
-  },
-];
 
 const roles: Role[] = ["Marketing Manager", "Team Member", "Client"];
 

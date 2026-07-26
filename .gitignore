@@ -22,3 +22,10 @@ __pycache__/
 *.pyc
 .vercel
 .env*
+
+# UGC reel renderer (scripts/ugc_reel_gen.py)
+# Rendered video + the raw b-roll/endcards/fonts/music it draws from. These are
+# large binaries that don't belong in git — data/hooks.csv is the part worth
+# versioning, and it lives outside both folders.
+out/
+media/

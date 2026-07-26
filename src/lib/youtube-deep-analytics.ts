@@ -7,6 +7,7 @@ import {
   upsertTodaySnapshot,
   runSnapshotSweep,
 } from "./youtube-snapshot-sweep";
+import { asUuidOrNull } from "./ids";
 
 /* ═══════════════════════════════════════════════════════════
    YouTube Video Intel — vidIQ/TubeBuddy-style SEO panel, built entirely
@@ -179,7 +180,12 @@ async function upsertTrackedVideo(
     .upsert(
       {
         user_id: userId,
-        campaign_id: campaignId || null,
+        // tracked_videos.campaign_id is a uuid FK, but app_state campaign ids
+        // look like "c-1753476912345" — passing one through made Postgres
+        // reject the whole upsert with 22P02, so no YouTube video ever got
+        // tracked whenever a campaign happened to be active. Same fix as
+        // tracked_sounds; see asUuidOrNull's comment.
+        campaign_id: asUuidOrNull(campaignId),
         youtube_video_id: videoId,
         title: meta.title,
         channel_title: meta.channelTitle,

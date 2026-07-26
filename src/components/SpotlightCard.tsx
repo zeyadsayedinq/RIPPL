@@ -1,5 +1,6 @@
 import { useRef, type ReactNode, type MouseEvent } from "react";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { motion, useMotionValue, useTransform } from "framer-motion";
+import { useWindowsOptional } from "@/lib/window-store";
 
 interface Props {
   children: ReactNode;
@@ -9,6 +10,7 @@ interface Props {
 
 export function SpotlightCard({ children, className = "", spotlight = true }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const win = useWindowsOptional();
   const mx = useMotionValue(-200);
   const my = useMotionValue(-200);
 
@@ -23,6 +25,25 @@ export function SpotlightCard({ children, className = "", spotlight = true }: Pr
     my.set(e.clientY - r.top);
   }
   function onLeave() { mx.set(-200); my.set(-200); }
+
+  /* Used in 22 files, so this one branch re-chromes most of the app's
+     surfaces at once. The mouse-follow glow and the gradient border are
+     inline styles, which CSS can't override — this is exactly the 30% the
+     skin layer can't reach, so it's handled in the component. */
+  if (win?.skin === "xp") {
+    return (
+      <div
+        className={`xp-panel relative ${className}`}
+        style={{
+          background: "#ECE9D8",
+          border: "1px solid #ACA899",
+          boxShadow: "inset 1px 1px 0 #fff, inset -1px -1px 0 #C4C0B0",
+        }}
+      >
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div

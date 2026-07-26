@@ -6,7 +6,8 @@ import { useState } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { useAuthEmail } from "@/lib/use-auth";
 import { clearEverything, diagnose, type Diag } from "@/lib/cloud";
-import { Lock, Trash2, ShieldCheck, Database, LogOut, Check, Minus, X, KeyRound } from "lucide-react";
+import { Lock, Trash2, ShieldCheck, Database, LogOut, Check, Minus, X, KeyRound, Monitor } from "lucide-react";
+import { useWindowsOptional } from "@/lib/window-store";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings · RIPPL OS" }] }),
@@ -75,6 +76,59 @@ function PasswordCard() {
   );
 }
 
+/* Display Properties → Themes. The skin is a CSS layer keyed on one
+   attribute, so switching between the two designs is genuinely just this —
+   and both stay fully working. */
+function DisplayProperties() {
+  const win = useWindowsOptional();
+  if (!win) return null;
+  const { skin, setSkin } = win;
+
+  const themes: { id: "xp" | "neon"; name: string; note: string; sky: string; band: string }[] = [
+    { id: "xp", name: "Windows XP (Luna)", note: "Bliss, Tahoma, square corners", sky: "#4A8FD8", band: "#6FAE28" },
+    { id: "neon", name: "RIPPL 2025", note: "Black, glass, neon magenta", sky: "#0A0A0C", band: "#C026A8" },
+  ];
+
+  return (
+    <SpotlightCard className="col-span-12 p-6" spotlight={false}>
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <Monitor className="h-4 w-4 text-white/50" /> Display properties
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Both designs are live at once — the XP look is a stylesheet layer over the same app, not a
+        separate build. Switching is instant and nothing is lost either way.
+      </p>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {themes.map((t) => {
+          const on = skin === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setSkin(t.id)}
+              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                on ? "border-white/40 bg-white/5" : "border-white/10 hover:bg-white/5"
+              }`}
+            >
+              <span
+                className="grid h-12 w-16 shrink-0 place-items-end overflow-hidden rounded-md border border-white/20"
+                style={{ background: t.sky }}
+              >
+                <span style={{ display: "block", width: "100%", height: 14, background: t.band }} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">{t.name}</span>
+                <span className="block text-xs text-muted-foreground">{t.note}</span>
+              </span>
+              {on && <Check className="ml-auto h-4 w-4 shrink-0" />}
+            </button>
+          );
+        })}
+      </div>
+    </SpotlightCard>
+  );
+}
+
 function SettingsPage() {
   const { role, setRole } = useRole();
   const [diag, setDiag] = useState<Diag | null>(null);
@@ -98,6 +152,8 @@ function SettingsPage() {
       </header>
 
       <section className="mt-6 grid grid-cols-12 gap-4">
+        <DisplayProperties />
+
         <SpotlightCard className="col-span-12 p-6" spotlight={false}>
           <div className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="h-4 w-4 text-white/50" /> Access control</div>
           <p className="mt-1 text-xs text-muted-foreground">Choose who's viewing. Each role sees a different slice of pricing, editing, approvals and exports.</p>

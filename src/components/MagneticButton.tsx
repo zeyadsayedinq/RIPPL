@@ -1,5 +1,6 @@
 import { useRef, type ReactNode, type MouseEvent } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
+import { useWindowsOptional } from "@/lib/window-store";
 
 interface Props {
   children: ReactNode;
@@ -10,6 +11,7 @@ interface Props {
 
 export function MagneticButton({ children, className = "", onClick, variant = "primary" }: Props) {
   const ref = useRef<HTMLButtonElement>(null);
+  const win = useWindowsOptional();
   const x = useSpring(useMotionValue(0), { stiffness: 200, damping: 15 });
   const y = useSpring(useMotionValue(0), { stiffness: 200, damping: 15 });
 
@@ -28,6 +30,31 @@ export function MagneticButton({ children, className = "", onClick, variant = "p
     ghost: "glass text-foreground hover:bg-white/5",
     danger: "bg-transparent text-[oklch(0.7_0.2_20)] border border-[oklch(0.7_0.2_20)]/40 hover:bg-[oklch(0.7_0.2_20)]/10",
   };
+
+  /* XP buttons do not follow your cursor. They are 22px tall, beveled, and
+     they stay exactly where they were put. */
+  if (win?.skin === "xp") {
+    return (
+      <button
+        onClick={onClick}
+        className={className}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          background: variant === "danger"
+            ? "linear-gradient(180deg,#F5D6D0 0%,#EBBDB4 50%,#DFA79C 100%)"
+            : "linear-gradient(180deg,#fdfdfc 0%,#ece9d8 45%,#e2dfd0 90%,#d9d5c5 100%)",
+          border: "1px solid #ACA899", borderRadius: 3,
+          boxShadow: "inset 0 0 0 1px #fff",
+          padding: "3px 14px", minHeight: 23,
+          fontFamily: 'Tahoma, "Segoe UI", sans-serif', fontSize: 12,
+          color: variant === "danger" ? "#8A2A18" : "#000",
+          cursor: "default",
+        }}
+      >
+        {children}
+      </button>
+    );
+  }
 
   return (
     <motion.button

@@ -262,11 +262,14 @@ function HitLabPage() {
                 Prefill from library
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">
+                {/* max-w + truncate: library titles include full video names and
+                    RTL Arabic titles that ran the chip row off the card. */}
                 {tracks.slice(0, 8).map((t) => (
                   <button
                     key={t.id}
                     onClick={() => prefill(t)}
-                    className="glass rounded-lg px-2.5 py-1.5 text-xs hover:bg-white/5"
+                    title={t.title}
+                    className="glass max-w-[15rem] truncate rounded-lg px-2.5 py-1.5 text-left text-xs hover:bg-white/5"
                   >
                     {t.title}
                   </button>

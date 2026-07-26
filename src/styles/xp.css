@@ -1,0 +1,376 @@
+/* ═══════════════════════════════════════════════════════════════════
+   RIPPL XP — skin layer.
+
+   Loaded as a SECOND, UNLAYERED stylesheet after styles.css. Because
+   every Tailwind rule lives inside @layer (theme/base/components/
+   utilities) and unlayered CSS always outranks layered CSS, everything
+   here wins without needing !important — except where noted.
+
+   Activated by  <html data-skin="xp">.  Remove the attribute and the
+   original neon RIPPL returns, untouched. Nothing in this file edits a
+   component.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Luna palette ──────────────────────────────────────────────── */
+[data-skin="xp"] {
+  --xp-face: #ece9d8;          /* dialog / window face          */
+  --xp-face-2: #f1efe2;        /* scrollbar track, inactive     */
+  --xp-white: #ffffff;         /* field background              */
+  --xp-hi: #ffffff;            /* bevel highlight               */
+  --xp-lo: #aca899;            /* bevel shadow                  */
+  --xp-lo-2: #716f64;          /* bevel dark shadow             */
+  --xp-frame: #0831d9;         /* window frame blue             */
+  --xp-title-a: #0058ee;       /* title bar gradient start      */
+  --xp-title-b: #3f8cf3;       /* title bar gradient end        */
+  --xp-title-c: #1868e0;       /* title bar mid                 */
+  --xp-inactive-a: #7ba2e7;
+  --xp-inactive-b: #a9c4f0;
+  --xp-sel: #316ac5;           /* selection blue                */
+  --xp-sel-soft: #d2e3f7;
+  --xp-field-border: #7f9db9;
+  --xp-text: #000000;
+  --xp-text-2: #4a4a42;
+  --xp-text-3: #7a786e;
+  --xp-green: #3c9b26;         /* Start button                  */
+  --xp-green-2: #54a72a;
+  --xp-taskbar-a: #245edb;
+  --xp-taskbar-b: #3f8cf3;
+  --xp-tray: #0f8bd7;
+  --xp-desktop: #3a6ea5;
+  --xp-orange: #f0a30a;
+
+  /* Retune the app's own design tokens. ~20 variables, and every one of
+     the 2,028 className sites that reference them repaints. */
+  --radius: 0px;
+  --background: #ece9d8;
+  --foreground: #000000;
+  --card: #ece9d8;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #316ac5;
+  --primary-foreground: #ffffff;
+  --secondary: #ece9d8;
+  --secondary-foreground: #000000;
+  --muted: #f1efe2;
+  --muted-foreground: #4a4a42;
+  --accent: #316ac5;
+  --accent-foreground: #ffffff;
+  --destructive: #c42b1c;
+  --destructive-foreground: #ffffff;
+  --border: #aca899;
+  --input: #ffffff;
+  --ring: #316ac5;
+  --neon-magenta: #c42b1c;
+  --neon-purple: #316ac5;
+  --neon-cyan: #0f8bd7;
+
+  /* XP charts: flat, saturated, no gradients. */
+  --chart-1: #316ac5;
+  --chart-2: #3c9b26;
+  --chart-3: #f0a30a;
+  --chart-4: #c42b1c;
+  --chart-5: #7a51a1;
+
+  --font-display: Tahoma, "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+  --font-mono: "Lucida Console", "Courier New", monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-muted-foreground: var(--muted-foreground);
+}
+
+/* ── 2. Base ──────────────────────────────────────────────────────── */
+[data-skin="xp"],
+[data-skin="xp"] body {
+  background: var(--xp-desktop);
+  color: var(--xp-text);
+  font-family: Tahoma, "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+  font-size: 12px;
+  -webkit-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
+}
+
+[data-skin="xp"] *:not(.xp-chrome):not(.xp-chrome *) {
+  border-color: var(--xp-lo);
+}
+
+/* Wide letter-spacing on tiny uppercase labels is the single most 2025
+   thing in the app. XP set tracking to zero and meant it. */
+[data-skin="xp"] [class*="tracking-"]:not(.xp-chrome *) { letter-spacing: normal; }
+[data-skin="xp"] [class*="uppercase"]:not(.xp-chrome *) { text-transform: none; }
+
+/* ── 3. Kill the glass ────────────────────────────────────────────── */
+[data-skin="xp"] .glass,
+[data-skin="xp"] .glass-strong,
+[data-skin="xp"] .liquid-glass {
+  background: var(--xp-face);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--xp-lo);
+  box-shadow: inset 1px 1px 0 var(--xp-hi), inset -1px -1px 0 var(--xp-lo-2);
+  color: var(--xp-text);
+}
+[data-skin="xp"] .liquid-glass::before { display: none; }
+
+[data-skin="xp"] [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+[data-skin="xp"] [class*="blur-"] { filter: none !important; }
+
+/* ── 4. Square everything ─────────────────────────────────────────── */
+[data-skin="xp"] [class*="rounded"]:not(.xp-radius):not(.xp-radius *) {
+  border-radius: 0 !important;
+}
+/* Escape hatch: window title-bar corners, the Start button, tray pills. */
+[data-skin="xp"] .xp-radius { border-radius: 3px 3px 0 0; }
+
+/* Circles that must stay circles: status dots and avatars. Anything small
+   and round reads as a bullet, not as a 2025 pill. */
+[data-skin="xp"] .xp-keep-round,
+[data-skin="xp"] [class*="rounded-full"][class*="h-1.5"],
+[data-skin="xp"] [class*="rounded-full"][class*="h-2"],
+[data-skin="xp"] [class*="rounded-full"][class*="h-3"] {
+  border-radius: 9999px !important;
+}
+
+/* ── 5. Flatten depth ─────────────────────────────────────────────── */
+[data-skin="xp"] [class*="shadow-"] { box-shadow: none; }
+[data-skin="xp"] [class*="drop-shadow"] { filter: none; }
+[data-skin="xp"] [class*="bg-gradient"],
+[data-skin="xp"] [class*="from-"],
+[data-skin="xp"] [class*="via-"],
+[data-skin="xp"] [class*="to-"] { background-image: none; }
+[data-skin="xp"] .text-gradient-neon {
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: var(--xp-text);
+}
+[data-skin="xp"] .mix-blend-overlay,
+[data-skin="xp"] [class*="mix-blend"] { mix-blend-mode: normal; }
+
+/* ── 6. Invert the dark-mode colour vocabulary ────────────────────── */
+/* The app is built white-on-black. XP surfaces are light, so every
+   white text/border/fill has to flip. Chrome that is genuinely on a
+   blue surface opts out with .xp-chrome. */
+[data-skin="xp"] [class*="text-white"]:not(.xp-chrome):not(.xp-chrome *) {
+  color: var(--xp-text);
+}
+[data-skin="xp"] [class*="text-white/2"]:not(.xp-chrome *),
+[data-skin="xp"] [class*="text-white/3"]:not(.xp-chrome *),
+[data-skin="xp"] [class*="text-white/4"]:not(.xp-chrome *),
+[data-skin="xp"] [class*="text-white/5"]:not(.xp-chrome *) {
+  color: var(--xp-text-2);
+}
+[data-skin="xp"] .text-muted-foreground:not(.xp-chrome *) { color: var(--xp-text-2); }
+
+[data-skin="xp"] [class*="border-white"]:not(.xp-chrome):not(.xp-chrome *) {
+  border-color: var(--xp-lo);
+}
+
+/* Low-alpha white fills were "slightly lighter than black". On beige they
+   need to become either the face colour or a sunken white field. */
+/* Note: these are ATTRIBUTE selectors matching the literal class string, so
+   the Tailwind escapes (bg-white\/5) are NOT written here — the attribute
+   value is the raw text of the class attribute. */
+[data-skin="xp"] [class*="bg-white/["]:not(.xp-chrome *),
+[data-skin="xp"] [class*="bg-white/5"]:not(.xp-chrome *),
+[data-skin="xp"] [class*="bg-white/10"]:not(.xp-chrome *),
+[data-skin="xp"] [class*="bg-white/15"]:not(.xp-chrome *),
+[data-skin="xp"] [class*="bg-white/20"]:not(.xp-chrome *) {
+  background-color: var(--xp-face);
+}
+[data-skin="xp"] .bg-white:not(.xp-chrome *) { background-color: var(--xp-white); }
+[data-skin="xp"] .bg-black:not(.xp-chrome *) { background-color: var(--xp-face); }
+
+/* Hover feedback becomes the XP selection blue instead of a white wash. */
+[data-skin="xp"] [class*="hover:bg-white"]:hover:not(.xp-chrome *) {
+  background-color: var(--xp-sel-soft);
+}
+[data-skin="xp"] [class*="hover:text-white"]:hover:not(.xp-chrome *) {
+  color: var(--xp-text);
+}
+
+/* ── 7. Bevel utilities (used by the XP components) ───────────────── */
+[data-skin="xp"] .xp-raised {
+  background: var(--xp-face);
+  border: 1px solid;
+  border-color: var(--xp-hi) var(--xp-lo-2) var(--xp-lo-2) var(--xp-hi);
+  box-shadow: inset 1px 1px 0 #f7f5ee, inset -1px -1px 0 var(--xp-lo);
+}
+[data-skin="xp"] .xp-sunken {
+  background: var(--xp-white);
+  border: 1px solid;
+  border-color: var(--xp-lo-2) var(--xp-hi) var(--xp-hi) var(--xp-lo-2);
+  box-shadow: inset 1px 1px 0 var(--xp-lo);
+}
+[data-skin="xp"] .xp-groove {
+  border: 1px solid;
+  border-color: var(--xp-lo) var(--xp-hi) var(--xp-hi) var(--xp-lo);
+}
+[data-skin="xp"] .xp-panel {
+  background: var(--xp-face);
+  border: 1px solid var(--xp-lo);
+}
+
+/* ── 8. Form controls (258 raw inputs/buttons/selects) ────────────── */
+[data-skin="xp"] input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+[data-skin="xp"] textarea,
+[data-skin="xp"] select {
+  background: var(--xp-white);
+  color: var(--xp-text);
+  border: 1px solid var(--xp-field-border);
+  border-radius: 0;
+  box-shadow: inset 1px 1px 1px rgba(0, 0, 0, .12);
+  padding: 3px 5px;
+  font-family: Tahoma, "Segoe UI", sans-serif;
+  font-size: 12px;
+  backdrop-filter: none;
+}
+[data-skin="xp"] input::placeholder,
+[data-skin="xp"] textarea::placeholder { color: var(--xp-text-3); }
+[data-skin="xp"] input:focus,
+[data-skin="xp"] textarea:focus,
+[data-skin="xp"] select:focus {
+  outline: 1px dotted var(--xp-text);
+  outline-offset: -3px;
+  border-color: var(--xp-frame);
+}
+
+[data-skin="xp"] button:not(.xp-nobtn):not(.xp-chrome):not(.xp-chrome *) {
+  background: linear-gradient(180deg, #fdfdfc 0%, #ece9d8 45%, #e2dfd0 90%, #d9d5c5 100%);
+  color: var(--xp-text);
+  border: 1px solid var(--xp-lo);
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px #fff;
+  padding: 3px 12px;
+  font-family: Tahoma, "Segoe UI", sans-serif;
+  font-size: 12px;
+  min-height: 22px;
+}
+[data-skin="xp"] button:not(.xp-nobtn):not(.xp-chrome):not(.xp-chrome *):hover {
+  border-color: var(--xp-orange);
+  box-shadow: inset 0 0 0 1px #fff, inset 0 0 4px rgba(240, 163, 10, .5);
+}
+[data-skin="xp"] button:not(.xp-nobtn):not(.xp-chrome):not(.xp-chrome *):active {
+  background: linear-gradient(180deg, #d9d5c5 0%, #e2dfd0 100%);
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, .2);
+}
+
+[data-skin="xp"] input[type="checkbox"],
+[data-skin="xp"] input[type="radio"] {
+  accent-color: var(--xp-sel);
+  width: 13px;
+  height: 13px;
+}
+
+/* ── 9. XP scrollbars ─────────────────────────────────────────────── */
+[data-skin="xp"] * {
+  scrollbar-width: auto;
+  scrollbar-color: var(--xp-face) var(--xp-face-2);
+}
+[data-skin="xp"] ::-webkit-scrollbar { width: 16px; height: 16px; }
+[data-skin="xp"] ::-webkit-scrollbar-track {
+  background: var(--xp-face-2);
+  border-left: 1px solid var(--xp-lo);
+}
+[data-skin="xp"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #fff 0, var(--xp-face) 30%, #d9d5c5 100%);
+  border: 1px solid var(--xp-lo);
+}
+[data-skin="xp"] ::-webkit-scrollbar-thumb:hover { background: #f5f3ea; }
+[data-skin="xp"] ::-webkit-scrollbar-corner { background: var(--xp-face-2); }
+
+/* ── 10. Selection ────────────────────────────────────────────────── */
+[data-skin="xp"] ::selection { background: var(--xp-sel); color: #fff; }
+
+/* ── 11. Kill the motion ──────────────────────────────────────────── */
+/* XP does not ease. Springs, drifts and marquees all read as modern. */
+[data-skin="xp"] .animate-marquee { animation: none; }
+[data-skin="xp"] [class*="animate-pulse"] { animation: none; }
+[data-skin="xp"] .footer-dots__line { animation: none; opacity: .25; }
+[data-skin="xp"] .footer-wordmark { font-size: clamp(32px, 8vw, 96px); font-weight: 400; }
+[data-skin="xp"] .train-bob { animation: none; }
+
+/* ── 12. recharts ─────────────────────────────────────────────────── */
+[data-skin="xp"] .recharts-cartesian-grid line { stroke: var(--xp-lo); stroke-dasharray: 0; }
+[data-skin="xp"] .recharts-cartesian-axis-line,
+[data-skin="xp"] .recharts-cartesian-axis-tick-line { stroke: var(--xp-lo-2); }
+[data-skin="xp"] .recharts-text { fill: var(--xp-text); font-family: Tahoma, sans-serif; font-size: 11px; }
+[data-skin="xp"] .recharts-default-tooltip {
+  background: #ffffe1 !important;   /* XP tooltip yellow */
+  border: 1px solid var(--xp-text) !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  color: var(--xp-text) !important;
+  font-size: 11px;
+  padding: 3px 6px !important;
+}
+[data-skin="xp"] .recharts-tooltip-item { color: var(--xp-text) !important; }
+[data-skin="xp"] .recharts-legend-item-text { color: var(--xp-text) !important; }
+[data-skin="xp"] .recharts-surface { shape-rendering: crispEdges; }
+
+/* ── 13. react-big-calendar → XP ──────────────────────────────────── */
+[data-skin="xp"] .rippl-calendar.rbc-calendar { color: var(--xp-text); font-family: Tahoma, sans-serif; }
+[data-skin="xp"] .rippl-calendar .rbc-toolbar { color: var(--xp-text); }
+[data-skin="xp"] .rippl-calendar .rbc-toolbar button {
+  color: var(--xp-text);
+  background: linear-gradient(180deg, #fdfdfc 0%, #ece9d8 45%, #d9d5c5 100%);
+  border: 1px solid var(--xp-lo);
+  border-radius: 3px;
+}
+[data-skin="xp"] .rippl-calendar .rbc-toolbar button.rbc-active {
+  background: var(--xp-sel); color: #fff; border-color: var(--xp-frame);
+}
+[data-skin="xp"] .rippl-calendar .rbc-month-view,
+[data-skin="xp"] .rippl-calendar .rbc-time-view,
+[data-skin="xp"] .rippl-calendar .rbc-agenda-view table {
+  border-color: var(--xp-lo); border-radius: 0; background: #fff;
+}
+[data-skin="xp"] .rippl-calendar .rbc-header {
+  color: var(--xp-text); background: var(--xp-face);
+  border-color: var(--xp-lo); font-size: 11px; padding: 3px 4px;
+}
+[data-skin="xp"] .rippl-calendar .rbc-month-row,
+[data-skin="xp"] .rippl-calendar .rbc-day-bg,
+[data-skin="xp"] .rippl-calendar .rbc-time-content,
+[data-skin="xp"] .rippl-calendar .rbc-time-header-content { border-color: #e0ddd0; }
+[data-skin="xp"] .rippl-calendar .rbc-off-range-bg { background: var(--xp-face-2); }
+[data-skin="xp"] .rippl-calendar .rbc-off-range { color: var(--xp-text-3); }
+[data-skin="xp"] .rippl-calendar .rbc-today { background: #fffbe6; }
+[data-skin="xp"] .rippl-calendar .rbc-date-cell { color: var(--xp-text); }
+[data-skin="xp"] .rippl-calendar .rbc-event { border-radius: 0; border: 1px solid var(--xp-frame); }
+
+/* ── 14. Spreadsheet viewer already looks like Excel 2003. Leave it. ─ */
+
+/* ── 15. DJ fader → XP trackbar ───────────────────────────────────── */
+[data-skin="xp"] .dj-fader,
+[data-skin="xp"] input[type="range"] {
+  height: 4px;
+  border-radius: 0;
+  background: var(--xp-face-2);
+  border: 1px solid var(--xp-lo-2);
+  box-shadow: inset 1px 1px 0 rgba(0, 0, 0, .1);
+}
+[data-skin="xp"] .dj-fader::-webkit-slider-thumb,
+[data-skin="xp"] input[type="range"]::-webkit-slider-thumb {
+  height: 18px; width: 11px; border-radius: 0;
+  background: linear-gradient(180deg, #fdfdfc 0%, #ece9d8 50%, #d9d5c5 100%);
+  border: 1px solid var(--xp-lo-2);
+  box-shadow: none;
+}
+[data-skin="xp"] .dj-fader::-moz-range-thumb,
+[data-skin="xp"] input[type="range"]::-moz-range-thumb {
+  height: 18px; width: 11px; border-radius: 0;
+  background: #ece9d8; border: 1px solid var(--xp-lo-2);
+}
+
+/* ── 16. Chrome opt-out ───────────────────────────────────────────── */
+/* Anything inside .xp-chrome (title bars, taskbar, Start menu, BSOD,
+   boot screen) keeps its own colours untouched by sections 4–6. */
+[data-skin="xp"] .xp-chrome,
+[data-skin="xp"] .xp-chrome * {
+  letter-spacing: inherit;
+}

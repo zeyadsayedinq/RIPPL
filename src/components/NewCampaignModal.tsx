@@ -5,11 +5,62 @@ import { CheckCircle2 } from "lucide-react";
 import { MagneticButton } from "@/components/MagneticButton";
 import { Portal } from "@/components/Portal";
 import { useCampaigns } from "@/lib/campaign-store";
+import { useWindowsOptional } from "@/lib/window-store";
 
 const PLATFORMS = ["TikTok", "Instagram", "YouTube", "Facebook", "X", "Anghami", "Spotify", "Radio", "TV"];
 const field = "w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-[oklch(0.7_0.28_328)]/40";
 
 export function ModalShell({ title, eyebrow, onClose, children }: { title: string; eyebrow: string; onClose: () => void; children: React.ReactNode }) {
+  const win = useWindowsOptional();
+
+  /* Every modal in the app funnels through this shell, so one branch turns
+     all of them into XP dialogs: thick frame, blue title bar, no easing. */
+  if (win?.skin === "xp") {
+    return (
+      <Portal>
+        <div
+          className="xp-chrome"
+          onClick={onClose}
+          style={{ position: "fixed", inset: 0, zIndex: 9800, display: "grid", placeItems: "center", padding: 16, background: "rgba(0,0,0,.25)" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: 520, maxHeight: "84vh", display: "flex", flexDirection: "column",
+              background: "#ECE9D8", border: "1px solid #0831D9", borderTop: "none",
+              borderRadius: "8px 8px 0 0", boxShadow: "3px 3px 14px rgba(0,0,0,.45)", overflow: "hidden",
+              fontFamily: 'Tahoma, "Segoe UI", sans-serif',
+            }}
+          >
+            <div style={{
+              height: 28, flex: "0 0 28px", display: "flex", alignItems: "center", gap: 6, padding: "0 4px 0 7px",
+              background: "linear-gradient(180deg,#0058EE 0%,#3F8CF3 8%,#1868E0 40%,#0F5BD8 88%,#3F8CF3 100%)",
+              borderRadius: "7px 7px 0 0",
+            }}>
+              <span style={{ flex: 1, color: "#fff", fontSize: 12, fontWeight: "bold", textShadow: "1px 1px 1px rgba(0,0,0,.55)" }}>
+                {title}
+              </span>
+              <button
+                onClick={onClose} aria-label="Close" className="xp-chrome xp-nobtn"
+                style={{
+                  width: 23, height: 21, border: "1px solid rgba(255,255,255,.75)", borderRadius: 3,
+                  background: "linear-gradient(180deg,#E9634B 0%,#D64426 45%,#B32B0F 100%)",
+                  color: "#fff", fontSize: 11, cursor: "default", padding: 0,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 16, fontSize: 12, color: "#000" }}>
+              <div style={{ fontSize: 11, color: "#4A4A42" }}>{eyebrow}</div>
+              {children}
+            </div>
+          </div>
+        </div>
+      </Portal>
+    );
+  }
+
   return (
     <Portal>
       <motion.div
