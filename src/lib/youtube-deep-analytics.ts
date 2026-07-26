@@ -13,8 +13,8 @@ import { asUuidOrNull } from "./ids";
    YouTube Video Intel — vidIQ/TubeBuddy-style SEO panel, built entirely
    from the YouTube Data API v3 (tags, description, stats — real, live,
    the same key already used elsewhere in RIPPL) plus a deterministic local
-   SEO-score formula. No AI/LLM API of any kind — nothing here calls out to
-   Claude, OpenAI, or anyone else, and no key for one is required.
+   SEO-score formula. Deterministic and self-contained — no external model
+   provider is called and no key for one is required.
 
    YouTube exposes no historical view-count endpoint for third-party
    videos, so the velocity curve is built by RIPPL itself: every analyze

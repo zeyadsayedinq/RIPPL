@@ -101,7 +101,10 @@ export function WindowProvider({ children }: { children: ReactNode }) {
   const [routeMax, setRouteMax] = useState(true);
   const [routeZ, setRouteZ] = useState(1);
   const [phase, setPhase] = useState<Phase>("boot");
-  const [skin, setSkinState] = useState<Skin>("xp");
+  /* RIPPL26 is the default for every new user. The XP skin is opt-in — a
+     stylesheet layer over the same app, switched from Settings or the Start
+     menu, and remembered per browser from then on. */
+  const [skin, setSkinState] = useState<Skin>("neon");
   const zRef = useRef(2);
   const hydrated = useRef(false);
 

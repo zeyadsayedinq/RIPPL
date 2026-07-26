@@ -1,157 +1,169 @@
-# Latifa 2026 Album Rollout Marketing Dashboard
+# RIPPL
 
-A tech-noir inspired marketing command center for managing Latifa's 2026 album rollout campaign, featuring 36+ influencer creators, real-time collaboration, and advanced analytics.
+**v1.2 · 2026**
 
-## Features
+A 360° operating system for artist management, distribution, marketing and
+revenue. One command center covering A&R and scouting, release and distribution
+operations, a contracts vault, a creative studio and audio lab, campaign
+management across every platform, commissions and invoicing, live ticketing,
+an affiliate programme, and the written playbooks behind all of it.
 
-### Dashboard Pages
-- **Overview Dashboard** - Key metrics, campaign HUD, platform analytics, influencer pipeline, and 2026 rollout timeline
-- **Creators Directory** - Searchable, filterable list of 36 influencers with platform, tier, followers, engagement, pricing, and status
-- **Asset Library** - Gallery view with briefs, audio files, artwork, videos, and real-time collaboration threads
+---
 
-### Design System
-- Tech-noir glassmorphism with animated mesh gradient background
-- Magnetic buttons with physics-based cursor tracking
-- Spotlight hover effects on interactive cards
-- Viral triggers marquee (infinite scroll)
-- Role-based access control (Marketing Manager, Team Member, Client)
+## Modules
 
-### Data
-- **36 Confirmed Creators** across all tiers:
-  - **Mega**: Sherif Khalid (11.2M), Ozooo19 (10.6M)
-  - **Featured**: Zyad Elshazly, Pasmala, Bassant, Haneen Hena, and 2 more
-  - **Macro**: Abdullah El Tourky, Shehab Eldin, Gehad Hassan, and 9 more
-  - **Mid**: 12 creators with 5.8M–1.3M followers
-  - **Micro**: 5 creators with 163K–10.7K followers
-- Accurate follower counts, engagement rates, platform assignments
-- Total campaign pricing: ~$600K+
+**Personal OS** — Home · Roster · Releases · Audio · The Vault · Studio · Tech Lab · Hit Lab
 
-### Technology Stack
-- **Framework**: TanStack Start (React 19 + Vite)
-- **Styling**: Tailwind CSS v4 with OKLCH color system
-- **Animation**: Framer Motion (physics + magnetic effects)
-- **Charts**: Recharts (area, radial bar, line charts)
-- **Icons**: Lucide React
-- **Routing**: TanStack Router (file-based)
-- **TypeScript**: Full type safety
+| Module | What it does |
+|---|---|
+| **Home** | Command center: performance metrics, money & momentum, calendar, action list |
+| **Roster** | A&R CRM — scouting board, active roster, deal pipeline, press-kit generation |
+| **Releases** | Distribution engine — release wizard, catalog, rights status, one-pager export |
+| **Audio** | Library, upload, DJ/mixer with EQ and recording, shareable view-only players |
+| **The Vault** | Contracts — tagging, expiry alerts, embedded viewer, e-signature dispatch |
+| **Studio** | Scratchpad, moodboard, UGC engine, campaign creative tracker |
+| **Tech Lab** | Project boards, prompt library, prompt builder |
+| **Hit Lab** | Scores a track from its audio features with a full breakdown, and calibrates against real results |
 
-## Getting Started
+**Revenue** — Invoices · Live & Tickets · Affiliates · Billing
 
-### Prerequisites
-- Node.js 18+
-- npm, pnpm, or yarn
+| Module | What it does |
+|---|---|
+| **Invoices** | Ten-phase commission pipeline with deposit gating and expiring quotes, plus invoicing and PDF export |
+| **Live & Tickets** | Shows, capacity, break-even ticket count, sell-through, settlement |
+| **Affiliates** | Referral partners, tracked codes, conversion rates, commission ledger |
+| **Billing** | Plans, monthly credit quota, per-feature usage metering |
 
-### Installation
+**Marketing** — Overview · Campaigns · Calendar · Channels · Tasks · Budget · Templates · Creators · Assets
+
+**Platforms** — TikTok · Instagram · YouTube · Facebook · X
+
+**System** — Admin · Knowledge · Settings
+
+---
+
+## Global chrome
+
+Available on every page:
+
+- **⌘K command palette** — searches every record type and all knowledge documents, with quick-create actions
+- **Persistent audio player** — waveform, scrubber, timestamped feedback notes
+- **Quick-action button** — note, contract, deal, lead, invoice, show, partner
+- **Notifications** — expiring contracts, scheduled releases, overdue invoices, expiring quotes, undeposited work, shows below break-even, credit limits
+- **Sync status** — live cloud-sync indicator
+
+---
+
+## Knowledge Hub
+
+Forty playbooks, checklists, templates and prompt sets in `knowledge/`, browsable
+and searchable at `/knowledge`. Covers A&R, release operations, marketing
+systems, sales, delivery, finance, research method, and 90/180-day plans —
+each linked to the module it drives.
+
+---
+
+## Stack
+
+| Layer | Choice |
+|---|---|
+| Framework | TanStack Start (React 19 + Vite) |
+| Styling | Tailwind CSS v4, OKLCH colour system |
+| Animation | Framer Motion |
+| Charts | Recharts |
+| Audio | Web Audio API |
+| Documents | Client-side PDF and spreadsheet generation |
+| Backend | Supabase — Postgres, Auth, Storage, row-level security |
+| Hosting | Vercel |
+
+---
+
+## Getting started
+
+Requires Node.js 20 or later.
 
 ```bash
-# Extract the ZIP file, then:
-cd latifa-dashboard
-
-# Install dependencies
-pnpm install
-# or: npm install / yarn install
-
-# Start development server
-pnpm dev
-# or: npm run dev / yarn dev
+npm install
+npm run dev
 ```
 
-The app will start at `http://localhost:5173`
-
-### Build for Production
+The dev server runs on `http://localhost:8080`.
 
 ```bash
-pnpm build
-# or: npm run build / yarn build
+npm run build      # production build
+npm run lint       # lint
+npx tsc --noEmit   # typecheck
 ```
 
-The production build will be optimized and ready for deployment.
+### Backend
 
-## Project Structure
+The app runs without a backend using local storage, so you can explore it
+immediately. To enable cloud sync, accounts, file storage and the revenue
+modules, follow **`SUPABASE_SETUP.md`** — create the project, run the
+migrations in `supabase/migrations/` in order, create the storage buckets, and
+set the environment variables.
+
+Verify with **Settings → Run diagnostics**.
+
+### Optional: batch video renderer
+
+`scripts/ugc_reel_gen.py` renders short-form promo video in batches from the
+hook library. Requires `ffmpeg` on the path. See
+`knowledge/marketing/UGC_CONTENT_ENGINE.md`.
+
+---
+
+## Project structure
 
 ```
-src/
-├── components/           # Reusable UI components
-│   ├── AppShell.tsx      # Layout wrapper with sidebar
-│   ├── MeshGradient.tsx  # Animated background gradient
-│   ├── SpotlightCard.tsx # Spotlight hover effect card
-│   ├── MagneticButton.tsx# Physics-based button
-│   ├── Marquee.tsx       # Viral triggers text marquee
-│   └── ...               # Other components
-├── routes/               # File-based route definitions
-│   ├── __root.tsx        # Root layout with error boundary
-│   ├── index.tsx         # Dashboard overview
-│   ├── creators.tsx      # Influencer directory
-│   └── assets.tsx        # Asset library
-├── lib/
-│   ├── mock-data.ts      # 36 creator data + metrics
-│   ├── role-context.tsx  # Role-based access control
-│   └── ...               # Utilities
-├── styles.css            # Global animations & utilities
-├── router.tsx            # Router configuration
-└── start.ts              # TanStack Start initialization
+├── knowledge/          Playbooks, checklists, templates, prompts (40 files)
+├── docs/               Deployment and internal reference
+├── analytics/sql/      Reporting views and the business-metrics query pack
+├── data/               Hook library
+├── scripts/            Batch video renderer
+├── supabase/           Database migrations
+├── api/                Scheduled jobs and webhooks
+└── src/
+    ├── routes/         One file per page
+    ├── components/     Shared UI
+    ├── lib/            State, integrations, document generation, scoring
+    └── styles.css      Theme tokens and utilities
 ```
 
-## Usage
+---
 
-### Accessing Different Sections
-- **Dashboard**: Navigate to `/` (home)
-- **Creators**: Navigate to `/creators` or click "Influencer Directory" link
-- **Assets**: Navigate to `/assets` or click "Asset Library" link
+## Security
 
-### Role Switching
-Toggle between three roles in the sidebar:
-- **Marketing Manager**: Full access including pricing
-- **Team Member**: Limited pricing visibility
-- **Client**: View-only access, pricing hidden
+Before deploying publicly, work through
+`knowledge/checklists/SECURITY_AND_LAUNCH_CHECKLIST.md`. In particular:
 
-### Customizing Creator Data
-Edit `/src/lib/mock-data.ts` to update:
-- Creator list (`creators` array)
-- Campaign phases (`rolloutPhases`)
-- Platform statistics (`platformStats`)
-- Metrics and pipeline data
+- Row-level security must be enabled and tested with a second, non-admin account
+- Service-role keys and payment secrets belong in server-side environment
+  variables only, never in a `VITE_`-prefixed variable
+- The local fallback password gate is for development convenience — disable or
+  change it before the app is reachable publicly
+- Rotate any key that has been shared, screenshotted or pasted into a chat
+
+---
 
 ## Deployment
 
-### Deploy to Vercel
-```bash
-# Push to GitHub, then:
-# 1. Connect repo to Vercel
-# 2. Vercel auto-detects TanStack Start
-# 3. Deploy automatically
+Push to the connected branch; the host builds and deploys automatically.
+Environment variables prefixed `VITE_` are inlined at build time, so they must
+be set **before** the build runs, and changing one requires a redeploy.
 
-# Or use Vercel CLI:
-vercel deploy
-```
+Full sequence in `docs/DEPLOY_COMMANDS.md`.
 
-### Deploy to Other Platforms
-The build output in `dist/` can be deployed to any static host or server supporting Node.js.
+---
 
-## Troubleshooting
+## Browser support
 
-### Dev Server Issues
-- Clear `.vite` cache: `rm -rf .vite`
-- Restart dev server: `pnpm dev`
-- Check port 5173 isn't in use
+Chrome 90+ · Firefox 88+ · Safari 15+ · Edge 90+
 
-### Build Errors
-- Delete `node_modules` and reinstall: `rm -rf node_modules pnpm-lock.yaml && pnpm install`
-- Ensure Node.js version is 18+: `node --version`
-
-### Styling Issues
-- Tailwind CSS v4 is configured in `tailwind.config.ts`
-- OKLCH colors defined in `src/styles.css`
-- Ensure CSS is properly compiled before viewing
-
-## Browser Support
-- Chrome 90+
-- Firefox 88+
-- Safari 15+
-- Edge 90+
+---
 
 ## License
-This project is proprietary and confidential.
 
-## Contact
-For questions or support, contact the development team.
+Proprietary and confidential. All rights reserved.
+
+*RIPPL v1.2 · © 2026*

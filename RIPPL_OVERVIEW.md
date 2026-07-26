@@ -1,6 +1,8 @@
-# RIPPL — "My Universe" OS
+# RIPPL — 360° Operating System
 
-**RIPPL** is Zeyad Sayedin's personal operating system — one dashboard that unifies A&R / artist management, music distribution, 360° marketing, legal/contracts, creative studio, an audio lab with a DJ mixer, AI/SaaS project ops, and a full revenue stack (commissions & invoicing, live ticketing, affiliates, plans & credits) sitting on top of a written operating manual. It's more than a dashboard; it's the command center for everything he builds.
+**v1.2 · 2026**
+
+**RIPPL** is a 360° operating system for a music operation — one dashboard that unifies A&R / artist management, music distribution, 360° marketing, legal/contracts, creative studio, an audio lab with a DJ mixer, project ops, and a full revenue stack (commissions & invoicing, live ticketing, affiliates, plans & credits) sitting on top of a written operating manual. It's more than a dashboard; it's the command center for the whole operation.
 
 - **Live:** `rippl-mu.vercel.app`
 - **Repo:** `github.com/zeyadsayedinq/RIPPL`
@@ -17,8 +19,8 @@
 | Animation | **framer-motion** |
 | Icons | **lucide-react** |
 | Charts | **recharts** |
-| Spreadsheets | **xlsx** (SheetJS) — in-app XLSX/CSV viewer |
-| PDFs | **jspdf** — press kits, release one-pagers, invoices & commission quotes |
+| Spreadsheets | **xlsx** — in-app XLSX/CSV viewer |
+| PDFs | **jspdf** (client-side) — press kits, release one-pagers, invoices & commission quotes |
 | Audio | **Web Audio API** — DJ mixer, EQ, recorder, waveform |
 | Backend | **Supabase** (Postgres + Auth + Storage + RLS) |
 | Persistence | Supabase `app_state` (JSONB sync) + localStorage fallback |
@@ -33,7 +35,7 @@
 ## 2. Folder & File Structure
 
 ```
-latifa-dashboard-claude/
+rippl/
 ├── supabase/
 │   └── migrations/
 │       └── 0001_init.sql        # Full schema: tables, enums, RLS, app_state, storage policy, buckets
@@ -49,12 +51,12 @@ latifa-dashboard-claude/
 │   │   ├── audio.tsx            # "/audio" — Audio Lab (library, upload, DJ/Mixer, share)
 │   │   ├── vault.tsx            # "/vault" — Contracts DMS (upload, tags, expiry, PDF/XLSX viewer)
 │   │   ├── studio.tsx           # "/studio" — Creative (scratchpad, moodboard, campaign tracker)
-│   │   ├── techlab.tsx          # "/techlab" — AI/SaaS (sprint boards, prompt library, enhancer)
+│   │   ├── techlab.tsx          # "/techlab" — Project ops (sprint boards, prompt library, builder)
 │   │   ├── hitlab.tsx           # "/hitlab" — Hit Score (audio-feature scoring + calibration)
 │   │   ├── invoices.tsx         # "/invoices" — Commission pipeline + invoicing (PDF quotes/invoices)
 │   │   ├── live.tsx             # "/live" — Gigs & ticketing (break-even, sell-through, settlement)
 │   │   ├── affiliates.tsx       # "/affiliates" — Referral partners, tracked codes, commission ledger
-│   │   ├── billing.tsx          # "/billing" — Plans, AI credits, per-feature usage metering
+│   │   ├── billing.tsx          # "/billing" — Plans, credits, per-feature usage metering
 │   │   ├── knowledge.tsx        # "/knowledge" — Knowledge Hub browser (search, fast-start paths)
 │   │   ├── admin.tsx            # "/admin" — HQ panel (members, roles, assignments) [HQ only]
 │   │   ├── settings.tsx         # "/settings" — role/permissions, backend diagnostics, reset
@@ -72,7 +74,7 @@ latifa-dashboard-claude/
 │   ├── components/
 │   │   ├── AppGate.tsx          # Chooses gate: Supabase Auth (configured) vs password
 │   │   ├── SupabaseAuthGate.tsx # Real email/password login (accounts)
-│   │   ├── PasswordGate.tsx     # Local master-password fallback ("FUKmusic")
+│   │   ├── PasswordGate.tsx     # Local master-password fallback (dev only)
 │   │   ├── AppShell.tsx         # Sidebar + main + global chrome wrapper
 │   │   ├── Sidebar.tsx          # Grouped collapsible nav + campaign/role switchers
 │   │   ├── NotificationsBell.tsx# Expiring contracts / releases / deals alerts
@@ -81,7 +83,7 @@ latifa-dashboard-claude/
 │   │   ├── QuickActionFAB.tsx   # Bottom-right radial quick-add (note/contract/deal/lead)
 │   │   ├── AudioPlayer.tsx      # Persistent bottom player (waveform, scrubber, feedback)
 │   │   ├── DjMixer.tsx          # Web Audio DJ: decks, EQ knobs, crossfader, BPM, recorder
-│   │   ├── FileViewer.tsx       # Embedded PDF (iframe) + XLSX (SheetJS) viewer
+│   │   ├── FileViewer.tsx       # Embedded PDF (iframe) + XLSX viewer
 │   │   ├── FeatureCard.tsx      # Glowing gradient-border card (landing modules)
 │   │   ├── SpotlightCard.tsx    # Base card — spotlight + glow-border hover (used everywhere)
 │   │   ├── NewCampaignModal.tsx # Campaign creation + shared ModalShell
@@ -101,7 +103,7 @@ latifa-dashboard-claude/
 │   │   │                        #   budget lines, custom templates (+ active campaign)
 │   │   ├── campaign-data.ts     # Campaign types + (reset) empty seed data
 │   │   ├── campaign-templates.ts# Reusable templates extracted from real marketing-plan PDFs
-│   │   ├── mock-data.ts         # Influencer roster (36 creators) + types + platform colors
+│   │   ├── mock-data.ts         # Creator roster seed + types + platform colors
 │   │   ├── role-context.tsx     # Role (Marketing Manager / Team Member / Client) + canSeePrice
 │   │   ├── pdf.ts               # jsPDF press-kit + release one-pager generators
 │   │   ├── hit-score.ts         # Transparent popularity heuristic + playlist-fit comparison
@@ -111,7 +113,7 @@ latifa-dashboard-claude/
 │   │   ├── knowledge-index.ts   # Catalogue of the knowledge/ hub (search + module links)
 │   │   ├── knowledge-prompts.ts # 12 ready-made prompts importable into the Prompt Library
 │   │   ├── csv-export.ts        # Creator roster export + generic downloadCsv()
-│   │   ├── error-reporting.ts   # Local error logger (Lovable reporting removed)
+│   │   ├── error-reporting.ts   # Local error logger
 │   │   └── utils.ts             # cn() + helpers
 │   │
 │   ├── styles.css               # Theme tokens, glass utilities, keyframes (spin/shake/dots),
@@ -215,7 +217,7 @@ latifa-dashboard-claude/
 
 ## 5. Data, Persistence & Auth
 
-- **Auth gate:** Supabase email/password accounts when configured; falls back to a local master-password gate (`FUKmusic`) with no backend so you're never locked out.
+- **Auth gate:** Supabase email/password accounts when configured; falls back to a local master-password gate with no backend so you're never locked out. **Change or disable this before the app is publicly reachable** — see the security checklist.
 - **HQ:** `zeyadsayedinq@gmail.com` sees the Admin panel and manages members/assignments.
 - **Persistence:** every store writes to the Supabase `app_state` table (JSONB, per-user, RLS-protected) and syncs across devices; localStorage is an offline cache/fallback.
 - **Files:** contracts + audio upload to Supabase **Storage** (`contracts` / `audio` / `art` buckets), served via signed URLs.
@@ -296,4 +298,6 @@ limitations are, and the ranked backlog — lives in **`docs/RIPPL_UPGRADE_PLAN.
 
 ---
 
-*© 2026 RIPPL — Built by Zeyad Sayedin. This is my universe.*
+---
+
+*RIPPL v1.2 · © 2026 Zeyad Sayedin. Proprietary and confidential.*

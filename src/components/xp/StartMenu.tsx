@@ -102,7 +102,7 @@ export function StartMenu({ onClose }: { onClose: () => void }) {
           <MenuRow icon="run" label="Run..." onClick={() => launch("run")} dark />
           <div style={{ height: 1, background: "#A8C8E8", margin: "5px 8px" }} />
           <MenuRow
-            icon="ie" label="Switch to RIPPL 2025" dark
+            icon="ie" label="Switch to RIPPL26" dark
             onClick={() => { setSkin("neon"); onClose(); }}
           />
           <MenuRow icon="help" label="Help and Support" dark onClick={() => launch("about")} />

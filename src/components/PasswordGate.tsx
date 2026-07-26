@@ -3,13 +3,20 @@ import { motion } from "framer-motion";
 import { useWindowsOptional } from "@/lib/window-store";
 import { XPIcon } from "@/components/xp/XPIcon";
 
-/* Simple client-side master-password gate.
-   NOTE: this is a UI lock for a private tool, not real security — the
-   bundle still ships to the browser. For true protection, move the check
-   to a server route / real auth. Matches the "single hardcoded password,
-   no complex auth" requirement. */
+/* Client-side fallback gate, used only when Supabase Auth isn't configured
+   (local development, or a demo build with no backend).
 
-const MASTER = "FUKmusic";
+   ⚠  THIS IS NOT SECURITY. The comparison runs in the browser, so the value
+      below is readable by anyone who opens the bundle — which is exactly why
+      it must never be a password used anywhere else, and why the real
+      deployment must run on Supabase Auth (SupabaseAuthGate) instead.
+      AppGate picks the real gate automatically once the env vars are set.
+
+   Override per-environment with VITE_LOCAL_GATE_PASSWORD. Same caveat
+   applies: a VITE_ variable is inlined into the bundle at build time, so
+   this is a doorbell, not a lock. */
+
+const MASTER = import.meta.env.VITE_LOCAL_GATE_PASSWORD || "RIPPL26";
 const LS_KEY = "rippl.unlocked.v1";
 
 export function PasswordGate({ children }: { children: ReactNode }) {

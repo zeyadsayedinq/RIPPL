@@ -622,7 +622,7 @@ function Tracker() {
         </table>
       </div>
       <p className="mt-3 text-[11px] text-muted-foreground/70">
-        Illustrative — connect a live ad account to populate real ROAS.
+        Connect an ad account to populate live ROAS.
       </p>
     </SpotlightCard>
   );

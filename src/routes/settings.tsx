@@ -85,8 +85,8 @@ function DisplayProperties() {
   const { skin, setSkin } = win;
 
   const themes: { id: "xp" | "neon"; name: string; note: string; sky: string; band: string }[] = [
+    { id: "neon", name: "RIPPL26", note: "Black, glass, neon magenta — the default", sky: "#0A0A0C", band: "#C026A8" },
     { id: "xp", name: "Windows XP (Luna)", note: "Bliss, Tahoma, square corners", sky: "#4A8FD8", band: "#6FAE28" },
-    { id: "neon", name: "RIPPL 2025", note: "Black, glass, neon magenta", sky: "#0A0A0C", band: "#C026A8" },
   ];
 
   return (

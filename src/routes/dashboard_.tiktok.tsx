@@ -56,7 +56,7 @@ function TikTokDashboard() {
         setPanel({
           loading: false, connected: true, views: d.videoCount,
           stats: [
-            { icon: Video, label: "Creations with sound", value: fmt(d.videoCount), hint: d.asOf ? `as of ${d.asOf} · Soundcharts` : "Soundcharts video count" },
+            { icon: Video, label: "Creations with sound", value: fmt(d.videoCount), hint: d.asOf ? `as of ${d.asOf}` : "Creations using this sound" },
           ],
         });
       }

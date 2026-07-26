@@ -304,7 +304,7 @@ function MarketStatsModal({ artist, onClose }: { artist: Artist; onClose: () => 
       )}
       {!loading && !snap?.youtube && !snap?.youtubeError && (
         <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 text-sm text-muted-foreground">
-          No live data source connected yet. Streaming trends, playlist placements and demographics come from a cross-platform aggregator (Chartmetric or Soundcharts) — Spotify and Apple don't publish that data publicly, only inside their own private artist dashboards.
+          No live data source connected yet. Streaming trends, playlist placements and demographics require a cross-platform analytics feed — the DSPs publish this only inside their own private artist dashboards, never through a public API.
         </div>
       )}
 

@@ -237,7 +237,7 @@ const BANKS: Record<
   string,
   { suffix: string; groups: { label: string; options: string[] }[] }
 > = {
-  "Music / Suno": {
+  "Music Generation": {
     suffix: "Radio-ready, high-fidelity master, emotive and dynamic.",
     groups: [
       {
@@ -419,7 +419,7 @@ const rand = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
 function PromptEnhancer({ onClose }: { onClose: () => void }) {
   const { update } = useOS();
-  const [category, setCategory] = useState<string>("Music / Suno");
+  const [category, setCategory] = useState<string>("Music Generation");
   const [idea, setIdea] = useState("");
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [copied, setCopied] = useState(false);
@@ -445,7 +445,7 @@ function PromptEnhancer({ onClose }: { onClose: () => void }) {
     setPicked((s) => ({ ...s, [category]: Array.from(new Set(sel)) }));
     if (!idea.trim())
       setIdea(
-        category === "Music / Suno" ? "a song about the last goodbye" : "",
+        category === "Music Generation" ? "a song about the last goodbye" : "",
       );
   }
 

@@ -52,7 +52,7 @@ where relname in ('gigs','ticket_orders','commissions','invoices','invoice_lines
 A git process crashed and left a stale lock. Nothing is running — just delete it:
 
 ```bash
-cd ~/Downloads/latifa-dashboard-claude
+cd ~/Downloads/RIPPL
 rm -f .git/index.lock
 ```
 
@@ -105,7 +105,7 @@ workflow* → *set up a workflow yourself* → paste the contents of
 From the project folder:
 
 ```bash
-cd ~/Downloads/latifa-dashboard-claude
+cd ~/Downloads/RIPPL
 
 # see what's about to go up
 git status

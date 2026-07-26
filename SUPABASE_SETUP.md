@@ -52,7 +52,7 @@ npm run dev
 Open **Settings** — the Backend card should read **"Supabase connected."**
 
 ## Trade-offs / notes
-- The password gate (`FUKmusic`) is still client-side. For true server-side
+- The local fallback password gate is still client-side. For true server-side
   protection, replace it with Supabase Auth (email magic-link or a single
   service account) — the schema + RLS are already in place for that.
 - Keys prefixed `VITE_` are exposed to the browser (that's expected for the

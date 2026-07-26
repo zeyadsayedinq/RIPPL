@@ -13,20 +13,25 @@ function Bliss() {
       viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true"
     >
       <defs>
+        {/* Deep at the zenith, almost white at the horizon — the sky is most
+            of what makes Bliss recognisable, so the falloff matters more than
+            the hill does. */}
         <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#1F4FA8" />
-          <stop offset="38%" stopColor="#4A8FD8" />
-          <stop offset="72%" stopColor="#8FC4EC" />
-          <stop offset="100%" stopColor="#C8E4F5" />
+          <stop offset="0%" stopColor="#1053A8" />
+          <stop offset="22%" stopColor="#2E76C4" />
+          <stop offset="48%" stopColor="#61A5DF" />
+          <stop offset="74%" stopColor="#9FCDEE" />
+          <stop offset="100%" stopColor="#DCEDF8" />
         </linearGradient>
         <linearGradient id="hill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#8FC33A" />
-          <stop offset="35%" stopColor="#6FAE28" />
-          <stop offset="100%" stopColor="#3E7A14" />
+          <stop offset="0%" stopColor="#9ACB3C" />
+          <stop offset="22%" stopColor="#7DB92C" />
+          <stop offset="60%" stopColor="#5A9C1C" />
+          <stop offset="100%" stopColor="#3A7310" />
         </linearGradient>
         <linearGradient id="hill2" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#A5D24C" />
-          <stop offset="100%" stopColor="#5C9A1E" />
+          <stop offset="0%" stopColor="#B4DC5E" />
+          <stop offset="100%" stopColor="#69A824" />
         </linearGradient>
         <radialGradient id="cloud" cx="50%" cy="50%">
           <stop offset="0%" stopColor="#fff" stopOpacity=".95" />
@@ -35,15 +40,47 @@ function Bliss() {
       </defs>
 
       <rect width="1600" height="1000" fill="url(#sky)" />
-      <ellipse cx="330" cy="210" rx="240" ry="72" fill="url(#cloud)" />
-      <ellipse cx="450" cy="180" rx="150" ry="52" fill="url(#cloud)" />
-      <ellipse cx="1180" cy="150" rx="270" ry="66" fill="url(#cloud)" />
-      <ellipse cx="1020" cy="196" rx="170" ry="44" fill="url(#cloud)" />
-      <ellipse cx="760" cy="300" rx="320" ry="54" fill="url(#cloud)" opacity=".55" />
 
-      <path d="M0 700 C 260 560, 620 542, 900 616 C 1180 690, 1400 706, 1600 660 L1600 1000 L0 1000 Z" fill="url(#hill2)" />
-      <path d="M0 786 C 300 636, 700 610, 1030 700 C 1290 770, 1450 790, 1600 764 L1600 1000 L0 1000 Z" fill="url(#hill)" />
-      <path d="M0 786 C 300 636, 700 610, 1030 700" fill="none" stroke="#B6E06A" strokeWidth="3" opacity=".45" />
+      {/* Cumulus banks. Bliss has a dense cluster low-right and wispier,
+          flatter cloud running along the horizon — layered ellipses at
+          different opacities read closer than a few big even blobs. */}
+      <g>
+        <ellipse cx="1240" cy="150" rx="300" ry="78" fill="url(#cloud)" />
+        <ellipse cx="1130" cy="196" rx="210" ry="58" fill="url(#cloud)" opacity=".85" />
+        <ellipse cx="1380" cy="205" rx="190" ry="48" fill="url(#cloud)" opacity=".7" />
+        <ellipse cx="1290" cy="255" rx="260" ry="40" fill="url(#cloud)" opacity=".5" />
+
+        <ellipse cx="300" cy="196" rx="230" ry="60" fill="url(#cloud)" opacity=".8" />
+        <ellipse cx="430" cy="164" rx="140" ry="44" fill="url(#cloud)" opacity=".7" />
+        <ellipse cx="150" cy="238" rx="180" ry="38" fill="url(#cloud)" opacity=".5" />
+
+        {/* thin haze sitting just above the horizon */}
+        <ellipse cx="700" cy="392" rx="520" ry="30" fill="url(#cloud)" opacity=".45" />
+        <ellipse cx="1150" cy="410" rx="420" ry="24" fill="url(#cloud)" opacity=".35" />
+        <ellipse cx="260" cy="404" rx="360" ry="22" fill="url(#cloud)" opacity=".3" />
+      </g>
+
+      {/* The hill: one broad mound cresting left-of-centre and falling away
+          to the right, the way the photograph reads. The far ridge behind it
+          gives the horizon depth. */}
+      <path
+        d="M0 556 C 220 476, 520 452, 830 508 C 1120 560, 1360 578, 1600 552 L1600 1000 L0 1000 Z"
+        fill="url(#hill2)"
+      />
+      <path
+        d="M0 640 C 280 500, 640 470, 980 560 C 1250 630, 1430 664, 1600 640 L1600 1000 L0 1000 Z"
+        fill="url(#hill)"
+      />
+      {/* sunlit crest — the bright rim along the top of the near hill */}
+      <path
+        d="M0 640 C 280 500, 640 470, 980 560 C 1250 630, 1430 664, 1600 640"
+        fill="none"
+        stroke="#C4E87A"
+        strokeWidth="5"
+        opacity=".55"
+      />
+      {/* soft shadow in the trough, bottom-left */}
+      <ellipse cx="240" cy="1000" rx="720" ry="230" fill="#2F6410" opacity=".35" />
     </svg>
   );
 }

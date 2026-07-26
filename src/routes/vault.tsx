@@ -169,7 +169,7 @@ function VaultPage() {
                 <span title="Metadata only — no file bytes stored" className="text-[10px] text-muted-foreground/60">no file</span>
               )}
               {!c.signatureStatus && c.filePath && !isShared(c.id) && (
-                <button onClick={() => setSignModal(c)} title="Send for e-signature (Dropbox Sign)" className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] hover:bg-white/5">
+                <button onClick={() => setSignModal(c)} title="Send for e-signature" className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] hover:bg-white/5">
                   <Send className="h-3.5 w-3.5" /> Send for signature
                 </button>
               )}
@@ -282,7 +282,7 @@ function SendSignatureModal({
   }
 
   return (
-    <ModalShell eyebrow="The Vault · Dropbox Sign" title={`Send "${contract.name}" for signature`} onClose={onClose}>
+    <ModalShell eyebrow="The Vault · E-Signature" title={`Send "${contract.name}" for signature`} onClose={onClose}>
       <div className="space-y-3">
         <div>
           <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Signer name</label>

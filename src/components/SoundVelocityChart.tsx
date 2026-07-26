@@ -60,7 +60,7 @@ export function SoundVelocityChart({
             </ResponsiveContainer>
           </div>
           {velocity.some((p) => p.source === "manual") && (
-            <div className="mt-1 text-[10px] text-muted-foreground/70">Includes manually-logged counts, not all from Soundcharts.</div>
+            <div className="mt-1 text-[10px] text-muted-foreground/70">Includes manually-logged counts alongside synced data.</div>
           )}
         </>
       ) : (
