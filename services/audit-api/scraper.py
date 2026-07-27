@@ -5,6 +5,7 @@ Streams progress via async generator; each yielded dict is an SSE event.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from datetime import datetime
 from typing import AsyncGenerator
@@ -13,7 +14,6 @@ from playwright.async_api import async_playwright
 
 MIN_FOLLOWERS = 100_000
 
-# Injected at browser context level to mask automation signals TikTok checks
 _STEALTH_JS = """
 Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
 
@@ -34,6 +34,12 @@ window.navigator.permissions.query = (parameters) =>
     ? Promise.resolve({ state: Notification.permission })
     : originalQuery(parameters);
 """
+
+# TikTok cookies that help bypass bot detection on cloud IPs
+_TIKTOK_COOKIES = [
+    {"name": "tt_chain_token", "value": "1", "domain": ".tiktok.com", "path": "/"},
+    {"name": "tiktok_webapp_theme", "value": "dark", "domain": ".tiktok.com", "path": "/"},
+]
 
 
 def _parse_video(item: dict) -> dict | None:
@@ -101,6 +107,60 @@ def _extract_videos(data: dict) -> list:
     return []
 
 
+async def _extract_sigi_state(page) -> list:
+    """
+    Pull the initial video batch from TikTok's server-rendered SIGI_STATE.
+    This works even when cloud IPs get empty XHR responses, because the
+    first ~12-30 videos are embedded in the HTML at page load time.
+    """
+    try:
+        result = await page.evaluate("""
+            () => {
+                // Primary: <script id="SIGI_STATE"> tag (Next.js hydration)
+                const sigiEl = document.getElementById('SIGI_STATE');
+                if (sigiEl && sigiEl.textContent) {
+                    try { return JSON.parse(sigiEl.textContent); } catch(e) {}
+                }
+
+                // Fallback: <script id="__NEXT_DATA__">
+                const nextEl = document.getElementById('__NEXT_DATA__');
+                if (nextEl && nextEl.textContent) {
+                    try { return JSON.parse(nextEl.textContent); } catch(e) {}
+                }
+
+                // Fallback: scan script tags for ItemModule
+                for (const s of document.scripts) {
+                    const t = s.textContent || '';
+                    if (t.includes('"ItemModule"') && t.length > 500) {
+                        // Look for assignment patterns: = {...} or window[...] = {...}
+                        const patterns = [
+                            /=\\s*({"ItemModule"[\\s\\S]+?"SoundModule"[\\s\\S]+?});/,
+                            /=\\s*({"ItemModule"[\\s\\S]+?});/,
+                        ];
+                        for (const re of patterns) {
+                            const m = t.match(re);
+                            if (m) { try { return JSON.parse(m[1]); } catch(e) {} }
+                        }
+                    }
+                }
+                return null;
+            }
+        """)
+
+        if not result or not isinstance(result, dict):
+            return []
+
+        # SIGI_STATE shape: { ItemModule: { videoId: itemData, ... }, ... }
+        item_module = result.get("ItemModule", {})
+        if item_module and isinstance(item_module, dict):
+            return list(item_module.values())
+
+        # __NEXT_DATA__ shape varies — try standard extraction
+        return _extract_videos(result)
+    except Exception:
+        return []
+
+
 def _segment(records: list[dict]) -> dict:
     got  = sorted([r for r in records if r["views"] >= 100_000],          key=lambda x: x["views"], reverse=True)
     good = sorted([r for r in records if 10_000 <= r["views"] < 100_000], key=lambda x: x["views"], reverse=True)
@@ -119,7 +179,6 @@ async def scrape_sound(sound_url: str) -> AsyncGenerator[dict, None]:
     """
     collected: dict[str, dict] = {}
 
-    # Optional: set SCRAPER_PROXY=http://user:pass@host:port in Railway env vars
     proxy_url = os.getenv("SCRAPER_PROXY")
     proxy_cfg = {"server": proxy_url} if proxy_url else None
 
@@ -150,24 +209,35 @@ async def scrape_sound(sound_url: str) -> AsyncGenerator[dict, None]:
                 viewport={"width": 1280, "height": 900},
                 locale="en-US",
                 timezone_id="America/New_York",
+                extra_http_headers={
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": '"Windows"',
+                },
             )
 
             await context.add_init_script(_STEALTH_JS)
+            await context.add_cookies(_TIKTOK_COOKIES)
 
             queue: asyncio.Queue = asyncio.Queue()
 
             async def on_response(response):
                 try:
                     url = response.url
-                    if not ("tiktok.com" in url and response.status == 200):
+                    if "tiktok.com" not in url or response.status != 200:
                         return
-                    is_api      = "api" in url or "aweme" in url or "item_list" in url or "/music/" in url
-                    has_content = "video" in url.lower() or "item" in url.lower() or "music" in url.lower()
-                    if not (is_api and has_content):
+                    # Match any TikTok endpoint that could carry video lists
+                    if not any(pat in url for pat in (
+                        "item_list", "aweme/v1", "/music/", "itemList",
+                        "api/music", "api/item", "api/recommend",
+                    )):
                         return
-                    if "json" not in response.headers.get("content-type", ""):
+                    try:
+                        body = await response.json()
+                    except Exception:
                         return
-                    body   = await response.json()
                     videos = _extract_videos(body)
                     if videos:
                         await queue.put(videos)
@@ -181,10 +251,26 @@ async def scrape_sound(sound_url: str) -> AsyncGenerator[dict, None]:
             await page.goto(sound_url, wait_until="domcontentloaded", timeout=60_000)
             await page.wait_for_timeout(4_000)
 
+            # --- Extract initial batch from embedded SIGI_STATE ---
+            sigi_items = await _extract_sigi_state(page)
+            for item in sigi_items:
+                rec = _parse_video(item)
+                if rec and rec["video_id"] and rec["video_id"] not in collected:
+                    collected[rec["video_id"]] = rec
+
+            if collected:
+                yield {
+                    "type": "progress",
+                    "captured": len(collected),
+                    "scroll": 0,
+                    "message": f"Extracted {len(collected)} videos from page data — scrolling for more…",
+                }
+
+            # Drain any XHR responses that arrived during page load
             while not queue.empty():
                 for item in await queue.get():
                     rec = _parse_video(item)
-                    if rec and rec["video_id"] not in collected:
+                    if rec and rec["video_id"] and rec["video_id"] not in collected:
                         collected[rec["video_id"]] = rec
 
             scroll_round = 0
@@ -199,7 +285,7 @@ async def scrape_sound(sound_url: str) -> AsyncGenerator[dict, None]:
                 while not queue.empty():
                     for item in await queue.get():
                         rec = _parse_video(item)
-                        if rec and rec["video_id"] not in collected:
+                        if rec and rec["video_id"] and rec["video_id"] not in collected:
                             collected[rec["video_id"]] = rec
 
                 current = len(collected)

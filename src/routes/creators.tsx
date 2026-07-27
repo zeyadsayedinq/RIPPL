@@ -1393,10 +1393,9 @@ function SoundAuditTab({ addCreator }: { addCreator: (c: Omit<Creator, "id" | "s
           )}
         </div>
         <p className="mt-2 text-[11px] text-muted-foreground">
-          Make sure the audit API is running locally:{" "}
-          <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px]">
-            bash ~/rippl-audit-api/start.sh
-          </code>
+          Powered by{" "}
+          <span className="text-[oklch(0.7_0.28_328)]">rippl-audit-api.onrender.com</span>
+          {" "}— first request may take ~30s to wake up the free instance.
         </p>
       </SpotlightCard>
 
