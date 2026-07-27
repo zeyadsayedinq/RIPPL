@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: rippl-audit-api
+    runtime: docker
+    dockerfilePath: services/audit-api/Dockerfile
+    dockerContext: services/audit-api
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
