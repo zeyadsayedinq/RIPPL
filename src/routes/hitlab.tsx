@@ -25,7 +25,7 @@ export const Route = createFileRoute("/hitlab")({
       {
         name: "description",
         content:
-          "Score a track's commercial potential from its audio features.",
+          "Model a track's commercial shape from its audio features.",
       },
     ],
   }),
@@ -204,8 +204,8 @@ function HitLabPage() {
           Hit <span className="text-gradient-neon">Score</span>
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Score a track from its audio features. Transparent heuristic — every
-          point is explained below.
+          Model a track from its audio features. Values are entered below, not
+          measured from the file — every point is explained on the right.
         </p>
       </header>
 
@@ -260,6 +260,10 @@ function HitLabPage() {
             <div className="mt-4">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Prefill from library
+              </div>
+              <div className="mt-0.5 text-[10px] text-muted-foreground/60">
+                Copies the title, artist and any tempo/energy already measured —
+                the remaining sliders keep their current values.
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {/* max-w + truncate: library titles include full video names and

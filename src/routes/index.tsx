@@ -17,8 +17,10 @@ import {
   Ticket,
   Share2,
   BookOpen,
+  ChevronDown,
 } from "lucide-react";
 import { KNOWLEDGE } from "@/lib/knowledge-index";
+import { useRole, type Role } from "@/lib/role-context";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -214,6 +216,7 @@ function Universe() {
               Everything I build, in one universe.
             </h2>
             <FooterNav
+              className="hidden md:flex"
               links={[
                 ["Home", "/home"],
                 ["Roster", "/roster"],
@@ -223,6 +226,7 @@ function Universe() {
               ]}
             />
             <FooterNav
+              className="hidden md:flex"
               links={[
                 ["Tech Lab", "/techlab"],
                 ["Hit Lab", "/hitlab"],
@@ -232,6 +236,7 @@ function Universe() {
               ]}
             />
             <FooterNav
+              className="hidden md:flex"
               links={[
                 ["Invoices", "/invoices"],
                 ["Live & Tickets", "/live"],
@@ -288,8 +293,8 @@ function Universe() {
       </section>
 
       {/* ═══════ HERO (was the top) — now the bottom, closing "scene" ═══════ */}
-      <section className="relative h-screen overflow-hidden">
-        <div className="absolute inset-0 z-0">
+      <section className="relative min-h-screen overflow-hidden">
+        <div className="absolute inset-0 z-0 bg-black">
           {SCENES.map((s, i) => (
             <video
               key={s.url}
@@ -342,12 +347,15 @@ function Universe() {
                 RIPPL
               </span>
             </div>
-            <Link
-              to="/home"
-              className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition-transform hover:scale-[1.03]"
-            >
-              Enter <ArrowRight className="h-4 w-4" />
-            </Link>
+            <div className="flex items-center gap-2">
+              <RolePickerHero />
+              <Link
+                to="/home"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition-transform hover:scale-[1.03]"
+              >
+                Enter <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </nav>
 
           <div className="flex flex-1 flex-col justify-center pb-16">
@@ -388,7 +396,7 @@ function Universe() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.4, duration: 0.5 }}
-              className="mt-8 grid grid-cols-3 gap-3 sm:grid-cols-6"
+              className="mt-8 grid grid-cols-4 gap-2 sm:grid-cols-4 md:grid-cols-8"
             >
               {stats.map((s) => (
                 <div
@@ -428,9 +436,9 @@ function Universe() {
   );
 }
 
-function FooterNav({ links }: { links: [string, string][] }) {
+function FooterNav({ links, className = "" }: { links: [string, string][]; className?: string }) {
   return (
-    <nav className="flex flex-col items-start gap-4">
+    <nav className={`flex flex-col items-start gap-4 ${className}`}>
       {links.map(([label, to]) => (
         <Link
           key={to}
@@ -441,5 +449,37 @@ function FooterNav({ links }: { links: [string, string][] }) {
         </Link>
       ))}
     </nav>
+  );
+}
+
+const ROLES: Role[] = ["Marketing Manager", "Team Member", "Client"];
+
+function RolePickerHero() {
+  const { role, setRole } = useRole();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs text-white backdrop-blur transition hover:bg-white/15"
+      >
+        <span className="hidden sm:inline">{role}</span>
+        <span className="sm:hidden">Role</span>
+        <ChevronDown className="h-3.5 w-3.5 opacity-60" style={{ transform: open ? "rotate(180deg)" : undefined, transition: "transform 0.2s" }} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-xl border border-white/10 bg-black/90 shadow-xl backdrop-blur">
+          {ROLES.map((r) => (
+            <button
+              key={r}
+              onClick={() => { setRole(r); setOpen(false); }}
+              className={`w-full px-4 py-2.5 text-left text-sm transition hover:bg-white/10 ${role === r ? "font-medium text-white" : "text-white/60"}`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

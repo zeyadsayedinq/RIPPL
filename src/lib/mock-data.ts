@@ -1337,7 +1337,13 @@ export const rolloutPhases: {
   date: string;
   status: string;
   progress: number;
-}[] = [];
+}[] = [
+  { name: "Pre-Release Seeding",   date: "2026-05-01", status: "Done",    progress: 100 },
+  { name: "Launch Week Activation", date: "2026-05-08", status: "Done",    progress: 100 },
+  { name: "Wave 2 — Creator Push",  date: "2026-05-15", status: "Done",    progress: 100 },
+  { name: "Sustained Momentum",     date: "2026-05-22", status: "Active",  progress: 65  },
+  { name: "Wrap & Reporting",       date: "2026-06-01", status: "Planned", progress: 0   },
+];
 
 export const conversionTrend: {
   day: string;
@@ -1345,9 +1351,22 @@ export const conversionTrend: {
   Instagram: number;
   Facebook: number;
   YouTube: number;
-}[] = [];
+}[] = [
+  { day: "Mon", TikTok: 18400, Instagram: 7200,  Facebook: 3100,  YouTube: 4800  },
+  { day: "Tue", TikTok: 22100, Instagram: 8400,  Facebook: 3600,  YouTube: 5200  },
+  { day: "Wed", TikTok: 31500, Instagram: 11200, Facebook: 4800,  YouTube: 7100  },
+  { day: "Thu", TikTok: 44800, Instagram: 14600, Facebook: 6200,  YouTube: 9400  },
+  { day: "Fri", TikTok: 68200, Instagram: 19800, Facebook: 8900,  YouTube: 13600 },
+  { day: "Sat", TikTok: 92400, Instagram: 24200, Facebook: 11400, YouTube: 18200 },
+  { day: "Sun", TikTok: 84600, Instagram: 21600, Facebook: 9800,  YouTube: 15800 },
+];
 
-export const influencerPipeline: { stage: string; count: number }[] = [];
+export const influencerPipeline: { stage: string; count: number }[] = [
+  { stage: "Discovered",  count: 48 },
+  { stage: "Evaluating",  count: 21 },
+  { stage: "Negotiating", count: 9  },
+  { stage: "Signed",      count: 31 },
+];
 
 export interface Asset {
   id: string;
@@ -1366,9 +1385,21 @@ export interface Comment {
   time: string;
 }
 
-export const assets: Asset[] = [];
+export const assets: Asset[] = [
+  { id: "a1", name: "26 Album Campaign Brief v3", type: "Brief", version: "3.0", updated: "2026-05-01", owner: "Zeyad", comments: [] },
+  { id: "a2", name: "Latifa — Shabhi Bel Meli (Master)", type: "Audio", version: "1.0", updated: "2026-04-28", owner: "Studio", comments: [] },
+  { id: "a3", name: "Album Cover Final", type: "Art", version: "2.1", updated: "2026-04-30", owner: "Design", comments: [] },
+  { id: "a4", name: "TikTok Sound Clip 30s", type: "Audio", version: "1.2", updated: "2026-05-02", owner: "Marketing", comments: [] },
+  { id: "a5", name: "Lyric Video — Shabhi Bel Meli", type: "Video", version: "1.0", updated: "2026-05-04", owner: "Video", comments: [] },
+];
 
-export const viralTriggers: string[] = [];
+export const viralTriggers: string[] = [
+  "Sound used in 3,847 TikTok videos within 14 days of launch",
+  "Trending #1 on Anghami MENA Charts — Week 2",
+  "Featured in Instagram Reels Trending Audio",
+  "92K+ video creations across all platforms",
+  "#لطيفة trending on X Egypt for 48 hrs",
+];
 
 /* Brand color per platform (used across tiles, charts, legends) */
 export const platformColors: Record<Platform, string> = {
@@ -1393,7 +1424,16 @@ export interface Kpi {
   hint: string;
   format?: "money" | "number" | "ratio" | "percent";
 }
-export const campaignKpis: Kpi[] = [];
+export const campaignKpis: Kpi[] = [
+  { key: "reach",       label: "Total Reach",      value: "4.24M",     raw: 4_240_000,  delta: 18.4,  hint: "Unique accounts reached across all platforms", format: "number"  },
+  { key: "impressions", label: "Impressions",       value: "11.8M",     raw: 11_800_000, delta: 22.1,  hint: "Total ad + organic impressions",               format: "number"  },
+  { key: "engagement",  label: "Engagement Rate",   value: "7.2%",      raw: 7.2,        delta: 1.4,   hint: "Likes + comments + shares / impressions",      format: "percent" },
+  { key: "spend",       label: "Media Spend",       value: "EGP 182K",  raw: 182_000,    delta: -3.2,  hint: "Paid media spend YTD",                         format: "money"   },
+  { key: "roas",        label: "ROAS",              value: "3.8×",      raw: 3.8,        delta: 0.6,   hint: "Revenue attributed / spend",                   format: "ratio"   },
+  { key: "sound",       label: "Sound Creations",   value: "3,847",     raw: 3847,       delta: 41.2,  hint: "TikTok videos created using the campaign sound", format: "number"  },
+  { key: "streams",     label: "DSP Streams",       value: "2.1M",      raw: 2_100_000,  delta: 28.7,  hint: "Combined Anghami + Spotify + YouTube Music",   format: "number"  },
+  { key: "cpa",         label: "Cost per Action",   value: "EGP 47",    raw: 47,         delta: -8.3,  hint: "Spend / engaged users",                        format: "money"   },
+];
 
 /* ── Per-platform reach split into paid + organic ───────────── */
 export interface PlatformMetric {
@@ -1409,7 +1449,13 @@ export interface PlatformMetric {
   roas: number;
   growth: number;
 }
-export const platformMetrics: PlatformMetric[] = [];
+export const platformMetrics: PlatformMetric[] = [
+  { name: "TikTok",    followers: "1.24M", reach: 2_140_000, organicReach: 1_820_000, paidReach: 320_000,  impressions: 5_800_000, engagementRate: 9.4, spend: 48_000,  revenue: 210_000, roas: 4.4, growth: 32.1 },
+  { name: "Instagram", followers: "892K",  reach: 1_180_000, organicReach: 720_000,   paidReach: 460_000,  impressions: 3_200_000, engagementRate: 5.8, spend: 72_000,  revenue: 230_000, roas: 3.2, growth: 18.6 },
+  { name: "YouTube",   followers: "340K",  reach: 620_000,   organicReach: 480_000,   paidReach: 140_000,  impressions: 1_800_000, engagementRate: 4.2, spend: 38_000,  revenue: 124_000, roas: 3.3, growth: 12.4 },
+  { name: "Facebook",  followers: "210K",  reach: 300_000,   organicReach: 120_000,   paidReach: 180_000,  impressions: 980_000,   engagementRate: 2.9, spend: 24_000,  revenue: 58_000,  roas: 2.4, growth: 4.8  },
+  { name: "X",         followers: "88K",   reach: 85_000,    organicReach: 85_000,    paidReach: 0,        impressions: 420_000,   engagementRate: 1.8, spend: 0,       revenue: 0,       roas: 0,   growth: 7.2  },
+];
 
 export const platformStats = platformMetrics.slice(0, 4).map((p) => ({
   name: p.name,
@@ -1425,7 +1471,14 @@ export const paidVsOrganic: {
   organic: number;
   paid: number;
   spend: number;
-}[] = [];
+}[] = [
+  { week: "W1", organic: 180_000,   paid: 42_000,  spend: 18_000 },
+  { week: "W2", organic: 520_000,   paid: 98_000,  spend: 32_000 },
+  { week: "W3", organic: 840_000,   paid: 124_000, spend: 38_000 },
+  { week: "W4", organic: 1_100_000, paid: 148_000, spend: 42_000 },
+  { week: "W5", organic: 980_000,   paid: 132_000, spend: 30_000 },
+  { week: "W6", organic: 720_000,   paid: 94_000,  spend: 22_000 },
+];
 
 /* ── Marketing funnel (awareness → conversion) ──────────────── */
 export interface FunnelStage {
@@ -1434,7 +1487,13 @@ export interface FunnelStage {
   rate: number;
   color: string;
 }
-export const funnel: FunnelStage[] = [];
+export const funnel: FunnelStage[] = [
+  { stage: "Awareness",   value: 4_240_000, rate: 100, color: "oklch(0.72 0.16 200)" },
+  { stage: "Interest",    value: 1_060_000, rate: 25,  color: "oklch(0.7 0.22 260)"  },
+  { stage: "Engagement",  value: 304_000,   rate: 28.7,color: "oklch(0.7 0.28 328)"  },
+  { stage: "Streaming",   value: 82_000,    rate: 26.9,color: "oklch(0.72 0.18 150)" },
+  { stage: "Fan Convert", value: 18_400,    rate: 22.4,color: "oklch(0.85 0.18 100)" },
+];
 
 /* ── Multi-touch attribution by channel ─────────────────────── */
 export interface AttributionRow {
@@ -1445,7 +1504,13 @@ export interface AttributionRow {
   assisted: number;
   roas: number;
 }
-export const attribution: AttributionRow[] = [];
+export const attribution: AttributionRow[] = [
+  { channel: "TikTok Creators",   firstTouch: 42, lastTouch: 31, linear: 38, assisted: 44, roas: 4.4 },
+  { channel: "Instagram Paid",    firstTouch: 22, lastTouch: 28, linear: 24, assisted: 26, roas: 3.2 },
+  { channel: "YouTube Ads",       firstTouch: 14, lastTouch: 19, linear: 16, assisted: 14, roas: 3.3 },
+  { channel: "Facebook Ads",      firstTouch: 12, lastTouch: 14, linear: 13, assisted: 10, roas: 2.4 },
+  { channel: "Organic / PR",      firstTouch: 10, lastTouch: 8,  linear: 9,  assisted: 6,  roas: 0   },
+];
 
 /* ── Channel mix (spend / revenue / efficiency) ─────────────── */
 export interface ChannelMixRow {
@@ -1456,7 +1521,12 @@ export interface ChannelMixRow {
   cpa: number;
   share: number;
 }
-export const channelMix: ChannelMixRow[] = [];
+export const channelMix: ChannelMixRow[] = [
+  { channel: "TikTok Creators", spend: 48_000,  revenue: 210_000, roas: 4.38, cpa: 28,  share: 26.4 },
+  { channel: "Instagram Paid",  spend: 72_000,  revenue: 230_000, roas: 3.19, cpa: 52,  share: 39.6 },
+  { channel: "YouTube Ads",     spend: 38_000,  revenue: 124_000, roas: 3.26, cpa: 44,  share: 20.9 },
+  { channel: "Facebook Ads",    spend: 24_000,  revenue: 58_000,  roas: 2.42, cpa: 68,  share: 13.2 },
+];
 
 /* ── Active paid campaigns across platforms ─────────────────── */
 export interface PaidCampaign {
@@ -1473,19 +1543,53 @@ export interface PaidCampaign {
   cpc: number;
   roas: number;
 }
-export const paidCampaigns: PaidCampaign[] = [];
+export const paidCampaigns: PaidCampaign[] = [
+  { id: "pc1", name: "TikTok Sound Boost — Wave 1",  platform: "TikTok",    objective: "Video Views",  status: "Ended",     spend: 18_000, budget: 20_000, impressions: 2_400_000, ctr: 4.2, cpc: 0.18, roas: 4.8 },
+  { id: "pc2", name: "TikTok Creator Amplify",       platform: "TikTok",    objective: "Engagement",   status: "Active",    spend: 22_000, budget: 28_000, impressions: 1_800_000, ctr: 5.8, cpc: 0.22, roas: 4.1 },
+  { id: "pc3", name: "IG Reels — Album Awareness",   platform: "Instagram", objective: "Awareness",    status: "Active",    spend: 42_000, budget: 50_000, impressions: 1_600_000, ctr: 2.9, cpc: 0.91, roas: 3.4 },
+  { id: "pc4", name: "IG Stories — CTA to Stream",   platform: "Instagram", objective: "Traffic",      status: "Active",    spend: 30_000, budget: 35_000, impressions: 980_000,   ctr: 3.6, cpc: 0.85, roas: 2.8 },
+  { id: "pc5", name: "YouTube Pre-Roll — Lyric Vid", platform: "YouTube",   objective: "Video Views",  status: "Ended",     spend: 20_000, budget: 20_000, impressions: 920_000,   ctr: 1.8, cpc: 1.20, roas: 3.2 },
+  { id: "pc6", name: "YouTube Discovery Ads",        platform: "YouTube",   objective: "Traffic",      status: "Scheduled", spend: 0,      budget: 18_000, impressions: 0,         ctr: 0,   cpc: 0,    roas: 0   },
+  { id: "pc7", name: "Facebook Feed — Arab World",   platform: "Facebook",  objective: "Awareness",    status: "Paused",    spend: 24_000, budget: 24_000, impressions: 980_000,   ctr: 1.4, cpc: 1.74, roas: 2.4 },
+];
 
 /* ── Budget burndown ────────────────────────────────────────── */
 export const budget = {
-  total: 0,
-  spent: 0,
-  committed: 0,
+  total: 350_000,
+  spent: 182_000,
+  committed: 68_000,
   get remaining() {
     return this.total - this.spent - this.committed;
   },
-  byChannel: [] as { channel: string; spend: number }[],
-  burndown: [] as { week: string; planned: number; actual: number }[],
+  byChannel: [
+    { channel: "TikTok Creators",  spend: 48_000  },
+    { channel: "Instagram Paid",   spend: 72_000  },
+    { channel: "YouTube Ads",      spend: 38_000  },
+    { channel: "Facebook Ads",     spend: 24_000  },
+    { channel: "PR & Events",      spend: 18_000  },
+    { channel: "Creative Assets",  spend: 12_000  },
+  ] as { channel: string; spend: number }[],
+  burndown: [
+    { week: "W1", planned: 40_000,  actual: 32_000  },
+    { week: "W2", planned: 90_000,  actual: 78_000  },
+    { week: "W3", planned: 150_000, actual: 142_000 },
+    { week: "W4", planned: 210_000, actual: 182_000 },
+    { week: "W5", planned: 260_000, actual: 0       },
+    { week: "W6", planned: 310_000, actual: 0       },
+    { week: "W7", planned: 350_000, actual: 0       },
+  ] as { week: string; planned: number; actual: number }[],
 };
 
 /* ── Live activity feed ─────────────────────────────────────── */
-export const activityFeed: string[] = [];
+export const activityFeed: string[] = [
+  "TikTok sound hit 3,847 video creations — 41% above forecast",
+  "Campaign brief sent to 12 new Wave 3 creators",
+  "Anghami Chart Entry: #4 in Egypt Top 40",
+  "Instagram Reels CPM down 18% — budget reallocation approved",
+  "YouTube lyric video crossed 1M views",
+  "Deal signed with @manar.edits (2.1M followers)",
+  "Soundcharts snapshot: +284 new TikTok creations today",
+  "Q2 recap deck shared with client — approved",
+  "X trending: #لطيفة reached 48K tweets in 24hrs",
+  "Budget checkpoint: 52% spent, on track for W6 wrap",
+];

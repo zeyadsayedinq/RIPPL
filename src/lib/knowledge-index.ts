@@ -222,7 +222,7 @@ export const KNOWLEDGE: KnowledgeDoc[] = [
     title: "Hit Prediction — Method & Limits",
     section: "Research",
     summary:
-      "What the source study did, what transferred into RIPPL's scorer, and the five reasons not to over-trust the number.",
+      "Why the score comes from the sliders and not the audio file, what transferred from the source study, and the reasons not to over-trust the number.",
     route: "/hitlab",
     tags: ["ml", "prediction", "audio features"],
     source: "ebtezcan/Spotify-Song-Popularity-Prediction",

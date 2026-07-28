@@ -2,8 +2,26 @@ import { jsPDF } from "jspdf";
 import type { Artist, Release } from "./os-store";
 import type { Campaign, ChecklistPhase } from "./campaign-data";
 
-export interface SplitEntry { name: string; role: string; percent: number; }
-export interface SplitSheetInput { trackTitle: string; artist: string; date: string; entries: SplitEntry[]; }
+export interface SplitEntry {
+  name: string;
+  role: string;
+  ipi?: string;        // IPI/CAE composer ID
+  publisher?: string;  // publishing admin
+  masterPct: number;   // master recording ownership %
+  pubPct: number;      // publishing / composition %
+  email?: string;
+}
+export interface SplitSheetInput {
+  trackTitle: string;
+  artist: string;
+  isrc?: string;
+  iswc?: string;
+  recordingDate?: string;
+  label?: string;
+  publisher?: string;
+  date: string;
+  entries: SplitEntry[];
+}
 
 /* Client-facing PDF generators (press kit, release one-pager). Minimal,
    monospace-ish, on-brand black/white layout. */
@@ -64,47 +82,128 @@ export function releaseOnePagerPdf(r: Release) {
   doc.save(`${r.title.replace(/\s+/g, "_")}_One_Pager.pdf`);
 }
 
-/* RIPPL v3.0 plan: "Smart Split-Sheet & Contract Generator" — input
-   contributor names/roles/percentages, get a signature-ready PDF. Pure
-   client-side jsPDF, no external API needed. */
 export function splitSheetPdf(s: SplitSheetInput) {
   const doc = new jsPDF();
-  header(doc, "Split Sheet", s.trackTitle || "Untitled Track");
-  let y = 62;
-  label(doc, "Artist", y); value(doc, s.artist || "—", y + 7); y += 22;
-  label(doc, "Date", y); value(doc, s.date || new Date().toLocaleDateString(), y + 7, 11); y += 26;
 
-  label(doc, "Contributor", y); doc.text("ROLE", 100, y); doc.text("SPLIT", 175, y); y += 8;
-  doc.setDrawColor(180); doc.line(16, y, 194, y); y += 8;
+  // ── Cover block ──────────────────────────────────────────────────
+  doc.setFillColor(10, 10, 12);
+  doc.rect(0, 0, 210, 56, "F");
+  doc.setTextColor(110); doc.setFont("courier", "normal"); doc.setFontSize(8);
+  doc.text("MUSIC SPLIT SHEET · RIPPL MUSIC GROUP", 16, 18);
+  doc.setTextColor(255); doc.setFont("courier", "bold"); doc.setFontSize(20);
+  doc.text(s.trackTitle || "Untitled Track", 16, 32);
+  doc.setFont("courier", "normal"); doc.setFontSize(9); doc.setTextColor(180);
+  doc.text(`By ${s.artist || "—"}`, 16, 41);
+  doc.text(`Prepared: ${s.date}`, 16, 48);
+  doc.setDrawColor(255); doc.setLineWidth(0.8);
+  doc.circle(192, 26, 1.6, "F");
+  doc.line(192, 26, 192, 20); doc.line(192, 26, 198, 26);
 
-  doc.setFont("courier", "normal"); doc.setFontSize(11); doc.setTextColor(20);
-  s.entries.forEach((e) => {
-    doc.text(e.name || "—", 16, y);
-    doc.text(e.role || "—", 100, y);
-    doc.text(`${e.percent || 0}%`, 175, y);
-    y += 10;
+  let y = 70;
+
+  // ── Track metadata box ───────────────────────────────────────────
+  doc.setFillColor(248, 248, 250); doc.rect(14, y - 4, 182, 28, "F");
+  doc.setDrawColor(220); doc.setLineWidth(0.3); doc.rect(14, y - 4, 182, 28, "D");
+  doc.setFont("courier", "normal"); doc.setFontSize(8); doc.setTextColor(100);
+  const meta: [string, string][] = [
+    ["ISRC",          s.isrc || "—"],
+    ["ISWC",          s.iswc || "—"],
+    ["RECORDING DATE",s.recordingDate || s.date],
+    ["LABEL",         s.label || "Independent"],
+    ["PUB. ADMIN",    s.publisher || "—"],
+  ];
+  let mx = 16;
+  meta.forEach(([k, v], i) => {
+    if (i === 3) { mx = 16; y += 13; }
+    doc.text(k, mx, y); doc.setFont("courier", "bold"); doc.setTextColor(20);
+    doc.text(v, mx, y + 5); doc.setFont("courier", "normal"); doc.setTextColor(100);
+    mx += 38;
   });
+  y += 24;
 
-  const total = s.entries.reduce((sum, e) => sum + (Number(e.percent) || 0), 0);
-  doc.setDrawColor(180); doc.line(16, y, 194, y); y += 10;
-  doc.setFont("courier", "bold"); doc.setFontSize(11);
-  doc.setTextColor(total === 100 ? 20 : 200, total === 100 ? 20 : 60, total === 100 ? 20 : 40);
-  doc.text(`Total: ${total}%${total !== 100 ? "  (does not add up to 100%)" : ""}`, 100, y);
-  y += 20;
+  // ── Master ownership table ───────────────────────────────────────
+  y += 6;
+  doc.setFillColor(20, 20, 24); doc.rect(14, y - 5, 182, 8, "F");
+  doc.setFont("courier", "bold"); doc.setFontSize(8); doc.setTextColor(255);
+  doc.text("MASTER RECORDING OWNERSHIP", 16, y);
+  doc.text("ROLE", 100, y); doc.text("IPI / CAE", 130, y); doc.text("MASTER %", 168, y);
+  y += 9;
 
-  doc.setFont("courier", "normal"); doc.setFontSize(9); doc.setTextColor(90);
+  const masterTotal = s.entries.reduce((sum, e) => sum + (Number(e.masterPct) || 0), 0);
+  s.entries.forEach((e, i) => {
+    if (i % 2 === 0) { doc.setFillColor(252, 252, 254); doc.rect(14, y - 4, 182, 8, "F"); }
+    doc.setFont("courier", "bold"); doc.setFontSize(9); doc.setTextColor(15);
+    doc.text(e.name || "—", 16, y);
+    doc.setFont("courier", "normal"); doc.setTextColor(60);
+    doc.text(e.role || "—", 100, y);
+    doc.text(e.ipi || "—", 130, y);
+    doc.setFont("courier", "bold"); doc.setTextColor(15);
+    doc.text(`${Number(e.masterPct) || 0}%`, 168, y);
+    y += 8;
+  });
+  doc.setDrawColor(180); doc.setLineWidth(0.3); doc.line(14, y, 196, y); y += 6;
+  doc.setFont("courier", "bold"); doc.setFontSize(9);
+  const masterOk = masterTotal === 100;
+  doc.setTextColor(masterOk ? 40 : 180, masterOk ? 120 : 40, masterOk ? 40 : 40);
+  doc.text(`Master Total: ${masterTotal}%${!masterOk ? "  ⚠ Does not add up to 100%" : " ✓"}`, 130, y);
+  y += 12;
+
+  // ── Publishing / composition table ──────────────────────────────
+  doc.setFillColor(20, 20, 24); doc.rect(14, y - 5, 182, 8, "F");
+  doc.setFont("courier", "bold"); doc.setFontSize(8); doc.setTextColor(255);
+  doc.text("PUBLISHING / COMPOSITION OWNERSHIP", 16, y);
+  doc.text("PUBLISHING ADMIN", 100, y); doc.text("PUB %", 168, y);
+  y += 9;
+
+  const pubTotal = s.entries.reduce((sum, e) => sum + (Number(e.pubPct) || 0), 0);
+  s.entries.forEach((e, i) => {
+    if (i % 2 === 0) { doc.setFillColor(252, 252, 254); doc.rect(14, y - 4, 182, 8, "F"); }
+    doc.setFont("courier", "bold"); doc.setFontSize(9); doc.setTextColor(15);
+    doc.text(e.name || "—", 16, y);
+    doc.setFont("courier", "normal"); doc.setTextColor(60);
+    doc.text(e.publisher || "Self-published", 100, y);
+    doc.setFont("courier", "bold"); doc.setTextColor(15);
+    doc.text(`${Number(e.pubPct) || 0}%`, 168, y);
+    y += 8;
+  });
+  doc.setDrawColor(180); doc.line(14, y, 196, y); y += 6;
+  doc.setFont("courier", "bold"); doc.setFontSize(9);
+  const pubOk = pubTotal === 100;
+  doc.setTextColor(pubOk ? 40 : 180, pubOk ? 120 : 40, pubOk ? 40 : 40);
+  doc.text(`Publishing Total: ${pubTotal}%${!pubOk ? "  ⚠ Does not add up to 100%" : " ✓"}`, 110, y);
+  y += 16;
+
+  // ── Legal declaration ────────────────────────────────────────────
+  if (y > 220) { doc.addPage(); y = 24; }
+  doc.setFillColor(245, 245, 248); doc.rect(14, y - 4, 182, 28, "F");
+  doc.setFont("courier", "normal"); doc.setFontSize(8); doc.setTextColor(60);
   doc.text(doc.splitTextToSize(
-    "By signing below, each contributor confirms the ownership split above for this composition/recording and assigns royalty shares accordingly.",
+    "DECLARATION: By signing this agreement, each party confirms that (i) the ownership percentages above are accurate and complete; " +
+    "(ii) they have the authority to enter into this agreement; (iii) no third-party claims exist that would encumber the rights herein; " +
+    "and (iv) royalties from NEIGHBORING RIGHTS will be distributed in proportion to the Master ownership percentages listed above, " +
+    "unless separately agreed in writing. This document is legally binding upon execution by all parties.",
     178,
-  ), 16, y);
-  y += 22;
+  ), 16, y + 2);
+  y += 34;
+
+  // ── Signature blocks ─────────────────────────────────────────────
+  doc.setFont("courier", "bold"); doc.setFontSize(8); doc.setTextColor(60);
+  doc.text("SIGNATURES", 16, y); y += 8;
 
   s.entries.forEach((e) => {
-    doc.setDrawColor(180); doc.line(16, y, 90, y);
-    doc.setFontSize(8); doc.setTextColor(120);
-    doc.text(`${e.name || "Signature"} — Signature`, 16, y + 5);
-    doc.text("Date: ____________", 100, y + 5);
-    y += 18;
+    if (y > 262) { doc.addPage(); y = 24; }
+    doc.setFillColor(250, 250, 252); doc.rect(14, y - 3, 182, 22, "F");
+    doc.setDrawColor(200); doc.rect(14, y - 3, 182, 22, "D");
+    doc.setFont("courier", "bold"); doc.setFontSize(9); doc.setTextColor(15);
+    doc.text(e.name || "Contributor", 16, y + 4);
+    doc.setFont("courier", "normal"); doc.setFontSize(7); doc.setTextColor(100);
+    doc.text(e.role || "—", 16, y + 9);
+    if (e.email) doc.text(e.email, 16, y + 13);
+    doc.setDrawColor(140); doc.line(90, y + 14, 160, y + 14);
+    doc.text("Signature", 90, y + 17);
+    doc.line(162, y + 14, 194, y + 14);
+    doc.text("Date", 162, y + 17);
+    y += 26;
   });
 
   footer(doc);

@@ -9,7 +9,7 @@ import { sendForSignature, getSignatureStatus } from "@/lib/esignature";
 import { FileViewer } from "@/components/FileViewer";
 import { ModalShell } from "@/components/NewCampaignModal";
 import { MagneticButton } from "@/components/MagneticButton";
-import { splitSheetPdf, type SplitEntry } from "@/lib/pdf";
+import { splitSheetPdf, type SplitEntry, type SplitSheetInput } from "@/lib/pdf";
 import { AnimatePresence } from "framer-motion";
 import { Upload, FileSignature, AlertTriangle, Trash2, Eye, Download, Search, FilePlus2, Plus, Send, RefreshCw, Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { SharedBadge } from "@/components/SharedBadge";
@@ -63,19 +63,19 @@ function VaultPage() {
     }
   }
 
-  function add(files: FileList | null) {
+  async function add(files: FileList | null) {
     if (!files) return;
-    Array.from(files).forEach(async (file) => {
+    await Promise.all(Array.from(files).map(async (file) => {
       const id = uid("c");
       const url = URL.createObjectURL(file);
       setBlobs((b) => ({ ...b, [id]: url }));
       let filePath: string | undefined;
       if (cloudEnabled) {
         try { filePath = (await uploadToBucket("contracts", file)) ?? undefined; }
-        catch (e: any) { setErr(`Upload to Storage failed: ${e?.message || e}. Create the "contracts" bucket + run the storage policy (see SUPABASE_SETUP.md).`); }
+        catch (e: any) { setErr(`Upload failed: ${(e as Error)?.message || e}. Create the "contracts" bucket + run the storage policy (see SUPABASE_SETUP.md).`); return; }
       }
       update("contracts", (c) => [{ id, name: file.name.replace(/\.[^.]+$/, ""), tag: "Other" as ContractTag, expiresOn: "", fileName: file.name, filePath }, ...c]);
-    });
+    }));
   }
 
   async function resolveUrl(filePath?: string, sessionUrl?: string) {
@@ -306,65 +306,148 @@ function SendSignatureModal({
   );
 }
 
+const ROLES = ["Composer", "Lyricist", "Producer", "Co-Producer", "Featured Artist", "Arranger", "Mix Engineer", "Executive Producer"];
+
 function SplitSheetModal({ onClose, onGenerated }: { onClose: () => void; onGenerated: (trackTitle: string) => void }) {
   const [trackTitle, setTrackTitle] = useState("");
-  const [artist, setArtist] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [entries, setEntries] = useState<SplitEntry[]>([
-    { name: "", role: "Producer", percent: 50 },
-    { name: "", role: "Writer", percent: 50 },
+  const [artist, setArtist]         = useState("");
+  const [isrc, setIsrc]             = useState("");
+  const [iswc, setIswc]             = useState("");
+  const [label, setLabel]           = useState("");
+  const [publisher, setPublisher]   = useState("");
+  const [date, setDate]             = useState(() => new Date().toISOString().slice(0, 10));
+  const [entries, setEntries]       = useState<SplitEntry[]>([
+    { name: "", role: "Composer",  publisher: "", ipi: "", email: "", masterPct: 50, pubPct: 50 },
+    { name: "", role: "Lyricist",  publisher: "", ipi: "", email: "", masterPct: 50, pubPct: 50 },
   ]);
 
-  const total = entries.reduce((sum, e) => sum + (Number(e.percent) || 0), 0);
+  const masterTotal = entries.reduce((s, e) => s + (Number(e.masterPct) || 0), 0);
+  const pubTotal    = entries.reduce((s, e) => s + (Number(e.pubPct)    || 0), 0);
 
   function updateEntry(i: number, patch: Partial<SplitEntry>) {
     setEntries((all) => all.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
   }
-  function addEntry() { setEntries((all) => [...all, { name: "", role: "Featured Artist", percent: 0 }]); }
+  function addEntry() {
+    setEntries((all) => [...all, { name: "", role: "Composer", publisher: "", ipi: "", email: "", masterPct: 0, pubPct: 0 }]);
+  }
   function removeEntry(i: number) { setEntries((all) => all.filter((_, idx) => idx !== i)); }
+  function autoBalance(field: "masterPct" | "pubPct") {
+    const n = entries.length;
+    if (!n) return;
+    const share = Math.floor(100 / n);
+    const rem   = 100 - share * n;
+    setEntries((all) => all.map((e, i) => ({ ...e, [field]: i === 0 ? share + rem : share })));
+  }
 
   function generate() {
     if (!trackTitle.trim() || entries.every((e) => !e.name.trim())) return;
-    splitSheetPdf({ trackTitle, artist, date, entries: entries.filter((e) => e.name.trim()) });
+    const input: SplitSheetInput = {
+      trackTitle, artist, isrc, iswc, label, publisher, date,
+      entries: entries.filter((e) => e.name.trim()),
+    };
+    splitSheetPdf(input);
     onGenerated(trackTitle.trim());
     onClose();
   }
 
+  const totalOk = masterTotal === 100 && pubTotal === 100;
+
   return (
-    <ModalShell eyebrow="The Vault · Auto-generated" title="Split sheet" onClose={onClose}>
+    <ModalShell eyebrow="The Vault · Legal Document" title="Music Split Sheet" onClose={onClose}>
+      {/* Track info */}
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 sm:col-span-1">
-          <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Track title</label>
-          <input className={field} value={trackTitle} onChange={(e) => setTrackTitle(e.target.value)} placeholder="Track name" />
+          <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Track title *</label>
+          <input className={field} value={trackTitle} onChange={(e) => setTrackTitle(e.target.value)} placeholder="e.g. Shabhi Bel Meli" />
         </div>
         <div className="col-span-2 sm:col-span-1">
-          <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Artist</label>
-          <input className={field} value={artist} onChange={(e) => setArtist(e.target.value)} placeholder="Artist name" />
+          <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Artist / Band *</label>
+          <input className={field} value={artist} onChange={(e) => setArtist(e.target.value)} placeholder="e.g. Latifa" />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">ISRC</label>
+          <input className={field} value={isrc} onChange={(e) => setIsrc(e.target.value)} placeholder="EGXXX2600001" />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">ISWC</label>
+          <input className={field} value={iswc} onChange={(e) => setIswc(e.target.value)} placeholder="T-000.000.000-0" />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Label / Rights Holder</label>
+          <input className={field} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Rotana" />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Publishing Admin</label>
+          <input className={field} value={publisher} onChange={(e) => setPublisher(e.target.value)} placeholder="e.g. Sony Music Publishing" />
         </div>
         <div className="col-span-2">
-          <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Date</label>
-          <input type="date" className={field} value={date} onChange={(e) => setDate(e.target.value)} />
+          <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Agreement date</label>
+          <input type="date" className={field + " [color-scheme:dark]"} value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
       </div>
 
-      <div className="mt-4 space-y-2">
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Contributors</div>
-        {entries.map((e, i) => (
-          <div key={i} className="grid grid-cols-12 items-center gap-2">
-            <input className={`${field} col-span-5`} placeholder="Name" value={e.name} onChange={(ev) => updateEntry(i, { name: ev.target.value })} />
-            <input className={`${field} col-span-4`} placeholder="Role (Producer, Writer…)" value={e.role} onChange={(ev) => updateEntry(i, { role: ev.target.value })} />
-            <input type="number" min={0} max={100} className={`${field} col-span-2`} value={e.percent} onChange={(ev) => updateEntry(i, { percent: Number(ev.target.value) })} />
-            <button onClick={() => removeEntry(i)} className="col-span-1 grid h-8 w-8 place-items-center text-muted-foreground hover:text-[oklch(0.7_0.2_20)]"><Trash2 className="h-3.5 w-3.5" /></button>
+      {/* Ownership totals bar */}
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        {[
+          { label: "Master %", total: masterTotal, field: "masterPct" as const },
+          { label: "Publishing %", total: pubTotal, field: "pubPct" as const },
+        ].map(({ label: lbl, total, field: f }) => (
+          <div key={f} className="glass rounded-xl p-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{lbl}</span>
+              <div className="flex items-center gap-2">
+                <span className={`font-mono text-xs font-bold ${total === 100 ? "text-[oklch(0.8_0.18_150)]" : total > 100 ? "text-red-400" : "text-yellow-400"}`}>
+                  {total}%
+                </span>
+                <button onClick={() => autoBalance(f)} className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] hover:bg-white/5">Auto</button>
+              </div>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${total === 100 ? "bg-[oklch(0.7_0.18_150)]" : total > 100 ? "bg-red-500" : "bg-yellow-500"}`}
+                style={{ width: `${Math.min(total, 100)}%` }}
+              />
+            </div>
           </div>
         ))}
-        <button onClick={addEntry} className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs hover:bg-white/5"><Plus className="h-3.5 w-3.5" /> Add contributor</button>
       </div>
 
-      <div className={`mt-3 text-right text-xs ${total === 100 ? "text-muted-foreground" : "text-[oklch(0.82_0.16_90)]"}`}>Total: {total}%{total !== 100 && " — should add up to 100%"}</div>
+      {/* Contributors table */}
+      <div className="mt-5 space-y-2">
+        <div className="hidden sm:grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_1.5fr_auto] gap-2 text-[9px] uppercase tracking-widest text-muted-foreground px-1">
+          <span>Name</span><span>Role</span><span>IPI/CAE</span><span>Master%</span><span>Pub%</span><span>Publisher</span><span />
+        </div>
+        {entries.map((e, i) => (
+          <div key={i} className="grid grid-cols-1 sm:grid-cols-[2fr_1.5fr_1fr_1fr_1fr_1.5fr_auto] gap-2 items-center glass rounded-xl p-2">
+            <input className={field} placeholder="Full name *" value={e.name} onChange={(ev) => updateEntry(i, { name: ev.target.value })} />
+            <select className={field} value={e.role} onChange={(ev) => updateEntry(i, { role: ev.target.value })}>
+              {ROLES.map((r) => <option key={r} value={r} className="bg-[#140a1e]">{r}</option>)}
+            </select>
+            <input className={field} placeholder="IPI" value={e.ipi || ""} onChange={(ev) => updateEntry(i, { ipi: ev.target.value })} />
+            <input type="number" min={0} max={100} className={field} placeholder="0" value={e.masterPct || ""} onChange={(ev) => updateEntry(i, { masterPct: Number(ev.target.value) })} />
+            <input type="number" min={0} max={100} className={field} placeholder="0" value={e.pubPct || ""} onChange={(ev) => updateEntry(i, { pubPct: Number(ev.target.value) })} />
+            <input className={field} placeholder="Publisher" value={e.publisher || ""} onChange={(ev) => updateEntry(i, { publisher: ev.target.value })} />
+            <button onClick={() => removeEntry(i)} className="grid h-8 w-8 place-items-center text-muted-foreground hover:text-red-400 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+          </div>
+        ))}
+        <button onClick={addEntry} className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs hover:bg-white/5">
+          <Plus className="h-3.5 w-3.5" /> Add contributor
+        </button>
+      </div>
+
+      {!totalOk && (
+        <p className="mt-3 text-[11px] text-yellow-400">
+          {masterTotal !== 100 && `Master splits must equal 100% (currently ${masterTotal}%). `}
+          {pubTotal !== 100 && `Publishing splits must equal 100% (currently ${pubTotal}%). `}
+          You can still generate the PDF — a warning will appear on the document.
+        </p>
+      )}
 
       <div className="mt-4 flex justify-end gap-2">
         <button onClick={onClose} className="glass rounded-full px-4 py-2.5 text-sm hover:bg-white/5">Cancel</button>
-        <MagneticButton onClick={generate}><FilePlus2 className="h-4 w-4" /> Generate PDF</MagneticButton>
+        <MagneticButton onClick={generate} className={!trackTitle.trim() ? "opacity-40 pointer-events-none" : ""}>
+          <FilePlus2 className="h-4 w-4" /> Generate PDF
+        </MagneticButton>
       </div>
     </ModalShell>
   );

@@ -39,6 +39,12 @@ export interface PlatformStat {
   hint: string;
   priceGated?: boolean;
 }
+export interface PlatformCta {
+  label: string;
+  icon: IconT;
+  href?: string;
+}
+
 export interface PlatformConfig {
   name: string; // "TikTok"
   icon: IconT;
@@ -47,6 +53,8 @@ export interface PlatformConfig {
   panelTitle: string; // "Sound Performance" / "Reels Performance" …
   panelIcon: IconT;
   subtitle: string;
+  /** Extra role-gated CTAs shown only to Marketing Manager (e.g. "Push to Spark Ads"). */
+  managerCtas?: PlatformCta[];
 }
 
 /** What a route's live-data fetch produced. `views`, when present, drives
@@ -162,14 +170,15 @@ export function PlatformDashboard({
     label: string;
     icon: IconT;
     primary?: boolean;
+    href?: string;
     onClick?: () => void;
   }[] =
     role === "Marketing Manager"
       ? [
+          ...(cfg.managerCtas ?? []).map((c) => ({ ...c, primary: true })),
           {
             label: "Download Brief",
             icon: FileDown,
-            primary: true,
             onClick: downloadBrief,
           },
           {
@@ -227,15 +236,28 @@ export function PlatformDashboard({
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            {actions.map((a) => (
-              <MagneticButton
-                key={a.label}
-                variant={a.primary ? undefined : "ghost"}
-                onClick={a.onClick}
-              >
-                <a.icon className="h-4 w-4" /> {a.label}
-              </MagneticButton>
-            ))}
+            {actions.map((a) =>
+              a.href ? (
+                <a
+                  key={a.label}
+                  href={a.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MagneticButton variant={a.primary ? undefined : "ghost"}>
+                    <a.icon className="h-4 w-4" /> {a.label}
+                  </MagneticButton>
+                </a>
+              ) : (
+                <MagneticButton
+                  key={a.label}
+                  variant={a.primary ? undefined : "ghost"}
+                  onClick={a.onClick}
+                >
+                  <a.icon className="h-4 w-4" /> {a.label}
+                </MagneticButton>
+              )
+            )}
           </div>
           {shareState === "error" && shareError && (
             <div className="max-w-xs text-right text-[11px] text-destructive">{shareError}</div>

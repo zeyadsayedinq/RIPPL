@@ -6,7 +6,7 @@ import { SoundVelocityChart } from "@/components/SoundVelocityChart";
 import { useCampaigns } from "@/lib/campaign-store";
 import { getTikTokSoundStats, getSoundVelocity, logManualTikTokCount, type SoundVelocityPoint } from "@/lib/platform-live";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { Music4, Radio, Video, PenLine, Loader2, Check } from "lucide-react";
+import { Music4, Radio, Video, PenLine, Loader2, Check, Zap } from "lucide-react";
 
 /* TikTok sound scanner — real "creations using this sound" count for the
    campaign's linked sound, via Soundcharts (see platform-live.ts for why
@@ -23,6 +23,9 @@ const cfg: PlatformConfig = {
   panelTitle: "Sound Performance",
   panelIcon: Radio,
   subtitle: "Real sound-usage count for the linked TikTok sound.",
+  managerCtas: [
+    { label: "Push to Spark Ads", icon: Zap, href: "https://ads.tiktok.com/" },
+  ],
 };
 
 async function accessToken(): Promise<string | undefined> {

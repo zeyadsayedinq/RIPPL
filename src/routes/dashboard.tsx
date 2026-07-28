@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { SpotlightCard } from "@/components/SpotlightCard";
@@ -101,7 +101,27 @@ function Dashboard() {
     <AppShell>
       <Header />
 
-      <div className="mt-6 flex gap-1.5 overflow-x-auto rounded-2xl glass p-1.5">
+      {/* Platform quick-nav */}
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+        {[
+          { name: "TikTok", to: "/dashboard/tiktok", Icon: Music2, color: "oklch(0.72 0.2 200)" },
+          { name: "Instagram", to: "/dashboard/instagram", Icon: Instagram, color: "#E1306C" },
+          { name: "Facebook", to: "/dashboard/facebook", Icon: Facebook, color: "#1877F2" },
+          { name: "YouTube", to: "/dashboard/youtube", Icon: Youtube, color: "#FF0000" },
+          { name: "X", to: "/dashboard/x", Icon: Hash, color: "#FFFFFF" },
+        ].map((p) => (
+          <Link
+            key={p.name}
+            to={p.to}
+            className="glass inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-white"
+          >
+            <p.Icon className="h-3.5 w-3.5" style={{ color: p.color }} />
+            {p.name}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-4 flex gap-1.5 overflow-x-auto rounded-2xl glass p-1.5">
         {TABS.map((t) => {
           const active = tab === t.key;
           return (

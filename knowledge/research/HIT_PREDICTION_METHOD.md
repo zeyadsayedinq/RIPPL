@@ -4,6 +4,74 @@ Method notes behind RIPPL's `/hitlab` Hit Score. Adapted from
 `ebtezcan/Spotify-Song-Popularity-Prediction`, a supervised classification study
 over ~176,000 deduplicated 2019 Spotify tracks.
 
+---
+
+## ⚠ Read first: Hit Lab does not listen to the track
+
+**`/hitlab` scores the slider positions. It does not analyse the audio file.**
+
+This is the single most important thing to understand about the page, because
+the layout implies otherwise — you pick a track from "Prefill from library" and
+a number appears, which looks like the app listened to it. It didn't.
+
+What `prefill()` actually copies when you click a library track:
+
+| Copied | Not copied |
+|---|---|
+| Title | Danceability |
+| Artist | Valence |
+| Tempo — *only if that track already has a `bpm`* | Acousticness |
+| Energy — *only if that track already has an `energy`* | Instrumentalness |
+| | Speechiness |
+| | Liveness |
+| | Loudness |
+| | Duration |
+
+Eight of the ten features stay at their defaults. So two completely different
+records will usually return the **same score**, and that score is mostly a
+statement about the default slider positions, not about either record.
+
+Treat the current page as a **what-if calculator**: useful for asking "if I
+raised the energy and shortened it, how would that shift?" — not for asking
+"how good is this track?"
+
+### The analyser exists, but isn't connected to this page
+
+`services/vibe-analyzer` is a real Python service (librosa) that extracts
+features from an uploaded file, and `/audio` already uses it. It returns:
+
+```
+bpm · key · mode · energy · valence · danceability · speechiness · mood
+```
+
+That covers **five of the ten** features Hit Lab needs — tempo, energy,
+valence, danceability, speechiness. Hit Lab's prefill currently uses only two
+of those five. The remaining five (acousticness, instrumentalness, liveness,
+loudness, duration) aren't extracted at all, though loudness and duration would
+be straightforward to add to the service, and acousticness is approximable.
+
+So RIPPL has two disconnected things: a real analyser on `/audio`, and a manual
+calculator on `/hitlab` that looks like it's fed by it.
+
+**To close the gap, in order of value:**
+
+1. Extend `prefill()` to copy all five available features, not two. Cheapest fix,
+   immediately makes different tracks score differently.
+2. Add loudness and duration to `services/vibe-analyzer` — both are a few lines
+   of librosa — taking real coverage to seven of ten.
+3. Let Hit Lab upload straight to the analyser rather than only reading tracks
+   that happen to have been analysed elsewhere.
+4. Mark the still-manual features in the UI so it's visible which numbers were
+   measured and which were assumed.
+
+**Also check before trusting anything on the live site:** `VITE_VIBE_ANALYZER_URL`
+defaults to `http://localhost:8000`. Unless it's set to a deployed URL in the
+hosting environment, the analyser is unreachable in production — which means
+`/audio` isn't populating `bpm` or `energy` either, and even the two features
+prefill *can* copy will be empty.
+
+---
+
 ## What the source study did
 
 - Data: ~232k tracks from Spotify's API (Kaggle "Ultimate Spotify Tracks DB"),
@@ -85,13 +153,29 @@ scale whose controls don't respond is worse still, because it looks like a bug.
 
 ## How to actually use it
 
+**While the features are still entered by hand:**
+
+- As a **what-if tool** — "if this were 8 BPM faster and a minute shorter, where
+  does it land?" That question is answerable today and genuinely useful in a
+  mix or arrangement conversation.
+- As a **shared vocabulary** with an artist or producer. Moving the sliders
+  together makes "it needs more energy" concrete.
+- **Not** as a comparison between two records. Until prefill copies real
+  measured features, two tracks will usually score the same, and any difference
+  you see comes from whichever numbers you happened to type.
+
+**Once real features are wired in (see the warning above):**
+
 - As a **tie-breaker** between tracks in `/roster` or `/releases`, never as a gate
-- As a **conversation starter** with an artist about arrangement and energy
-- As a **playlist-fit check**: compare a track's features against the median
-  features of a target playlist
+- As a **playlist-fit check** — compare against the median features of a target
+  playlist
 - Log the score, then log the actual D28 result. After 20 releases you'll know
-  whether it predicts anything *for your catalog* — which is the only test that
-  matters.
+  whether it predicts anything *for your catalog*, which is the only test that
+  matters. `analytics/sql/002_business_metrics.sql` has the correlation query.
+
+That last point only means something once the inputs are measured. Calibrating a
+prediction against real outcomes is meaningless if the inputs were typed in by
+the person making the prediction — you'd be measuring your own guesswork.
 
 ## Next steps if you want the real thing
 

@@ -47,9 +47,19 @@ function TasksPage() {
           const done = phase.items.filter((i) => isTaskDone(i.id)).length;
           return (
             <SpotlightCard key={phase.phase} className="col-span-12 md:col-span-6 xl:col-span-4 p-5" spotlight={false}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Phase {phase.phase}</div>
-                <span className="font-mono text-xs text-muted-foreground">{done}/{phase.items.length}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-muted-foreground">{done}/{phase.items.length}</span>
+                  {done < phase.items.length && (
+                    <button
+                      onClick={() => phase.items.filter((i) => !isTaskDone(i.id)).forEach((i) => toggleTask(i.id))}
+                      className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] text-muted-foreground hover:text-white hover:border-white/30 transition-colors"
+                    >
+                      Check all
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="mt-4 space-y-1.5">
                 {phase.items.map((item) => {
