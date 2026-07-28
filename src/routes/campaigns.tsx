@@ -22,9 +22,9 @@ export const Route = createFileRoute("/campaigns")({
 });
 
 const money = (n: number) =>
-  n >= 1_000_000
-    ? `EGP ${(n / 1_000_000).toFixed(2)}M`
-    : `EGP ${(n / 1_000).toFixed(0)}K`;
+  n >= 1_000_000 ? `EGP ${(n / 1_000_000).toFixed(2)}M`
+  : n >= 1_000   ? `EGP ${(n / 1_000).toFixed(0)}K`
+  : `EGP ${n}`;
 const statusColor: Record<string, string> = {
   Active: "oklch(0.85 0.18 150)",
   Planning: "oklch(0.8 0.16 80)",
@@ -288,18 +288,20 @@ function EditCampaignModal({
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          const budgetNum = Number(budget) || 0;
+          const spentNum  = Math.min(Number(spent) || 0, budgetNum);
           updateCampaign(campaign.id, {
-            artist: artist || campaign.artist,
-            title: title || campaign.title,
+            artist:    artist || campaign.artist,
+            title:     title  || campaign.title,
             status,
-            budget: Number(budget) || 0,
-            spent: Number(spent) || 0,
+            budget:    budgetNum,
+            spent:     spentNum,
             goal,
-            reach: reach || "—",
+            reach:     reach || "—",
             startDate,
             endDate,
             platforms: picked,
-            subtitle: `${goal} · ${picked.length} platform${picked.length !== 1 ? "s" : ""}`,
+            subtitle:  campaign.subtitle || `${goal} · ${picked.length} platform${picked.length !== 1 ? "s" : ""}`,
           });
           onClose();
         }}
@@ -381,9 +383,10 @@ function EditCampaignModal({
               Start date
             </label>
             <input
+              type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className={field}
+              className={field + " [color-scheme:dark]"}
             />
           </div>
           <div>
@@ -391,9 +394,10 @@ function EditCampaignModal({
               End date
             </label>
             <input
+              type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className={field}
+              className={field + " [color-scheme:dark]"}
             />
           </div>
           <div className="col-span-2">

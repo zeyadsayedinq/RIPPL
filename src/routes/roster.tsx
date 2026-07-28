@@ -121,7 +121,7 @@ function ScoutingBoard() {
 
   function drop(stage: ScoutStage) {
     if (!drag) return;
-    update("artists", (a) => a.map((x) => (x.id === drag ? { ...x, stage, managed: stage === "Signed" ? x.managed : x.managed } : x)));
+    update("artists", (a) => a.map((x) => (x.id === drag ? { ...x, stage, managed: stage === "Signed" ? true : x.managed } : x)));
     setDrag(null); setOver(null);
   }
 
@@ -232,7 +232,7 @@ function ArtistPanel({ artist, onClose }: { artist: Artist; onClose: () => void 
 
 /* ── Active roster profiles ─────────────────────────────────── */
 function ActiveRoster() {
-  const { artists } = useOS();
+  const { artists, update } = useOS();
   const roster = artists.filter((a) => a.managed);
   const [msg, setMsg] = useState<string | null>(null);
   const [statsFor, setStatsFor] = useState<Artist | null>(null);
@@ -240,6 +240,19 @@ function ActiveRoster() {
   function pressKit(a: Artist) {
     pressKitPdf(a);
     flash(`Press kit PDF generated for ${a.name}`);
+  }
+  function logDealSplit(a: Artist) {
+    const brand = prompt(`Brand / campaign name for ${a.name}:`);
+    if (!brand) return;
+    const valueStr = prompt("Deal value (EGP):", "0");
+    const splitStr = prompt("RIPPL split % (e.g. 20):", "20");
+    const value = Number(valueStr) || 0;
+    const split = Math.min(100, Math.max(0, Number(splitStr) || 20));
+    update("deals", (d) => [
+      ...d,
+      { id: uid("deal"), brand, artist: a.name, deliverables: "TBD", value, split, status: "Active" as const },
+    ]);
+    flash(`Deal split logged — ${a.name} × ${brand}: EGP ${value.toLocaleString()} · ${split}% cut`);
   }
   return (
     <>
@@ -258,7 +271,7 @@ function ActiveRoster() {
             <div className="mt-4 flex flex-col gap-2">
               <button onClick={() => pressKit(a)} className="inline-flex items-center justify-center gap-2 rounded-full bg-white py-2 text-sm font-medium text-black"><FileText className="h-4 w-4" /> Generate Press Kit (PDF)</button>
               <div className="flex gap-2">
-                <button onClick={() => flash(`Deal split logged for ${a.name}`)} className="glass inline-flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs hover:bg-white/5"><DollarSign className="h-3.5 w-3.5" /> Log Deal Split</button>
+                <button onClick={() => logDealSplit(a)} className="glass inline-flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs hover:bg-white/5"><DollarSign className="h-3.5 w-3.5" /> Log Deal Split</button>
                 <button onClick={() => setStatsFor(a)} className="glass inline-flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs hover:bg-white/5"><BarChart3 className="h-3.5 w-3.5" /> Analytics</button>
               </div>
             </div>

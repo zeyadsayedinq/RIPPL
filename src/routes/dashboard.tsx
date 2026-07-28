@@ -456,7 +456,8 @@ function OrganicTab() {
 
 /* ── TAB: Funnel & Attribution ───────────────────────────── */
 function FunnelTab() {
-  const max = funnel[0].value;
+  if (funnel.length === 0) return <EmptyState icon="📊" title="No funnel data yet" description="Funnel metrics will appear once campaign tracking is configured." />;
+  const max = funnel[0].value || 1;
   return (
     <>
       <section className="mt-6 grid grid-cols-12 gap-4">

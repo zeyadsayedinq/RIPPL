@@ -7,6 +7,7 @@ import {
   Check,
   BookOpen,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
 /* Nav lives in lib/nav.ts so this Sidebar and the XP Start menu render the
    same list. Add a route there once and both chromes pick it up. */
 import { groups } from "@/lib/nav";
@@ -18,6 +19,16 @@ import { useState } from "react";
 
 const roles: Role[] = ["Marketing Manager", "Team Member", "Client"];
 
+function useOutsideClick(ref: React.RefObject<HTMLElement | null>, cb: () => void) {
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) cb();
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [ref, cb]);
+}
+
 export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { role, setRole } = useRole();
@@ -26,6 +37,10 @@ export function Sidebar() {
   const [roleOpen, setRoleOpen] = useState(false);
   const [campOpen, setCampOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const campRef = useRef<HTMLDivElement>(null);
+  const roleRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(campRef, () => setCampOpen(false));
+  useOutsideClick(roleRef, () => setRoleOpen(false));
 
   return (
     <aside
@@ -90,7 +105,7 @@ export function Sidebar() {
 
       {/* Campaign switcher */}
       {!collapsed && (
-        <div className="relative">
+        <div className="relative" ref={campRef}>
           <div className="mb-1.5 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
             Active campaign
           </div>
@@ -152,7 +167,7 @@ export function Sidebar() {
               </div>
             )}
             {g.items.map((n) => {
-              const on = pathname === n.to;
+              const on = pathname === n.to || (n.to !== "/" && pathname.startsWith(n.to));
               return (
                 <Link
                   key={n.to}
@@ -162,7 +177,7 @@ export function Sidebar() {
                 >
                   {on && (
                     <motion.div
-                      layoutId="nav-active"
+                      layoutId="sidebar-nav-active"
                       className="absolute inset-0 rounded-xl bg-white/[0.06] border border-white/10"
                       transition={{
                         type: "spring",
@@ -186,7 +201,7 @@ export function Sidebar() {
           >
             {pathname === "/admin" && (
               <motion.div
-                layoutId="nav-active"
+                layoutId="sidebar-nav-active"
                 className="absolute inset-0 rounded-xl bg-white/[0.06] border border-white/10"
               />
             )}
@@ -201,7 +216,7 @@ export function Sidebar() {
         >
           {pathname === "/knowledge" && (
             <motion.div
-              layoutId="nav-active"
+              layoutId="sidebar-nav-active"
               className="absolute inset-0 rounded-xl bg-white/[0.06] border border-white/10"
             />
           )}
@@ -215,7 +230,7 @@ export function Sidebar() {
         >
           {pathname === "/settings" && (
             <motion.div
-              layoutId="nav-active"
+              layoutId="sidebar-nav-active"
               className="absolute inset-0 rounded-xl bg-white/[0.06] border border-white/10"
             />
           )}
@@ -226,7 +241,7 @@ export function Sidebar() {
 
       {/* Role switcher */}
       {!collapsed && (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2" ref={roleRef}>
           <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
             Signed in as
           </div>

@@ -1262,6 +1262,26 @@ type AuditState =
   | { phase: "done"; result: AuditResult }
   | { phase: "error"; message: string };
 
+function exportAuditCsv(records: AuditRecord[], label: string) {
+  const header = "Rank,Username,Nickname,Followers,Views,Likes,Comments,Shares,Engagement%,Status,Posted,VideoURL";
+  const rows = records.map((r, i) => {
+    const eng = r.views > 0 ? ((r.likes / r.views) * 100).toFixed(1) : "0";
+    const status =
+      r.views >= 100_000 ? "Got Views"
+      : r.views >= 10_000 ? "Good Views"
+      : r.views >= 1_000  ? "Low Views"
+      : "No Views";
+    return [i + 1, r.username, `"${r.nickname}"`, r.followers, r.views, r.likes, r.comments, r.shares, eng, status, r.posted_at, r.video_url].join(",");
+  });
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `rippl-audit-${label}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 // ── SoundAuditTab ─────────────────────────────────────────────────────────────
 
 function SoundAuditTab({ addCreator }: { addCreator: (c: Omit<Creator, "id" | "status">) => void }) {
@@ -1448,15 +1468,36 @@ function SoundAuditTab({ addCreator }: { addCreator: (c: Omit<Creator, "id" | "s
       {/* Results */}
       {auditState.phase === "done" && (
         <>
+          {/* Zero-results banner */}
+          {auditState.result.total_scraped === 0 && (
+            <SpotlightCard className="p-5 border-yellow-500/20" spotlight={false}>
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 shrink-0 text-yellow-400 mt-0.5" />
+                <div>
+                  <div className="font-medium text-sm text-yellow-400">TikTok blocked the cloud scraper</div>
+                  <div className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                    TikTok rate-limits requests from datacenter IPs. To run audits reliably, add a residential proxy:{" "}
+                    set <code className="rounded bg-white/5 px-1 py-0.5 text-[10px]">SCRAPER_PROXY=http://user:pass@host:port</code>{" "}
+                    in your Render environment variables (Webshare.io has a free tier).
+                    Alternatively, try again in a few minutes — TikTok's block is often temporary.
+                  </div>
+                  <button onClick={runAudit} className="mt-3 text-xs text-yellow-400 hover:text-white underline transition-colors">
+                    Retry now
+                  </button>
+                </div>
+              </div>
+            </SpotlightCard>
+          )}
+
           {/* Stat tiles */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {[
-              { label: "Scraped",      value: auditState.result.total_scraped,         color: "from-white/5 to-white/10",                        textColor: "text-white" },
-              { label: "100k+",        value: auditState.result.qualified.length,       color: "from-white/5 to-white/10",                        textColor: "text-white" },
-              { label: "Got Views",    value: auditState.result.got_views.length,       color: "from-emerald-500/10 to-emerald-500/5",            textColor: "text-emerald-400" },
-              { label: "Good Views",   value: auditState.result.good_views.length,      color: "from-green-500/10 to-green-500/5",                textColor: "text-green-400" },
-              { label: "No Views",     value: auditState.result.no_views.length,        color: "from-red-500/10 to-red-500/5",                    textColor: "text-red-400" },
-              { label: "Next Campaign",value: auditState.result.next_campaign.length,   color: "from-[oklch(0.7_0.28_328)]/15 to-[oklch(0.7_0.28_328)]/5", textColor: "text-[oklch(0.85_0.25_328)]" },
+              { label: "Scraped",       value: auditState.result.total_scraped,          color: "from-white/5 to-white/10",                               textColor: "text-white" },
+              { label: "100k+",         value: auditState.result.qualified.length,        color: "from-white/5 to-white/10",                               textColor: "text-white" },
+              { label: "Got Views",     value: auditState.result.got_views.length,        color: "from-emerald-500/10 to-emerald-500/5",                   textColor: "text-emerald-400" },
+              { label: "Good Views",    value: auditState.result.good_views.length,       color: "from-green-500/10 to-green-500/5",                       textColor: "text-green-400" },
+              { label: "Low Views",     value: auditState.result.low_views.length,        color: "from-yellow-500/10 to-yellow-500/5",                     textColor: "text-yellow-400" },
+              { label: "Next Campaign", value: auditState.result.next_campaign.length,    color: "from-[oklch(0.7_0.28_328)]/15 to-[oklch(0.7_0.28_328)]/5", textColor: "text-[oklch(0.85_0.25_328)]" },
             ].map(({ label, value, color, textColor }) => (
               <motion.div
                 key={label}
@@ -1471,6 +1512,23 @@ function SoundAuditTab({ addCreator }: { addCreator: (c: Omit<Creator, "id" | "s
               </motion.div>
             ))}
           </div>
+
+          {/* Export + Add All toolbar */}
+          {auditState.result.total_scraped > 0 && (
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-[11px] text-muted-foreground">
+                {auditState.result.total_scraped} videos scraped · {auditState.result.qualified.length} creators with 100k+ followers
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => exportAuditCsv(getRecords(auditState.result), segment)}
+                  className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-[11px] hover:bg-white/[0.08] transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" /> Export CSV
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Segment tabs */}
           <div className="glass flex flex-wrap gap-1 rounded-2xl p-1.5">
@@ -1507,6 +1565,7 @@ function SoundAuditTab({ addCreator }: { addCreator: (c: Omit<Creator, "id" | "s
             segment={segment}
             addedIds={addedIds}
             onAdd={handleAddToRoster}
+            onAddAll={(recs) => recs.forEach(handleAddToRoster)}
           />
         </>
       )}
@@ -1529,11 +1588,13 @@ function AuditTable({
   segment,
   addedIds,
   onAdd,
+  onAddAll,
 }: {
   records: AuditRecord[];
   segment: AuditSegment;
   addedIds: Set<string>;
   onAdd: (r: AuditRecord) => void;
+  onAddAll: (records: AuditRecord[]) => void;
 }) {
   const segmentColor: Record<AuditSegment, string> = {
     all:           "text-white",
@@ -1552,6 +1613,8 @@ function AuditTable({
     next_campaign: "bg-[oklch(0.7_0.28_328)]/[0.04]",
   };
 
+  const unadded = records.filter((r) => !addedIds.has(r.video_id));
+
   if (records.length === 0) {
     return (
       <SpotlightCard className="p-10 text-center" spotlight={false}>
@@ -1563,15 +1626,29 @@ function AuditTable({
   return (
     <SpotlightCard className={`overflow-hidden p-0 ${segmentBg[segment]}`} spotlight={false}>
       {/* Table header */}
-      <div className="hidden lg:grid grid-cols-[2rem_2fr_1.2fr_1.2fr_1fr_1fr_1fr_8rem] items-center gap-3 border-b border-white/[0.06] px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-        <div>#</div>
-        <div>Creator</div>
-        <div>Followers</div>
-        <div>Views</div>
-        <div>Likes</div>
-        <div>Posted</div>
-        <div>Status</div>
-        <div />
+      <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-5 py-3">
+        <div className="hidden lg:grid flex-1 grid-cols-[2rem_2fr_1.2fr_1.2fr_1fr_1fr_1fr_1fr_8rem] items-center gap-3 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          <div>#</div>
+          <div>Creator</div>
+          <div>Followers</div>
+          <div>Views</div>
+          <div>Likes</div>
+          <div>Eng%</div>
+          <div>Shares</div>
+          <div>Status</div>
+          <div />
+        </div>
+        <div className="lg:hidden text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          {records.length} creators
+        </div>
+        {unadded.length > 0 && (
+          <button
+            onClick={() => onAddAll(unadded)}
+            className="shrink-0 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[oklch(0.7_0.28_328)] to-[oklch(0.5_0.3_300)] px-3.5 py-1.5 text-[11px] font-medium text-white hover:opacity-90 transition-opacity"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add All ({unadded.length})
+          </button>
+        )}
       </div>
 
       <div className="divide-y divide-white/[0.04]">
@@ -1591,7 +1668,7 @@ function AuditTable({
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(i * 0.015, 0.3) }}
-              className="grid grid-cols-[2rem_1fr_auto] lg:grid-cols-[2rem_2fr_1.2fr_1.2fr_1fr_1fr_1fr_8rem] items-center gap-3 px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
+              className="grid grid-cols-[2rem_1fr_auto] lg:grid-cols-[2rem_2fr_1.2fr_1.2fr_1fr_1fr_1fr_1fr_8rem] items-center gap-3 px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
             >
               <div className="font-mono text-[11px] text-muted-foreground">{i + 1}</div>
 
@@ -1616,7 +1693,10 @@ function AuditTable({
               <div className="font-mono text-sm">{formatK(rec.followers)}</div>
               <div className={`font-mono text-sm font-medium ${segmentColor[segment]}`}>{formatK(rec.views)}</div>
               <div className="font-mono text-sm text-muted-foreground">{formatK(rec.likes)}</div>
-              <div className="text-xs text-muted-foreground">{rec.posted_at}</div>
+              <div className="font-mono text-sm text-muted-foreground hidden lg:block">
+                {rec.views > 0 ? `${((rec.likes / rec.views) * 100).toFixed(1)}%` : "—"}
+              </div>
+              <div className="font-mono text-sm text-muted-foreground hidden lg:block">{formatK(rec.shares)}</div>
 
               <span className={`hidden lg:inline-block rounded-full px-2.5 py-1 text-[10px] uppercase tracking-widest font-medium ${statusLabel.cls}`}>
                 {statusLabel.text}
