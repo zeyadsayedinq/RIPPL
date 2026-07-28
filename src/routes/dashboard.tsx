@@ -29,6 +29,7 @@ import {
   TrendingUp, TrendingDown, Sparkles, ArrowUpRight, CheckCircle2,
   LayoutGrid, DollarSign, Radio, Filter, Wallet,
   Music2, Instagram, Facebook, Youtube, Linkedin, Ghost, AtSign, Hash,
+  Zap, FolderOpen, ListChecks, CalendarDays, Upload, FileDown,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, ComposedChart,
@@ -269,12 +270,64 @@ function KpiCard({ kpi }: { kpi: Kpi }) {
   );
 }
 
+/* ── Quick actions (role-aware) ──────────────────────────── */
+function QuickActionsCard() {
+  const { role } = useRole();
+  type Action = { label: string; icon: any; to?: string; href?: string };
+  const actions: Action[] =
+    role === "Marketing Manager"
+      ? [
+          { label: "Push to Spark Ads", icon: Zap, href: "https://ads.tiktok.com/" },
+          { label: "Review Assets", icon: FolderOpen, to: "/assets" },
+          { label: "Check Budget", icon: DollarSign, to: "/budget" },
+        ]
+      : role === "Team Member"
+        ? [
+            { label: "My Tasks", icon: ListChecks, to: "/tasks" },
+            { label: "Calendar", icon: CalendarDays, to: "/calendar" },
+            { label: "Upload Asset", icon: Upload, to: "/assets" },
+          ]
+        : [
+            { label: "Download Report", icon: FileDown, to: "/dashboard" },
+            { label: "View Assets", icon: FolderOpen, to: "/assets" },
+            { label: "Campaigns", icon: LayoutGrid, to: "/campaigns" },
+          ];
+  return (
+    <SpotlightCard className="col-span-12 xl:col-span-4 p-5">
+      <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Quick Actions</div>
+      <div className="mt-1 text-sm font-semibold text-muted-foreground">{role}</div>
+      <div className="mt-4 flex flex-col gap-2">
+        {actions.map((a) => {
+          const inner = (
+            <span className="flex items-center gap-2.5">
+              <a.icon className="h-4 w-4 text-muted-foreground" />
+              <span>{a.label}</span>
+            </span>
+          );
+          const cls = "flex w-full items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-sm text-foreground/80 transition-colors hover:bg-white/[0.05] hover:text-white";
+          if (a.href) return (
+            <a key={a.label} href={a.href} target="_blank" rel="noopener noreferrer" className={cls}>
+              {inner}<ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/40" />
+            </a>
+          );
+          return (
+            <Link key={a.label} to={a.to!} className={cls}>
+              {inner}<ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/40" />
+            </Link>
+          );
+        })}
+      </div>
+    </SpotlightCard>
+  );
+}
+
 /* ── TAB: Overview ───────────────────────────────────────── */
 function OverviewTab() {
   return (
     <>
       <section className="mt-6 grid grid-cols-12 gap-4">
         {campaignKpis.map((k) => <KpiCard key={k.key} kpi={k} />)}
+        <QuickActionsCard />
       </section>
 
       <div className="mt-6"><Marquee items={activityFeed} /></div>
@@ -628,9 +681,9 @@ function PhaseTracker() {
             {rolloutPhases.map((p) => (
               <div key={p.name} className="relative">
                 <div className="flex flex-col items-start">
-                  <div className={`relative grid h-12 w-12 place-items-center rounded-full border-2 ${p.status === "complete" ? "border-[oklch(0.7_0.28_328)] bg-[oklch(0.7_0.28_328)]/20" : p.status === "active" ? "border-[oklch(0.85_0.18_200)] bg-[oklch(0.85_0.18_200)]/10" : "border-white/15 bg-white/[0.03]"}`}>
-                    {p.status === "complete" ? <CheckCircle2 className="h-5 w-5 text-[oklch(0.85_0.25_328)]" /> : <span className="font-mono text-xs text-foreground">{p.progress}%</span>}
-                    {p.status === "active" && <div className="absolute inset-0 rounded-full bg-[oklch(0.85_0.18_200)]/30 blur-md animate-pulse -z-10" />}
+                  <div className={`relative grid h-12 w-12 place-items-center rounded-full border-2 ${p.status === "Done" ? "border-[oklch(0.7_0.28_328)] bg-[oklch(0.7_0.28_328)]/20" : p.status === "Active" ? "border-[oklch(0.85_0.18_200)] bg-[oklch(0.85_0.18_200)]/10" : "border-white/15 bg-white/[0.03]"}`}>
+                    {p.status === "Done" ? <CheckCircle2 className="h-5 w-5 text-[oklch(0.85_0.25_328)]" /> : <span className="font-mono text-xs text-foreground">{p.progress}%</span>}
+                    {p.status === "Active" && <div className="absolute inset-0 rounded-full bg-[oklch(0.85_0.18_200)]/30 blur-md animate-pulse -z-10" />}
                   </div>
                   <div className="mt-3 text-sm font-semibold">{p.name}</div>
                   <div className="text-xs text-muted-foreground">{p.date}</div>

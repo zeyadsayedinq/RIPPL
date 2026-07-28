@@ -1582,14 +1582,14 @@ export const budget = {
 
 /* ── Live activity feed ─────────────────────────────────────── */
 export const activityFeed: string[] = [
-  "TikTok sound hit 3,847 video creations — 41% above forecast",
-  "Campaign brief sent to 12 new Wave 3 creators",
-  "Anghami Chart Entry: #4 in Egypt Top 40",
-  "Instagram Reels CPM down 18% — budget reallocation approved",
-  "YouTube lyric video crossed 1M views",
-  "Deal signed with @manar.edits (2.1M followers)",
-  "Soundcharts snapshot: +284 new TikTok creations today",
-  "Q2 recap deck shared with client — approved",
-  "X trending: #لطيفة reached 48K tweets in 24hrs",
-  "Budget checkpoint: 52% spent, on track for W6 wrap",
+  "3m ago — @soundcharts · TikTok sound hit 3,847 creations (+41% vs target)",
+  "18m ago — @zeyadsayedinq · brief sent to 12 Wave 3 creators · awaiting confirm",
+  "1h ago — Anghami Egypt · #4 in Top 40 · organic chart entry",
+  "2h ago — @metabusiness · Instagram Reels CPM −18% · budget reallocation approved",
+  "4h ago — YouTube · lyric video crossed 1M views milestone",
+  "6h ago — @manar.edits · deal signed · 2.1M followers confirmed",
+  "8h ago — @soundcharts · +284 new TikTok creations today · velocity up",
+  "11h ago — @zeyadsayedinq · Q2 recap deck approved by client",
+  "14h ago — X · #لطيفة trending · 48K tweets in 24hrs",
+  "1d ago — Budget checkpoint · 52% spent · on pace for W6 wrap",
 ];
